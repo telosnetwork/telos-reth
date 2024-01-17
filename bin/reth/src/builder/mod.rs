@@ -109,6 +109,9 @@ use tokio::{
 };
 use tracing::*;
 
+#[cfg(feature = "telos")]
+use crate::args::TelosArgs;
+
 /// The default prometheus recorder handle. We use a global static to ensure that it is only
 /// installed once.
 pub static PROMETHEUS_RECORDER_HANDLE: Lazy<PrometheusHandle> =
@@ -244,6 +247,10 @@ pub struct NodeConfig {
     /// Rollup related arguments
     #[cfg(feature = "optimism")]
     pub rollup: crate::args::RollupArgs,
+
+    /// Telos related arguments
+    #[cfg(feature = "telos")]
+    pub telos: TelosArgs,
 }
 
 impl NodeConfig {
@@ -266,6 +273,8 @@ impl NodeConfig {
             pruning: PruningArgs::default(),
             #[cfg(feature = "optimism")]
             rollup: crate::args::RollupArgs::default(),
+            #[cfg(feature = "telos")]
+            telos: TelosArgs::default()
         }
     }
 
@@ -369,6 +378,13 @@ impl NodeConfig {
     #[cfg(feature = "optimism")]
     pub fn with_rollup(mut self, rollup: crate::args::RollupArgs) -> Self {
         self.rollup = rollup;
+        self
+    }
+
+    /// Set the TelosNetworkConfig
+    #[cfg(feature = "telos")]
+    pub fn with_telos(mut self, telos: TelosArgs) -> Self {
+        self.telos = telos;
         self
     }
 
@@ -838,6 +854,10 @@ impl NodeConfig {
             .sequencer_endpoint(self.rollup.sequencer_http.clone())
             .disable_tx_gossip(self.rollup.disable_txpool_gossip);
 
+        #[cfg(feature = "telos")]
+        let cfg_builder = cfg_builder
+            .telos_config(self.telos.clone());
+
         cfg_builder.build(provider_factory)
     }
 
@@ -978,6 +998,8 @@ impl Default for NodeConfig {
             pruning: PruningArgs::default(),
             #[cfg(feature = "optimism")]
             rollup: crate::args::RollupArgs::default(),
+            #[cfg(feature = "telos")]
+            telos: TelosArgs::default()
         }
     }
 }

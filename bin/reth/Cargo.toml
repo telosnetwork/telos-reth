@@ -116,6 +116,11 @@ itertools.workspace = true
 rayon.workspace = true
 futures-util.workspace = true
 
+# telos
+reth-telos = { workspace = true, optional = true }
+antelope-client = { workspace = true, optional = true }
+
+
 [target.'cfg(not(windows))'.dependencies]
 jemallocator = { version = "0.5.0", optional = true }
 jemalloc-ctl = { version = "0.5.0", optional = true }
@@ -159,6 +164,13 @@ optimism = [
 
 # no-op feature flag for switching between the `optimism` and default functionality in CI matrices
 ethereum = []
+
+telos = [
+    "dep:antelope-client",
+    "dep:reth-telos",
+    "reth-rpc/telos",
+    "reth-network/telos",
+]
 
 [build-dependencies]
 vergen = { version = "8.0.0", features = ["build", "cargo", "git", "git2"] }

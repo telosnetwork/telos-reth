@@ -75,6 +75,9 @@ schnellru.workspace = true
 futures.workspace = true
 derive_more = "0.99"
 
+# telos
+reth-telos = { workspace = true, optional = true }
+
 [dev-dependencies]
 jsonrpsee = { workspace = true, features = ["client"] }
 assert_matches.workspace = true
@@ -89,4 +92,8 @@ optimism = [
     "reth-network-api/optimism",
     "reth-provider/optimism",
     "reth-transaction-pool/optimism",
+]
+
+telos = [
+    "dep:reth-telos",
 ]

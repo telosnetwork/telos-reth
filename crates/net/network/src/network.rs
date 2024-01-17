@@ -24,6 +24,9 @@ use std::{
 use tokio::sync::{mpsc, mpsc::UnboundedSender, oneshot};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
+#[cfg(feature = "telos")]
+use reth_telos::TelosArgs;
+
 /// A _shareable_ network frontend. Used to interact with the network.
 ///
 /// See also [`NetworkManager`](crate::NetworkManager).
@@ -50,6 +53,7 @@ impl NetworkHandle {
         chain_id: Arc<AtomicU64>,
         tx_gossip_disabled: bool,
         #[cfg(feature = "optimism")] sequencer_endpoint: Option<String>,
+        #[cfg(feature = "telos")] telos_config: TelosArgs,
     ) -> Self {
         let inner = NetworkInner {
             num_active_peers,
@@ -66,6 +70,8 @@ impl NetworkHandle {
             tx_gossip_disabled,
             #[cfg(feature = "optimism")]
             sequencer_endpoint,
+            #[cfg(feature = "telos")]
+            telos_config,
         };
         Self { inner: Arc::new(inner) }
     }
@@ -357,6 +363,9 @@ struct NetworkInner {
     /// The sequencer HTTP Endpoint
     #[cfg(feature = "optimism")]
     sequencer_endpoint: Option<String>,
+    /// The Telos Network Config
+    #[cfg(feature = "telos")]
+    telos_config: TelosArgs,
 }
 
 /// Provides event subscription for the network.

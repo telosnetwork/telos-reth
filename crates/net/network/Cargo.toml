@@ -69,6 +69,10 @@ schnellru.workspace = true
 enr = { workspace = true, features = ["rust-secp256k1"], optional = true }
 tempfile = { workspace = true, optional = true }
 
+# telos
+antelope-client = { workspace = true, optional = true }
+reth-telos = { workspace = true, optional = true }
+
 [dev-dependencies]
 # reth
 reth-discv4 = { workspace = true, features = ["test-utils"] }
@@ -110,6 +114,7 @@ optimism = [
     "reth-network-api/optimism",
     "reth-rpc-types/optimism",
 ]
+telos = ["dep:antelope-client", "dep:reth-telos"]
 
 [[bench]]
 name = "bench"
