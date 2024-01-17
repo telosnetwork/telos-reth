@@ -121,6 +121,11 @@ pub struct NodeCommand<Ext: RethCliExt = ()> {
     #[clap(flatten)]
     pub rollup: crate::args::RollupArgs,
 
+    /// Telos related arguments
+    #[cfg(feature = "telos")]
+    #[clap(flatten)]
+    pub telos: crate::args::TelosArgs,
+
     /// Additional cli arguments
     #[clap(flatten)]
     #[clap(next_help_heading = "Extension")]
@@ -148,6 +153,8 @@ impl<Ext: RethCliExt> NodeCommand<Ext> {
             pruning,
             #[cfg(feature = "optimism")]
             rollup,
+            #[cfg(feature = "telos")]
+            telos,
             ..
         } = self;
         NodeCommand {
@@ -168,6 +175,8 @@ impl<Ext: RethCliExt> NodeCommand<Ext> {
             pruning,
             #[cfg(feature = "optimism")]
             rollup,
+            #[cfg(feature = "telos")]
+            telos,
             ext,
         }
     }
@@ -192,6 +201,8 @@ impl<Ext: RethCliExt> NodeCommand<Ext> {
             pruning,
             #[cfg(feature = "optimism")]
             rollup,
+            #[cfg(feature = "telos")]
+            telos,
             ext,
         } = self;
 
@@ -216,6 +227,8 @@ impl<Ext: RethCliExt> NodeCommand<Ext> {
             pruning,
             #[cfg(feature = "optimism")]
             rollup,
+            #[cfg(feature = "telos")]
+            telos
         };
 
         if with_unused_ports {

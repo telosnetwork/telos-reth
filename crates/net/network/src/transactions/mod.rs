@@ -81,6 +81,10 @@ pub use config::{TransactionFetcherConfig, TransactionsManagerConfig};
 use constants::SOFT_LIMIT_COUNT_HASHES_IN_NEW_POOLED_TRANSACTIONS_BROADCAST_MESSAGE;
 pub(crate) use fetcher::{FetchEvent, TransactionFetcher};
 pub use validation::*;
+#[cfg(feature = "telos")]
+use reth_telos::{send_to_telos, TelosNetworkConfig};
+#[cfg(feature = "telos")]
+use antelope::{api::client::APIClient, chain::private_key::PrivateKey};
 
 pub use self::constants::{
     tx_fetcher::DEFAULT_SOFT_LIMIT_BYTE_SIZE_POOLED_TRANSACTIONS_RESP_ON_PACK_GET_POOLED_TRANSACTIONS_REQ,
@@ -265,6 +269,8 @@ pub struct TransactionsManager<Pool> {
     transaction_events: UnboundedMeteredReceiver<NetworkTransactionEvent>,
     /// TransactionsManager metrics
     metrics: TransactionsManagerMetrics,
+    #[cfg(feature = "telos")]
+    telos_network_config: TelosNetworkConfig,
 }
 
 impl<Pool: TransactionPool> TransactionsManager<Pool> {
@@ -320,6 +326,8 @@ impl<Pool: TransactionPool> TransactionsManager<Pool> {
                 NETWORK_POOL_TRANSACTIONS_SCOPE,
             ),
             metrics,
+            #[cfg(feature = "telos")]
+            telos_network_config: TelosNetworkConfig::default(),
         }
     }
 }
@@ -453,6 +461,14 @@ where
         if self.network.tx_gossip_disabled() {
             return propagated
         }
+
+        // TODO: Decide if we want to send to Telos before putting into pool (in EthApi) or after (here)
+        // #[cfg(feature = "telos")]
+        // send_to_telos(
+        //     &self.telos_network_config,
+        //     &to_propagate.iter().map(|&e| e.transaction).collect(),
+        // )
+        //     .unwrap_or("Failed to send_to_telos".into());
 
         // send full transactions to a fraction of the connected peers (square root of the total
         // number of connected peers)

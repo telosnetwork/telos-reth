@@ -23,6 +23,9 @@ use std::{collections::HashSet, net::SocketAddr, sync::Arc};
 use crate::protocol::{IntoRlpxSubProtocol, RlpxSubProtocols};
 pub use secp256k1::SecretKey;
 
+#[cfg(feature = "telos")]
+use reth_telos::TelosArgs;
+
 /// Convenience function to create a new random [`SecretKey`]
 pub fn rng_secret_key() -> SecretKey {
     SecretKey::new(&mut rand::thread_rng())
@@ -80,6 +83,8 @@ pub struct NetworkConfig<C> {
     /// Optimism Network Config
     #[cfg(feature = "optimism")]
     pub optimism_network_config: OptimismNetworkConfig,
+    #[cfg(feature = "telos")]
+    pub telos_config: TelosArgs,
 }
 
 /// Optimism Network Config
@@ -179,6 +184,9 @@ pub struct NetworkConfigBuilder {
     /// Optimism Network Config Builder
     #[cfg(feature = "optimism")]
     optimism_network_config: OptimismNetworkConfigBuilder,
+    /// Telos Network Config
+    #[cfg(feature = "telos")]
+    telos_config: TelosArgs,
 }
 
 /// Optimism Network Config Builder
@@ -215,6 +223,8 @@ impl NetworkConfigBuilder {
             #[cfg(feature = "optimism")]
             optimism_network_config: OptimismNetworkConfigBuilder::default(),
             transactions_manager_config: Default::default(),
+            #[cfg(feature = "telos")]
+            telos_config: TelosArgs::default()
         }
     }
 
@@ -431,6 +441,13 @@ impl NetworkConfigBuilder {
         self.build(reth_provider::test_utils::NoopProvider::default())
     }
 
+    /// Sets the TelosArgs
+    #[cfg(feature = "telos")]
+    pub fn telos_config(mut self, config: TelosArgs) -> Self {
+        self.telos_config = config;
+        self
+    }
+
     /// Consumes the type and creates the actual [`NetworkConfig`]
     /// for the given client type that can interact with the chain.
     ///
@@ -459,6 +476,8 @@ impl NetworkConfigBuilder {
             #[cfg(feature = "optimism")]
                 optimism_network_config: OptimismNetworkConfigBuilder { sequencer_endpoint },
             transactions_manager_config,
+            #[cfg(feature = "telos")]
+            telos_config,
         } = self;
 
         let listener_addr = listener_addr.unwrap_or(DEFAULT_DISCOVERY_ADDRESS);
@@ -514,6 +533,8 @@ impl NetworkConfigBuilder {
             #[cfg(feature = "optimism")]
             optimism_network_config: OptimismNetworkConfig { sequencer_endpoint },
             transactions_manager_config,
+            #[cfg(feature = "telos")]
+            telos_config
         }
     }
 }

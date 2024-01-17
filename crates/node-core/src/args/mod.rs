@@ -57,6 +57,9 @@ mod rollup_args;
 #[cfg(feature = "optimism")]
 pub use rollup_args::RollupArgs;
 
+#[cfg(feature = "telos")]
+pub use reth_telos::TelosArgs;
+
 pub mod utils;
 
 pub mod types;

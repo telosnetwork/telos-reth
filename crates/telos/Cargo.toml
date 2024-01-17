@@ -1,0 +1,19 @@
+[package]
+name = "reth-telos"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[dependencies]
+clap = { workspace = true, features = ["derive"] }
+reth-primitives.workspace = true
+antelope-client.workspace = true
+serde = { version = "1.0.195", features = ["derive"] }
+
+
+[lints]
+workspace = true
