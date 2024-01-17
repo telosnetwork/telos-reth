@@ -276,7 +276,7 @@ test-fuzz = "5"
 
 # telos
 reth-telos = { path = "crates/telos" }
-antelope-client = "0.1.3"
+antelope-client = "0.1.4"
 
 [workspace.metadata.cargo-udeps.ignore]
 # ignored because this is mutually exclusive with the optimism payload builder via feature flags
