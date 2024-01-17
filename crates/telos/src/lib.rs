@@ -70,7 +70,7 @@ impl GasPriceCache {
         GasPriceCache { api_client, gas_cache_duration, value: None }
     }
 
-    fn load_value(&self) -> U256 {
+    async fn load_value(&self) -> U256 {
         let table_rows_params = GetTableRowsParams {
             code: name!("eosio.evm"),
             table: name!("config"),
@@ -83,27 +83,27 @@ impl GasPriceCache {
             show_payer: None,
         };
         let config_result =
-            self.api_client.v1_chain.get_table_rows::<TelosEVMConfig>(table_rows_params).unwrap();
+            self.api_client.v1_chain.get_table_rows::<TelosEVMConfig>(table_rows_params).await.unwrap();
 
         return U256::from_be_slice(&config_result.rows[0].gas_price.data);
     }
 
-    pub fn get(&mut self) -> &U256 {
+    pub async fn get(&mut self) -> &U256 {
         let now = Instant::now();
         if self.value.as_ref().map_or(true, |&(_, ref expiry)| *expiry <= now) {
             let new_val = self.load_value(); // Call the hardcoded loader function
-            self.value = Some((new_val, now + self.gas_cache_duration));
+            self.value = Some((new_val.await, now + self.gas_cache_duration));
         }
         &self.value.as_ref().unwrap().0
     }
 }
 
-pub fn send_to_telos(
+pub async fn send_to_telos(
     network_config: &TelosNetworkConfig,
     trxs: &Vec<TransactionSigned>,
 ) -> Result<String, String> {
-    let get_info = network_config.api_client.v1_chain.get_info().unwrap();
-    let trxs_results = trxs.iter().map(|trx| -> String {
+    let get_info = network_config.api_client.v1_chain.get_info().await.unwrap();
+    for trx in trxs {
         let mut trx_bytes = Vec::new();
         trx.encode_enveloped(&mut trx_bytes);
         let trx_header = get_info.get_transaction_header(90);
@@ -142,7 +142,7 @@ pub fn send_to_telos(
 
         let result = network_config.api_client.v1_chain.send_transaction(signed_telos_transaction);
 
-        result.unwrap().transaction_id
-    });
+        result.await.unwrap().transaction_id;
+    }
     Ok("Good".into())
 }
