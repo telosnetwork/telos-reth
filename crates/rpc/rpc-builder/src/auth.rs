@@ -74,6 +74,10 @@ where
 
     let fee_history_cache =
         FeeHistoryCache::new(eth_cache.clone(), FeeHistoryCacheConfig::default());
+
+    #[cfg(feature = "telos")]
+    let telos_config = network.telos_config().clone();
+
     let eth_api = EthApi::with_spawner(
         provider.clone(),
         pool.clone(),
@@ -85,6 +89,8 @@ where
         BlockingTaskPool::build().expect("failed to build tracing pool"),
         fee_history_cache,
         evm_config,
+        #[cfg(feature = "telos")]
+        telos_config
     );
     let config = EthFilterConfig::default()
         .max_logs_per_response(DEFAULT_MAX_LOGS_PER_RESPONSE)

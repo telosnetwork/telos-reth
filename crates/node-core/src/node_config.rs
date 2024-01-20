@@ -78,6 +78,8 @@ use tokio::sync::{
     watch,
 };
 use tracing::*;
+#[cfg(feature = "telos")]
+use reth_telos::TelosConfig;
 
 #[cfg(feature = "telos")]
 use crate::args::TelosArgs;
@@ -796,7 +798,7 @@ impl NodeConfig {
 
         #[cfg(feature = "telos")]
         let cfg_builder = cfg_builder
-            .telos_config(self.telos.clone());
+            .telos_config(TelosConfig::from(self.telos.clone()));
 
         cfg_builder.build(client)
     }

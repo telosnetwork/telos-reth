@@ -86,6 +86,7 @@ lazy_static = "*"
 
 # telos
 reth-telos = { workspace = true, optional = true }
+antelope-client = { workspace = true, optional = true }
 
 [dev-dependencies]
 jsonrpsee = { workspace = true, features = ["client"] }
@@ -108,5 +109,6 @@ optimism = [
 
 telos = [
     "dep:reth-telos",
+    "dep:antelope-client",
     "reth-rpc-types-compat/telos",
 ]

@@ -14,6 +14,9 @@ use reth_primitives::{NodeRecord, PeerId};
 use reth_rpc_types::{EthProtocolInfo, NetworkStatus};
 use std::net::{IpAddr, SocketAddr};
 
+#[cfg(feature = "telos")]
+use reth_telos::{TelosArgs, TelosConfig};
+
 /// A type that implements all network trait that does nothing.
 ///
 /// Intended for testing purposes where network is not used.
@@ -54,6 +57,11 @@ impl NetworkInfo for NoopNetwork {
     #[cfg(feature = "optimism")]
     fn sequencer_endpoint(&self) -> Option<&str> {
         None
+    }
+
+    #[cfg(feature = "telos")]
+    fn telos_config(&self) -> TelosConfig {
+        TelosArgs::default().into()
     }
 }
 

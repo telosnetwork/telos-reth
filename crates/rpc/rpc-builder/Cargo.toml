@@ -38,6 +38,10 @@ serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 tracing.workspace = true
 
+# telos
+antelope-client = { workspace = true, optional = true }
+reth-telos = { workspace = true, optional = true }
+
 [dev-dependencies]
 reth-beacon-consensus.workspace = true
 reth-interfaces = { workspace = true, features = ["test-utils"] }
@@ -55,3 +59,9 @@ reth-transaction-pool = { workspace = true, features = ["test-utils"] }
 
 tokio = { workspace = true, features = ["rt", "rt-multi-thread"] }
 serde_json.workspace = true
+
+[features]
+telos = [
+    "dep:antelope-client",
+    "dep:reth-telos"
+]

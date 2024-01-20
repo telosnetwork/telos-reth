@@ -25,7 +25,7 @@ use tokio::sync::{mpsc, mpsc::UnboundedSender, oneshot};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 #[cfg(feature = "telos")]
-use reth_telos::TelosArgs;
+use reth_telos::TelosConfig;
 
 /// A _shareable_ network frontend. Used to interact with the network.
 ///
@@ -53,7 +53,7 @@ impl NetworkHandle {
         chain_id: Arc<AtomicU64>,
         tx_gossip_disabled: bool,
         #[cfg(feature = "optimism")] sequencer_endpoint: Option<String>,
-        #[cfg(feature = "telos")] telos_config: TelosArgs,
+        #[cfg(feature = "telos")] telos_config: TelosConfig,
     ) -> Self {
         let inner = NetworkInner {
             num_active_peers,
@@ -329,6 +329,11 @@ impl NetworkInfo for NetworkHandle {
     fn sequencer_endpoint(&self) -> Option<&str> {
         self.inner.sequencer_endpoint.as_deref()
     }
+
+    #[cfg(feature = "telos")]
+    fn telos_config(&self) -> TelosConfig {
+        self.inner.telos_config.clone()
+    }
 }
 
 impl SyncStateProvider for NetworkHandle {
@@ -389,9 +394,9 @@ struct NetworkInner {
     /// The sequencer HTTP Endpoint
     #[cfg(feature = "optimism")]
     sequencer_endpoint: Option<String>,
-    /// The Telos Network Config
+    /// The Telos Config
     #[cfg(feature = "telos")]
-    telos_config: TelosArgs,
+    telos_config: TelosConfig,
 }
 
 /// Provides event subscription for the network.

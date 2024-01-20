@@ -27,11 +27,15 @@ where
     ///
     /// See also: <https://github.com/ethereum/pm/issues/328#issuecomment-853234014>
     pub(crate) async fn gas_price(&self) -> EthResult<U256> {
+        #[cfg(feature = "telos")]
+        return Ok(self.inner.telos_gas_cache.get().await);
+        #[cfg(not(feature = "telos"))] {
         let header = self.block(BlockNumberOrTag::Latest);
         let suggested_tip = self.suggested_priority_fee();
         let (header, suggested_tip) = futures::try_join!(header, suggested_tip)?;
         let base_fee = header.and_then(|h| h.base_fee_per_gas).unwrap_or_default();
         Ok(suggested_tip + U256::from(base_fee))
+        }
     }
 
     /// Returns a suggestion for a base fee for blob transactions.

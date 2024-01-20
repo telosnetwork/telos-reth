@@ -179,6 +179,7 @@ telos = [
     "dep:reth-telos",
     "reth-blockchain-tree/telos",
     "reth-interfaces/telos",
+    "reth-rpc-builder/telos",
     "reth-rpc/telos",
     "reth-network/telos",
     "reth-node-core/telos",

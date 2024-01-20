@@ -26,7 +26,13 @@ async-trait.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["sync"] }
 
+# telos
+reth-telos = { workspace = true, optional = true }
+
 [features]
 default = ["serde"]
 serde = ["dep:serde"]
 optimism = []
+telos = [
+    "dep:reth-telos"
+]

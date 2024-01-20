@@ -82,8 +82,6 @@ use constants::SOFT_LIMIT_COUNT_HASHES_IN_NEW_POOLED_TRANSACTIONS_BROADCAST_MESS
 pub(crate) use fetcher::{FetchEvent, TransactionFetcher};
 pub use validation::*;
 #[cfg(feature = "telos")]
-use reth_telos::{send_to_telos, TelosNetworkConfig};
-#[cfg(feature = "telos")]
 use antelope::{api::client::APIClient, chain::private_key::PrivateKey};
 
 pub use self::constants::{
@@ -269,8 +267,6 @@ pub struct TransactionsManager<Pool> {
     transaction_events: UnboundedMeteredReceiver<NetworkTransactionEvent>,
     /// TransactionsManager metrics
     metrics: TransactionsManagerMetrics,
-    #[cfg(feature = "telos")]
-    telos_network_config: TelosNetworkConfig,
 }
 
 impl<Pool: TransactionPool> TransactionsManager<Pool> {
@@ -326,8 +322,6 @@ impl<Pool: TransactionPool> TransactionsManager<Pool> {
                 NETWORK_POOL_TRANSACTIONS_SCOPE,
             ),
             metrics,
-            #[cfg(feature = "telos")]
-            telos_network_config: TelosNetworkConfig::default(),
         }
     }
 }

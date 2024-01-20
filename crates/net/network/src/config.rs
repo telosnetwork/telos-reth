@@ -28,7 +28,7 @@ use crate::protocol::{IntoRlpxSubProtocol, RlpxSubProtocols};
 pub use secp256k1::SecretKey;
 
 #[cfg(feature = "telos")]
-use reth_telos::TelosArgs;
+use reth_telos::TelosConfig;
 
 /// Convenience function to create a new random [`SecretKey`]
 pub fn rng_secret_key() -> SecretKey {
@@ -88,7 +88,7 @@ pub struct NetworkConfig<C> {
     #[cfg(feature = "optimism")]
     pub optimism_network_config: OptimismNetworkConfig,
     #[cfg(feature = "telos")]
-    pub telos_config: TelosArgs,
+    pub telos_config: TelosConfig,
 }
 
 /// Optimism Network Config
@@ -188,9 +188,9 @@ pub struct NetworkConfigBuilder {
     /// Optimism Network Config Builder
     #[cfg(feature = "optimism")]
     optimism_network_config: OptimismNetworkConfigBuilder,
-    /// Telos Network Config
+    /// Telos Config
     #[cfg(feature = "telos")]
-    telos_config: TelosArgs,
+    telos_config: TelosConfig,
 }
 
 /// Optimism Network Config Builder
@@ -228,7 +228,7 @@ impl NetworkConfigBuilder {
             optimism_network_config: OptimismNetworkConfigBuilder::default(),
             transactions_manager_config: Default::default(),
             #[cfg(feature = "telos")]
-            telos_config: TelosArgs::default()
+            telos_config: TelosConfig::default()
         }
     }
 
@@ -459,7 +459,7 @@ impl NetworkConfigBuilder {
 
     /// Sets the TelosArgs
     #[cfg(feature = "telos")]
-    pub fn telos_config(mut self, config: TelosArgs) -> Self {
+    pub fn telos_config(mut self, config: TelosConfig) -> Self {
         self.telos_config = config;
         self
     }

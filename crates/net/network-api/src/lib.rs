@@ -18,6 +18,9 @@ use reth_primitives::{NodeRecord, PeerId};
 use reth_rpc_types::NetworkStatus;
 use std::{future::Future, net::SocketAddr, sync::Arc, time::Instant};
 
+#[cfg(feature = "telos")]
+use reth_telos::TelosConfig;
+
 pub use error::NetworkError;
 pub use reputation::{Reputation, ReputationChangeKind};
 use reth_eth_wire::capability::Capabilities;
@@ -50,6 +53,10 @@ pub trait NetworkInfo: Send + Sync {
     /// Returns the sequencer HTTP endpoint, if set.
     #[cfg(feature = "optimism")]
     fn sequencer_endpoint(&self) -> Option<&str>;
+
+    /// Returns TelosConfig
+    #[cfg(feature = "telos")]
+    fn telos_config(&self) -> TelosConfig;
 }
 
 /// Provides general purpose information about Peers in the network.

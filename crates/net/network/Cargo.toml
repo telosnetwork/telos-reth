@@ -116,7 +116,7 @@ optimism = [
     "reth-network-api/optimism",
     "reth-rpc-types/optimism",
 ]
-telos = ["dep:antelope-client", "dep:reth-telos"]
+telos = ["dep:antelope-client", "dep:reth-telos", "reth-network-api/telos"]
 
 [[bench]]
 name = "bench"

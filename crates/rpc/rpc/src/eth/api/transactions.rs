@@ -58,7 +58,12 @@ use reth_revm::optimism::RethL1BlockInfo;
 use reth_rpc_types::OptimismTransactionReceiptFields;
 #[cfg(feature = "optimism")]
 use revm::L1BlockInfo;
-
+#[cfg(feature = "telos")]
+use reth_telos::send_trx_to_telos;
+#[cfg(feature = "telos")]
+use reth_telos::TelosConfig::Validator;
+#[cfg(feature = "telos")]
+use reth_telos::{TelosConfig, TelosValidatorConfig};
 /// Helper alias type for the state's [CacheDB]
 pub(crate) type StateCacheDB = CacheDB<StateProviderDatabase<StateProviderBox>>;
 
@@ -564,6 +569,9 @@ where
         // blocks that it builds.
         #[cfg(feature = "optimism")]
         self.forward_to_sequencer(&tx).await?;
+
+        #[cfg(feature = "telos")]
+        self.forward_to_telos(&tx).await?;
 
         let recovered = recover_raw_transaction(tx)?;
         let pool_transaction = <Pool::Transaction>::from_recovered_pooled_transaction(recovered);
@@ -1234,6 +1242,18 @@ where
                 .send()
                 .await
                 .map_err(|err| EthApiError::Optimism(OptimismEthApiError::HttpError(err)))?;
+        }
+        Ok(())
+    }
+
+    #[cfg(feature = "telos")]
+    pub async fn forward_to_telos(&self, tx: &Bytes) -> EthResult<()> {
+        println!("0x{}", reth_primitives::alloy_primitives::hex::encode(&tx));
+        match &self.inner.telos_config {
+            Validator(validator_config) => {
+                let trx_id = send_trx_to_telos(validator_config, &self.inner.api_client, tx.to_vec(), None).await;
+            }
+            TelosConfig::LightNode => {}
         }
         Ok(())
     }

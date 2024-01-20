@@ -1325,6 +1325,8 @@ where
             blocking_task_pool.clone(),
             fee_history_cache,
             self.evm_config.clone(),
+            #[cfg(feature = "telos")]
+            self.network.telos_config().clone()
         );
         let filter = EthFilter::new(
             self.provider.clone(),

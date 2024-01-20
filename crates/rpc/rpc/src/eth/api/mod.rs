@@ -38,6 +38,11 @@ use std::{
 
 use tokio::sync::{oneshot, Mutex};
 
+#[cfg(feature = "telos")]
+use antelope::api::client::{APIClient, DefaultProvider};
+#[cfg(feature = "telos")]
+use reth_telos::{GasPriceCache, TelosArgs, TelosConfig};
+
 mod block;
 mod call;
 pub(crate) mod fee_history;
@@ -106,6 +111,8 @@ where
         blocking_task_pool: BlockingTaskPool,
         fee_history_cache: FeeHistoryCache,
         evm_config: EvmConfig,
+        #[cfg(feature = "telos")]
+        telos_config: TelosConfig
     ) -> Self {
         Self::with_spawner(
             provider,
@@ -118,6 +125,8 @@ where
             blocking_task_pool,
             fee_history_cache,
             evm_config,
+            #[cfg(feature = "telos")]
+            telos_config,
         )
     }
 
@@ -134,6 +143,8 @@ where
         blocking_task_pool: BlockingTaskPool,
         fee_history_cache: FeeHistoryCache,
         evm_config: EvmConfig,
+        #[cfg(feature = "telos")]
+        telos_config: TelosConfig
     ) -> Self {
         // get the block number of the latest block
         let latest_block = provider
@@ -142,6 +153,20 @@ where
             .flatten()
             .map(|header| header.number)
             .unwrap_or_default();
+
+        #[cfg(feature = "telos")]
+        let telos_validator_config = match telos_config {
+            TelosConfig::Validator(ref cfg) => { cfg }
+            TelosConfig::LightNode => { unreachable!() }
+        };
+
+        #[cfg(feature = "telos")]
+        let api_client = APIClient::<DefaultProvider>::default_provider(
+                telos_validator_config.telos_endpoint.clone()
+            ).unwrap();
+        
+        #[cfg(feature = "telos")]
+        let telos_gas_cache = GasPriceCache::new(api_client.clone(), Duration::from_secs(telos_validator_config.gas_cache_seconds as u64));
 
         let inner = EthApiInner {
             provider,
@@ -159,6 +184,12 @@ where
             evm_config,
             #[cfg(feature = "optimism")]
             http_client: reqwest::Client::builder().use_rustls_tls().build().unwrap(),
+            #[cfg(feature = "telos")]
+            api_client,
+            #[cfg(feature = "telos")]
+            telos_gas_cache,
+            #[cfg(feature = "telos")]
+            telos_config,
         };
 
         Self { inner: Arc::new(inner) }
@@ -494,4 +525,10 @@ struct EthApiInner<Provider, Pool, Network, EvmConfig> {
     /// An http client for communicating with sequencers.
     #[cfg(feature = "optimism")]
     http_client: reqwest::Client,
+    #[cfg(feature = "telos")]
+    telos_config: TelosConfig,
+    #[cfg(feature = "telos")]
+    api_client: APIClient<DefaultProvider>,
+    #[cfg(feature = "telos")]
+    telos_gas_cache: GasPriceCache,
 }
