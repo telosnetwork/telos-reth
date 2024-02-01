@@ -170,6 +170,7 @@ telos = [
     "dep:reth-telos",
     "reth-rpc/telos",
     "reth-network/telos",
+    "reth-primitives/telos",
 ]
 
 [build-dependencies]

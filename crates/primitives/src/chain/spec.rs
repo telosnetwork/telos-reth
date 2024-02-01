@@ -10,6 +10,8 @@ use crate::{
     Address, BlockNumber, ForkFilter, ForkFilterKey, ForkHash, ForkId, Genesis, Hardfork, Head,
     Header, NodeRecord, SealedHeader, B256, EMPTY_OMMER_ROOT_HASH, U256,
 };
+#[cfg(feature = "telos")]
+use crate::net::{tevmmainnet_nodes, tevmtestnet_nodes};
 use alloy_chains::{Chain, NamedChain};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
@@ -159,6 +161,62 @@ pub static SEPOLIA: Lazy<Arc<ChainSpec>> = Lazy::new(|| {
         base_fee_params: BaseFeeParamsKind::Constant(BaseFeeParams::ethereum()),
         prune_delete_limit: 1700,
         snapshot_block_interval: 1_000_000,
+    }
+    .into()
+});
+
+#[cfg(feature = "telos")]
+/// The Tevmmainnet spec
+pub static TEVMMAINNET: Lazy<Arc<ChainSpec>> = Lazy::new(|| {
+    ChainSpec {
+        chain: Chain::from_id(40),
+        genesis: serde_json::from_str(include_str!("../../res/genesis/tevmmainnet.json"))
+            .expect("Can't deserialize Tevmmainnet genesis json"),
+        genesis_hash: Some(b256!(
+            "13f28fe4d164354cbcb0b9d8d43dff5d8e4b180e440579a55505a5fc96831c6b"
+        )),
+        hardforks: BTreeMap::from([
+            (Hardfork::Frontier, ForkCondition::Block(0)),
+            (Hardfork::Homestead, ForkCondition::Block(0)),
+            (Hardfork::Dao, ForkCondition::Block(0)),
+            (Hardfork::Tangerine, ForkCondition::Block(0)),
+            (Hardfork::SpuriousDragon, ForkCondition::Block(0)),
+            (Hardfork::Byzantium, ForkCondition::Block(0)),
+            (Hardfork::Constantinople, ForkCondition::Block(0)),
+            (Hardfork::Petersburg, ForkCondition::Block(0)),
+            (Hardfork::Istanbul, ForkCondition::Block(0)),
+            (Hardfork::MuirGlacier, ForkCondition::Block(0)),
+            (Hardfork::Berlin, ForkCondition::Block(0)),
+        ]),
+        ..Default::default()
+    }
+    .into()
+});
+
+#[cfg(feature = "telos")]
+/// The Tevmtestnet spec
+pub static TEVMTESTNET: Lazy<Arc<ChainSpec>> = Lazy::new(|| {
+    ChainSpec {
+        chain: Chain::from_id(41),
+        genesis: serde_json::from_str(include_str!("../../res/genesis/tevmtestnet.json"))
+            .expect("Can't deserialize Tevmtestnet genesis json"),
+        genesis_hash: Some(b256!(
+            "f5488543e19d3441f652d76cbd52014f9807d0f09bfa25422568b1cf3e30da1a"
+        )),
+        hardforks: BTreeMap::from([
+            (Hardfork::Frontier, ForkCondition::Block(0)),
+            (Hardfork::Homestead, ForkCondition::Block(0)),
+            (Hardfork::Dao, ForkCondition::Block(0)),
+            (Hardfork::Tangerine, ForkCondition::Block(0)),
+            (Hardfork::SpuriousDragon, ForkCondition::Block(0)),
+            (Hardfork::Byzantium, ForkCondition::Block(0)),
+            (Hardfork::Constantinople, ForkCondition::Block(0)),
+            (Hardfork::Petersburg, ForkCondition::Block(0)),
+            (Hardfork::Istanbul, ForkCondition::Block(0)),
+            (Hardfork::MuirGlacier, ForkCondition::Block(0)),
+            (Hardfork::Berlin, ForkCondition::Block(0)),
+        ]),
+        ..Default::default()
     }
     .into()
 });
@@ -968,6 +1026,14 @@ impl ChainSpec {
     pub fn bootnodes(&self) -> Option<Vec<NodeRecord>> {
         use NamedChain as C;
         let chain = self.chain;
+        #[cfg(feature = "telos")]
+        if chain == 40 {
+            Some(tevmmainnet_nodes());
+        }
+        #[cfg(feature = "telos")]
+        if chain == 41 {
+            Some(tevmtestnet_nodes());
+        }
         match chain.try_into().ok()? {
             C::Mainnet => Some(mainnet_nodes()),
             C::Goerli => Some(goerli_nodes()),
@@ -1625,6 +1691,8 @@ mod tests {
         b256, hex, trie::TrieAccount, ChainConfig, GenesisAccount, B256, DEV, GOERLI, HOLESKY,
         MAINNET, SEPOLIA, U256,
     };
+    #[cfg(feature = "telos")]
+    use crate::{TEVMMAINNET, TEVMTESTNET};
     use alloy_chains::NamedChain;
     use alloy_rlp::Encodable;
     use bytes::BytesMut;
@@ -2283,6 +2351,26 @@ Post-merge hard forks (timestamp based):
                     Head { number: 1735372, timestamp: 1706655072, ..Default::default() },
                     ForkId { hash: ForkHash([0x88, 0xcf, 0x81, 0xd9]), next: 0 },
                 ),
+            ],
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "telos")]
+    fn tevmmainnet_forkids() {
+        test_fork_ids(
+            &TEVMMAINNET,
+            &[
+            ],
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "telos")]
+    fn tevmtestnet_forkids() {
+        test_fork_ids(
+            &TEVMTESTNET,
+            &[
             ],
         );
     }

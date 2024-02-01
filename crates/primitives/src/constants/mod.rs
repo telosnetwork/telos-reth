@@ -130,6 +130,16 @@ pub const GOERLI_GENESIS_HASH: B256 =
 pub const SEPOLIA_GENESIS_HASH: B256 =
     b256!("25a5cc106eea7138acab33231d7160d69cb777ee0c2c553fcddf5138993e6dd9");
 
+#[cfg(feature = "telos")]
+/// Tevmmainnet genesis hash.
+pub const TEVMMAINNET_GENESIS_HASH: B256 =
+    b256!("13f28fe4d164354cbcb0b9d8d43dff5d8e4b180e440579a55505a5fc96831c6b");
+
+#[cfg(feature = "telos")]
+/// Tevmtestnet genesis hash.
+pub const TEVMTESTNET_GENESIS_HASH: B256 =
+    b256!("f5488543e19d3441f652d76cbd52014f9807d0f09bfa25422568b1cf3e30da1a");
+
 /// Holesky genesis hash.
 pub const HOLESKY_GENESIS_HASH: B256 =
     b256!("ff9006519a8ce843ac9c28549d24211420b546e12ce2d170c77a8cca7964f23d");

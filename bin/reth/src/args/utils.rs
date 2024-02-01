@@ -15,12 +15,20 @@ use reth_primitives::{BASE_GOERLI, BASE_MAINNET, BASE_SEPOLIA};
 #[cfg(not(feature = "optimism"))]
 use reth_primitives::{DEV, GOERLI, HOLESKY, MAINNET, SEPOLIA};
 
+#[cfg(feature = "telos")]
+use reth_primitives::{TEVMMAINNET, TEVMTESTNET};
+
+#[cfg(not(feature = "telos"))]
 #[cfg(feature = "optimism")]
 /// Chains supported by op-reth. First value should be used as the default.
 pub const SUPPORTED_CHAINS: &[&str] = &["base", "base-goerli", "base-sepolia"];
+#[cfg(not(feature = "telos"))]
 #[cfg(not(feature = "optimism"))]
 /// Chains supported by reth. First value should be used as the default.
 pub const SUPPORTED_CHAINS: &[&str] = &["mainnet", "sepolia", "goerli", "holesky", "dev"];
+#[cfg(feature = "telos")]
+/// Chains supported by telos-reth
+pub const SUPPORTED_CHAINS: &[&str] = &["tevmmainnet", "tevmtestnet"];
 
 /// Helper to parse a [Duration] from seconds
 pub fn parse_duration_from_secs(arg: &str) -> eyre::Result<Duration, std::num::ParseIntError> {
@@ -38,6 +46,10 @@ pub fn chain_spec_value_parser(s: &str) -> eyre::Result<Arc<ChainSpec>, eyre::Er
         "goerli" => GOERLI.clone(),
         #[cfg(not(feature = "optimism"))]
         "sepolia" => SEPOLIA.clone(),
+        #[cfg(feature = "telos")]
+        "tevmmainnet" => TEVMMAINNET.clone(),
+        #[cfg(feature = "telos")]
+        "tevmtestnet" => TEVMTESTNET.clone(),
         #[cfg(not(feature = "optimism"))]
         "holesky" => HOLESKY.clone(),
         #[cfg(not(feature = "optimism"))]
@@ -73,6 +85,10 @@ pub fn genesis_value_parser(s: &str) -> eyre::Result<Arc<ChainSpec>, eyre::Error
         "goerli" => GOERLI.clone(),
         #[cfg(not(feature = "optimism"))]
         "sepolia" => SEPOLIA.clone(),
+        #[cfg(feature = "telos")]
+        "tevmmainnet" => TEVMMAINNET.clone(),
+        #[cfg(feature = "telos")]
+        "tevmtestnet" => TEVMTESTNET.clone(),
         #[cfg(not(feature = "optimism"))]
         "holesky" => HOLESKY.clone(),
         #[cfg(not(feature = "optimism"))]

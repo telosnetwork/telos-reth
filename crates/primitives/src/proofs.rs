@@ -271,6 +271,8 @@ mod tests {
         Address, Block, GenesisAccount, Log, Receipt, ReceiptWithBloom, TxType, B256, GOERLI,
         HOLESKY, MAINNET, SEPOLIA, U256,
     };
+    #[cfg(feature = "telos")]
+    use crate::{TEVMMAINNET, TEVMTESTNET};
     use alloy_primitives::b256;
     use alloy_rlp::Decodable;
     use std::collections::HashMap;
@@ -660,6 +662,26 @@ mod tests {
             expected_sepolia_state_root, calculated_sepolia_state_root,
             "sepolia state root mismatch"
         );
+
+        #[cfg(feature = "telos")] {
+        let expected_tevmmainnet_state_root =
+            b256!("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421");
+        let calculated_tevmmainnet_state_root = state_root_ref_unhashed(&TEVMMAINNET.genesis.alloc);
+        assert_eq!(
+            expected_tevmmainnet_state_root, calculated_tevmmainnet_state_root,
+            "tevmmainnet state root mismatch"
+        );
+        }
+
+        #[cfg(feature = "telos")] {
+        let expected_tevmtestnet_state_root =
+        b256!("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421");
+        let calculated_tevmtestnet_state_root = state_root_ref_unhashed(&TEVMTESTNET.genesis.alloc);
+        assert_eq!(
+            expected_tevmtestnet_state_root, calculated_tevmtestnet_state_root,
+            "tevmtestnet state root mismatch"
+        );
+        }
 
         let expected_holesky_state_root =
             b256!("69d8c9d72f6fa4ad42d4702b433707212f90db395eb54dc20bc85de253788783");
