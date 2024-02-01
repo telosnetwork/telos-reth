@@ -5,6 +5,8 @@ pub use spec::{
     DisplayHardforks, ForkBaseFeeParams, ForkCondition, ForkTimestamps, DEV, GOERLI, HOLESKY,
     MAINNET, SEPOLIA,
 };
+#[cfg(feature = "telos")]
+pub use spec::{TEVMMAINNET, TEVMTESTNET};
 #[cfg(feature = "optimism")]
 pub use spec::{BASE_GOERLI, BASE_MAINNET, BASE_SEPOLIA, OP_GOERLI};
 

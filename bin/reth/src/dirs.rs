@@ -380,5 +380,17 @@ mod tests {
         let path = MaybePlatformPath::<DataDirPath>::default();
         let path = path.unwrap_or_chain_default(Chain::sepolia());
         assert!(path.as_ref().ends_with("reth/sepolia"), "{:?}", path);
+
+        #[cfg(feature = "telos")] {
+        let path = MaybePlatformPath::<DataDirPath>::default();
+        let path = path.unwrap_or_chain_default(Chain::from_id(40));
+        assert!(path.as_ref().ends_with("reth/tevmmainnet"), "{:?}", path);
+        }
+
+        #[cfg(feature = "telos")] {
+        let path = MaybePlatformPath::<DataDirPath>::default();
+        let path = path.unwrap_or_chain_default(Chain::from_id(41));
+        assert!(path.as_ref().ends_with("reth/tevmtestnet"), "{:?}", path);
+        }
     }
 }
