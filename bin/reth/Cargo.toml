@@ -180,6 +180,7 @@ telos = [
     "reth-rpc/telos",
     "reth-network/telos",
     "reth-node-core/telos",
+    "reth-primitives/telos",
 ]
 
 [[bin]]

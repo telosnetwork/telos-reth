@@ -19,6 +19,14 @@ pub static SEPOLIA_BOOTNODES : [&str; 5] = [
 	"enode://9e9492e2e8836114cc75f5b929784f4f46c324ad01daf87d956f98b3b6c5fcba95524d6e5cf9861dc96a2c8a171ea7105bb554a197455058de185fa870970c7c@138.68.123.152:30303", // sepolia-bootnode-1-ams3
 ];
 
+#[cfg(feature = "telos")]
+/// Ethereum Foundation TEVMMAINNET BOOTNODES
+pub static TEVMMAINNET_BOOTNODES : [&str; 0] = [];
+
+#[cfg(feature = "telos")]
+/// Ethereum Foundation TEVMTESTNET BOOTNODES
+pub static TEVMTESTNET_BOOTNODES : [&str; 0] = [];
+
 /// GOERLI bootnodes
 pub static GOERLI_BOOTNODES : [&str; 7] = [
     // Upstream bootnodes
@@ -54,6 +62,18 @@ pub fn goerli_nodes() -> Vec<NodeRecord> {
 /// Returns parsed sepolia nodes
 pub fn sepolia_nodes() -> Vec<NodeRecord> {
     parse_nodes(&SEPOLIA_BOOTNODES[..])
+}
+
+#[cfg(feature = "telos")]
+/// Returns parsed tevmmainnet nodes
+pub fn tevmmainnet_nodes() -> Vec<NodeRecord> {
+    parse_nodes(&TEVMMAINNET_BOOTNODES[..])
+}
+
+#[cfg(feature = "telos")]
+/// Returns parsed tevmtestnet nodes
+pub fn tevmtestnet_nodes() -> Vec<NodeRecord> {
+    parse_nodes(&TEVMTESTNET_BOOTNODES[..])
 }
 
 /// Returns parsed holesky nodes

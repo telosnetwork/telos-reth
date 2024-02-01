@@ -15,6 +15,10 @@ use reth_eth_wire::{HelloMessage, HelloMessageWithProtocols, Status};
 use reth_primitives::{
     mainnet_nodes, sepolia_nodes, ChainSpec, ForkFilter, Head, NodeRecord, PeerId, MAINNET,
 };
+#[cfg(feature = "telos")]
+use reth_primitives::{
+    tevmmainnet_nodes, tevmtestnet_nodes,
+};
 use reth_provider::{BlockReader, HeaderProvider};
 use reth_tasks::{TaskSpawner, TokioTaskExecutor};
 use secp256k1::SECP256K1;
@@ -356,6 +360,18 @@ impl NetworkConfigBuilder {
     /// Convenience function for setting [Self::boot_nodes] to the sepolia boot nodes.
     pub fn sepolia_boot_nodes(self) -> Self {
         self.boot_nodes(sepolia_nodes())
+    }
+
+    #[cfg(feature = "telos")]
+    /// Convenience function for setting [Self::boot_nodes] to the tevmmainnet boot nodes.
+    pub fn tevmmainnet_boot_nodes(self) -> Self {
+        self.boot_nodes(tevmmainnet_nodes())
+    }
+
+    #[cfg(feature = "telos")]
+    /// Convenience function for setting [Self::boot_nodes] to the tevmtestnet boot nodes.
+    pub fn tevmtestnet_boot_nodes(self) -> Self {
+        self.boot_nodes(tevmtestnet_nodes())
     }
 
     /// Sets the boot nodes.

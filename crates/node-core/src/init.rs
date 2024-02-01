@@ -235,6 +235,10 @@ mod tests {
         Address, Chain, ForkTimestamps, Genesis, GenesisAccount, IntegerList, GOERLI,
         GOERLI_GENESIS_HASH, MAINNET, MAINNET_GENESIS_HASH, SEPOLIA, SEPOLIA_GENESIS_HASH,
     };
+    #[cfg(feature = "telos")]
+    use reth_primitives::{
+        TEVMMAINNET, TEVMMAINNET_GENESIS_HASH, TEVMTESTNET, TEVMTESTNET_GENESIS_HASH
+    };
 
     fn collect_table_entries<DB, T>(
         tx: &<DB as Database>::TX,
@@ -271,6 +275,26 @@ mod tests {
 
         // actual, expected
         assert_eq!(genesis_hash, SEPOLIA_GENESIS_HASH);
+    }
+
+    #[test]
+    #[cfg(feature = "telos")]
+    fn success_init_genesis_tevmmainnet() {
+        let db = create_test_rw_db();
+        let genesis_hash = init_genesis(db, TEVMMAINNET.clone()).unwrap();
+
+        // actual, expected
+        assert_eq!(genesis_hash, TEVMMAINNET_GENESIS_HASH);
+    }
+
+    #[test]
+    #[cfg(feature = "telos")]
+    fn success_init_genesis_tevmtestnet() {
+        let db = create_test_rw_db();
+        let genesis_hash = init_genesis(db, TEVMTESTNET.clone()).unwrap();
+
+        // actual, expected
+        assert_eq!(genesis_hash, TEVMTESTNET_GENESIS_HASH);
     }
 
     #[test]
