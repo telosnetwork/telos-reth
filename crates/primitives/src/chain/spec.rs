@@ -174,7 +174,7 @@ pub static TEVMMAINNET: Lazy<Arc<ChainSpec>> = Lazy::new(|| {
         genesis: serde_json::from_str(include_str!("../../res/genesis/tevmmainnet.json"))
             .expect("Can't deserialize Tevmmainnet genesis json"),
         genesis_hash: Some(b256!(
-            "13f28fe4d164354cbcb0b9d8d43dff5d8e4b180e440579a55505a5fc96831c6b"
+            "36fe7024b760365e3970b7b403e161811c1e626edd68460272fcdfa276272563"
         )),
         hardforks: BTreeMap::from([
             (Hardfork::Frontier, ForkCondition::Block(0)),
@@ -202,7 +202,7 @@ pub static TEVMTESTNET: Lazy<Arc<ChainSpec>> = Lazy::new(|| {
         genesis: serde_json::from_str(include_str!("../../res/genesis/tevmtestnet.json"))
             .expect("Can't deserialize Tevmtestnet genesis json"),
         genesis_hash: Some(b256!(
-            "f5488543e19d3441f652d76cbd52014f9807d0f09bfa25422568b1cf3e30da1a"
+            "b25034033c9ca7a40e879ddcc29cf69071a22df06688b5fe8cc2d68b4e0528f9"
         )),
         hardforks: BTreeMap::from([
             (Hardfork::Frontier, ForkCondition::Block(0)),
