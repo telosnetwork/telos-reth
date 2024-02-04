@@ -387,6 +387,7 @@ impl<DB: Database, EF: ExecutorFactory> BlockchainTree<DB, EF> {
                     )
                 })?;
 
+            #[cfg(not(feature = "telos"))] {
             // Pass the parent total difficulty to short-circuit unnecessary calculations.
             if !self
                 .externals
@@ -399,6 +400,7 @@ impl<DB: Database, EF: ExecutorFactory> BlockchainTree<DB, EF> {
                     BlockValidationError::BlockPreMerge { hash: block.hash }.into(),
                     block.block,
                 ))
+            }
             }
 
             let parent_header = provider
