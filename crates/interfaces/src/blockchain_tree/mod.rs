@@ -125,6 +125,8 @@ pub enum BlockValidationKind {
 impl BlockValidationKind {
     /// Returns true if the state root should be validated if possible.
     pub fn is_exhaustive(&self) -> bool {
+        #[cfg(feature = "telos")]
+        return false;
         matches!(self, BlockValidationKind::Exhaustive)
     }
 }

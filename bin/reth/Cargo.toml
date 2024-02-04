@@ -177,6 +177,8 @@ ethereum = []
 telos = [
     "dep:antelope-client",
     "dep:reth-telos",
+    "reth-blockchain-tree/telos",
+    "reth-interfaces/telos",
     "reth-rpc/telos",
     "reth-network/telos",
     "reth-node-core/telos",

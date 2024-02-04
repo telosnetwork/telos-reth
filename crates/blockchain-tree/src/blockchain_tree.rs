@@ -361,6 +361,7 @@ impl<DB: Database, EVM: ExecutorFactory> BlockchainTree<DB, EVM> {
             .header_td(&block.parent_hash)?
             .ok_or_else(|| BlockchainTreeError::CanonicalChain { block_hash: block.parent_hash })?;
 
+        #[cfg(not(feature = "telos"))] {
         // Pass the parent total difficulty to short-circuit unnecessary calculations.
         if !self
             .externals
@@ -373,6 +374,7 @@ impl<DB: Database, EVM: ExecutorFactory> BlockchainTree<DB, EVM> {
                 hash: block.hash(),
             })
             .into())
+        }
         }
 
         let parent_header = provider

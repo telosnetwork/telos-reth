@@ -41,6 +41,9 @@ pub fn try_payload_v1_to_block(payload: ExecutionPayloadV1) -> Result<Block, Pay
         gas_used: payload.gas_used,
         timestamp: payload.timestamp,
         mix_hash: payload.prev_randao,
+        #[cfg(feature = "telos")]
+        base_fee_per_gas: None,
+        #[cfg(not(feature = "telos"))]
         base_fee_per_gas: Some(
             payload
                 .base_fee_per_gas
