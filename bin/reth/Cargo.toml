@@ -173,6 +173,8 @@ telos = [
     "reth-rpc/telos",
     "reth-network/telos",
     "reth-primitives/telos",
+    "reth-provider/telos",
+    "reth-consensus-common/telos",
 ]
 
 [build-dependencies]

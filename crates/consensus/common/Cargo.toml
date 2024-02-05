@@ -27,3 +27,4 @@ mockall = "0.11.3"
 
 [features]
 optimism = ["reth-primitives/optimism"]
+telos = []

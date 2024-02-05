@@ -54,6 +54,7 @@ use std::{
     sync::{mpsc, Arc},
     time::{Duration, Instant},
 };
+use revm::interpreter::instructions::bitwise::not;
 use tracing::{debug, warn};
 
 /// A [`DatabaseProvider`] that holds a read-only database transaction.
@@ -2091,6 +2092,7 @@ impl<TX: DbTxMut + DbTx> HashingWriter for DatabaseProvider<TX> {
                 .with_destroyed_accounts(destroyed_accounts)
                 .root_with_updates()
                 .map_err(Into::<reth_db::DatabaseError>::into)?;
+            #[cfg(not(feature = "telos"))]
             if state_root != expected_state_root {
                 return Err(ProviderError::StateRootMismatch(Box::new(RootMismatch {
                     root: GotExpected { got: state_root, expected: expected_state_root },
@@ -2284,6 +2286,7 @@ impl<TX: DbTxMut + DbTx> BlockExecutionWriter for DatabaseProvider<TX> {
 
             // state root should be always correct as we are reverting state.
             // but for sake of double verification we will check it again.
+            #[cfg(not(feature = "telos"))]
             if new_state_root != parent_state_root {
                 let parent_hash = self
                     .block_hash(parent_number)?

@@ -65,3 +65,4 @@ optimism = [
   "reth-primitives/optimism",
   "reth-interfaces/optimism"
 ]
+telos = []

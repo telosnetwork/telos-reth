@@ -1181,6 +1181,7 @@ impl<DB: Database, EF: ExecutorFactory> BlockchainTree<DB, EF> {
                     .state_root_with_updates(provider.tx_ref())
                     .map_err(Into::<DatabaseError>::into)?;
                 let tip = blocks.tip();
+                #[cfg(not(feature = "telos"))]
                 if state_root != tip.state_root {
                     return Err(RethError::Provider(ProviderError::StateRootMismatch(Box::new(
                         RootMismatch {

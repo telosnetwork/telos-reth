@@ -313,6 +313,7 @@ pub fn validate_header_regarding_parent(
     }
 
     // timestamp in past check
+    #[cfg(not(feature = "telos"))]
     if child.timestamp <= parent.timestamp {
         return Err(ConsensusError::TimestampIsInPast {
             parent_timestamp: parent.timestamp,
