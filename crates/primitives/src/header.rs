@@ -817,6 +817,7 @@ impl SealedHeader {
         }
 
         // timestamp in past check
+        #[cfg(not(feature = "telos"))]
         if self.header.is_timestamp_in_past(parent.timestamp) {
             return Err(HeaderValidationError::TimestampIsInPast {
                 parent_timestamp: parent.timestamp,
