@@ -175,6 +175,7 @@ telos = [
     "reth-primitives/telos",
     "reth-provider/telos",
     "reth-consensus-common/telos",
+    "reth-stages/telos",
 ]
 
 [build-dependencies]

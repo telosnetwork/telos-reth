@@ -82,6 +82,7 @@ serde_json.workspace = true
 
 [features]
 test-utils = ["reth-interfaces/test-utils", "reth-db/test-utils"]
+telos = []
 
 [[bench]]
 name = "criterion"
