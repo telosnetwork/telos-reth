@@ -205,7 +205,7 @@ fn recover_sender(
     // backwards-compatible.
     let sender = tx
         .signature
-        .recover_signer_unchecked(keccak256(rlp_buf))
+        .recover_signer_unchecked(keccak256(rlp_buf), #[cfg(feature = "telos")] tx.chain_id())
         .ok_or(SenderRecoveryStageError::FailedRecovery(FailedSenderRecoveryError { tx: tx_id }))?;
 
     Ok((tx_id, sender))
