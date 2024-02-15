@@ -122,7 +122,7 @@ pub async fn send_to_telos(
                 network_config.signer_account,
                 network_config.signer_permission,
             )],
-            &raw_action_data,
+            raw_action_data,
         );
 
         let transaction = Transaction {
