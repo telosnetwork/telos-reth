@@ -24,6 +24,10 @@ pub fn base_block_reward(
     block_difficulty: U256,
     total_difficulty: U256,
 ) -> Option<u128> {
+    #[cfg(feature = "telos")]
+    if chain_spec.chain == Chain::from_id(40) || chain_spec.chain == Chain::from_id(41) {
+        return None
+    }
     if chain_spec.chain == Chain::goerli() ||
         chain_spec.fork(Hardfork::Paris).active_at_ttd(total_difficulty, block_difficulty)
     {
