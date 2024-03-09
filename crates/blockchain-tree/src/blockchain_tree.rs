@@ -937,6 +937,7 @@ impl<DB: Database, EVM: ExecutorFactory> BlockchainTree<DB, EVM> {
                     hash: *block_hash,
                 }),
             )?;
+            #[cfg(not(feature = "telos"))]
             if !self
                 .externals
                 .provider_factory
