@@ -375,6 +375,8 @@ pub(crate) fn create_txn_env(
         max_fee_per_blob_gas,
         #[cfg(feature = "optimism")]
         optimism: OptimismFields { enveloped_tx: Some(Bytes::new()), ..Default::default() },
+        #[cfg(feature = "telos")]
+        first_new_address: None,
     };
 
     Ok(env)
