@@ -171,8 +171,8 @@ reth-transaction-pool = { path = "crates/transaction-pool" }
 reth-trie = { path = "crates/trie" }
 
 # revm
-revm = { git = "https://github.com/telosnetwork/telos-revm", branch = "telos-main", features = ["std", "secp256k1", "telos"], default-features = false }
-revm-primitives = { git = "https://github.com/telosnetwork/telos-revm", branch = "telos-main", features = ["std", "telos"], default-features = false }
+revm = { git = "https://github.com/telosnetwork/telos-revm", branch = "telos-main", features = ["std", "secp256k1"], default-features = false }
+revm-primitives = { git = "https://github.com/telosnetwork/telos-revm", branch = "telos-main", features = ["std"], default-features = false }
 revm-inspectors = { git = "https://github.com/telosnetwork/telos-evm-inspectors", branch = "telos-main" }
 
 # eth

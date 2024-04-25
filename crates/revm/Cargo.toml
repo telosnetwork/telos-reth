@@ -38,3 +38,6 @@ optimism = [
   "reth-interfaces/optimism",
 ]
 js-tracer = ["revm-inspectors/js-tracer"]
+telos = [
+  "revm/telos",
+]

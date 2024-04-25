@@ -53,6 +53,9 @@ criterion.workspace = true
 
 [features]
 test-utils = ["triehash"]
+telos = [
+    "revm/telos",
+]
 
 [[bench]]
 name = "prefix_set"

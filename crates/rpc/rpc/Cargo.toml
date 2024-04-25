@@ -109,4 +109,6 @@ optimism = [
 telos = [
     "dep:reth-telos",
     "reth-rpc-types-compat/telos",
+    "revm/telos",
+    "revm-primitives/telos",
 ]

@@ -20,3 +20,9 @@ revm.workspace = true
 
 # io
 serde.workspace = true
+
+[features]
+telos = [
+    "revm/telos",
+    "revm-primitives/telos",
+]

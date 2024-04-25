@@ -38,3 +38,6 @@ optimism = [
     "reth-provider/optimism",
     "reth-payload-builder/optimism",
 ]
+telos = [
+    "revm/telos",
+]

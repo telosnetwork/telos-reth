@@ -56,3 +56,7 @@ optimism = [
   "reth-interfaces/optimism",
   "reth-transaction-pool/optimism",
 ]
+telos = [
+  "revm/telos",
+  "revm-primitives/telos",
+]

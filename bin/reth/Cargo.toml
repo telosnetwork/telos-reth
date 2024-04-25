@@ -186,6 +186,16 @@ telos = [
     "reth-provider/telos",
     "reth-consensus-common/telos",
     "reth-stages/telos",
+    "reth-node-api/telos",
+    "reth-payload-builder/telos",
+    "reth-node-ethereum/telos",
+    "reth-basic-payload-builder/telos",
+    "reth-ethereum-payload-builder/telos",
+    "reth-optimism-payload-builder/telos",
+    "reth-revm/telos",
+    "reth-transaction-pool/telos",
+    "reth-trie/telos",
+    "reth-rpc-types-compat/telos"
 ]
 
 [[bin]]

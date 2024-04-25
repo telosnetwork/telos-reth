@@ -81,6 +81,9 @@ optimism = [
     "reth-provider/optimism",
     "revm/optimism",
 ]
+telos = [
+    "revm/telos",
+]
 
 [[bench]]
 name = "truncate"

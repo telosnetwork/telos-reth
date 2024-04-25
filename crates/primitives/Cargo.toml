@@ -111,7 +111,10 @@ optimism = [
     "reth-ethereum-forks/optimism",
     "revm/optimism",
 ]
-telos = []
+telos = [
+    "revm/telos",
+    "revm-primitives/telos",
+]
 test-utils = ["dep:plain_hasher", "dep:hash-db", "dep:ethers-core"]
 
 [[bench]]
