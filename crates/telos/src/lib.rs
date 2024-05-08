@@ -8,7 +8,9 @@ use antelope::chain::private_key::PrivateKey;
 use antelope::chain::transaction::{SignedTransaction, Transaction};
 use antelope::serializer::{Decoder, Encoder, Packer};
 use antelope::{name, StructPacker};
-use reth_primitives::{TransactionSigned, U256};
+use reth_primitives::revm_primitives::{Account, AccountInfo, AccountStatus, FixedBytes, HashMap};
+use reth_primitives::{keccak256, Address, Bytes, TransactionSigned, U256};
+use serde::{Serialize,Deserialize};
 use std::time::{Duration, Instant};
 
 pub mod telos_args;
@@ -23,6 +25,18 @@ pub struct TelosNetworkConfig {
     pub signer_permission: Name,
     pub signer_key: PrivateKey,
     pub gas_cache: GasPriceCache,
+}
+
+// Telos EVM Account Table Row
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ssz", derive(ssz_derive::Encode, ssz_derive::Decode))]
+pub struct TelosAccountTableRow {
+    pub index: u64,
+    pub address: Address,
+    pub account: String,
+    pub nonce: u64,
+    pub code: Bytes,
+    pub balance: U256
 }
 
 #[derive(StructPacker)]
@@ -145,4 +159,25 @@ pub async fn send_to_telos(
         result.await.unwrap().transaction_id;
     }
     Ok("Good".into())
+}
+
+// Converts native state diffs to revm state diffs (for comparision)
+pub fn native_state_diffs_to_revm(
+    statediffs_account: Vec<TelosAccountTableRow>
+) -> HashMap<Address,Account> {
+    let mut state: HashMap<reth_primitives::revm_primitives::Address, reth_primitives::revm_primitives::Account> = HashMap::new();
+    for row in statediffs_account {
+        let tmp = Account {
+            info: AccountInfo {
+                nonce: row.nonce,
+                balance: row.balance,
+                code_hash: FixedBytes::random(),
+                code: None,
+            },
+            storage: HashMap::new(),
+            status: AccountStatus::Loaded,
+        };
+        state.insert(row.address,tmp);
+    }
+    return state;
 }

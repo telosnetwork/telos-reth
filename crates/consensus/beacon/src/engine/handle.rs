@@ -10,6 +10,8 @@ use reth_node_api::EngineTypes;
 use reth_rpc_types::engine::{
     CancunPayloadFields, ExecutionPayload, ForkchoiceState, ForkchoiceUpdated, PayloadStatus,
 };
+#[cfg(feature = "telos")] 
+use reth_telos::TelosAccountTableRow;
 use tokio::sync::{mpsc, mpsc::UnboundedSender, oneshot};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
@@ -52,9 +54,11 @@ where
         &self,
         payload: ExecutionPayload,
         cancun_fields: Option<CancunPayloadFields>,
+        #[cfg(feature = "telos")]
+        statediffs_account: Option<Vec<TelosAccountTableRow>>,
     ) -> Result<PayloadStatus, BeaconOnNewPayloadError> {
         let (tx, rx) = oneshot::channel();
-        let _ = self.to_engine.send(BeaconEngineMessage::NewPayload { payload, cancun_fields, tx });
+        let _ = self.to_engine.send(BeaconEngineMessage::NewPayload { payload, cancun_fields, tx, #[cfg(feature = "telos")] statediffs_account });
         rx.await.map_err(|_| BeaconOnNewPayloadError::EngineUnavailable)?
     }
 

@@ -15,6 +15,7 @@ use reth_rpc_types::{
     state::StateOverride,
     BlockOverrides, Filter, Log, RichBlock, SyncStatus, TransactionRequest,
 };
+use reth_telos::TelosAccountTableRow;
 
 // NOTE: We can't use associated types in the `EngineApi` trait because of jsonrpsee, so we use a
 // generic here. It would be nice if the rpc macro would understand which types need to have serde.
@@ -29,7 +30,7 @@ pub trait EngineApi<Engine: EngineTypes> {
     /// See also <https://github.com/ethereum/execution-apis/blob/6709c2a795b707202e93c4f2867fa0bf2640a84f/src/engine/paris.md#engine_newpayloadv1>
     /// Caution: This should not accept the `withdrawals` field
     #[method(name = "newPayloadV1")]
-    async fn new_payload_v1(&self, payload: ExecutionPayloadV1) -> RpcResult<PayloadStatus>;
+    async fn new_payload_v1(&self, payload: ExecutionPayloadV1, statediffs_account: Option<Vec<TelosAccountTableRow>>) -> RpcResult<PayloadStatus>;
 
     /// See also <https://github.com/ethereum/execution-apis/blob/584905270d8ad665718058060267061ecfd79ca5/src/engine/shanghai.md#engine_newpayloadv2>
     #[method(name = "newPayloadV2")]

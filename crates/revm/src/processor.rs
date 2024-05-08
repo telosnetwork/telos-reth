@@ -14,6 +14,8 @@ use reth_primitives::{
 use reth_provider::{
     BlockExecutor, BlockExecutorStats, ProviderError, PrunableBlockExecutor, StateProvider,
 };
+#[cfg(feature = "telos")]
+use reth_telos::native_state_diffs_to_revm;
 use revm::{
     db::{states::bundle_state::BundleRetention, EmptyDBTyped, StateDBBox},
     inspector_handle_register,
@@ -495,6 +497,10 @@ where
                 logs: result.into_logs().into_iter().map(Into::into).collect(),
             });
         }
+
+        #[cfg(feature = "telos")]
+        // Perform state diff comparision
+        println!("{:?}",self.db_mut().transition_state.as_mut().unwrap());
 
         Ok((receipts, cumulative_gas_used))
     }

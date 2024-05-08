@@ -7,6 +7,8 @@ use reth_rpc_types::{
     engine::{CancunPayloadFields, ForkchoiceState},
     ExecutionPayload,
 };
+#[cfg(feature = "telos")]
+use reth_telos::TelosAccountTableRow;
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, path::PathBuf, time::SystemTime};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -29,6 +31,9 @@ pub enum StoredEngineApiMessage<Attributes> {
         payload: ExecutionPayload,
         /// The Cancun-specific fields sent in the persisted call, if any.
         cancun_fields: Option<CancunPayloadFields>,
+        #[cfg(feature = "telos")]
+        /// State Diffs for Account Table
+        statediffs_account: Option<Vec<TelosAccountTableRow>>
     },
 }
 
@@ -70,7 +75,7 @@ impl EngineApiStore {
                     })?,
                 )?;
             }
-            BeaconEngineMessage::NewPayload { payload, cancun_fields, tx: _tx } => {
+            BeaconEngineMessage::NewPayload { payload, cancun_fields, tx: _tx, #[cfg(feature = "telos")] statediffs_account } => {
                 let filename = format!("{}-new_payload-{}.json", timestamp, payload.block_hash());
                 fs::write(
                     self.path.join(filename),
@@ -78,6 +83,8 @@ impl EngineApiStore {
                         &StoredEngineApiMessage::<Engine::PayloadAttributes>::NewPayload {
                             payload: payload.clone(),
                             cancun_fields: cancun_fields.clone(),
+                            #[cfg(feature = "telos")]
+                            statediffs_account: statediffs_account.clone(),
                         },
                     )?,
                 )?;

@@ -20,6 +20,7 @@ use reth_rpc_types_compat::engine::payload::{
     convert_payload_input_v2_to_payload, convert_to_payload_body_v1,
 };
 use reth_tasks::TaskSpawner;
+use reth_telos::TelosAccountTableRow;
 use std::{sync::Arc, time::Instant};
 use tokio::sync::oneshot;
 use tracing::trace;
@@ -93,6 +94,8 @@ where
     pub async fn new_payload_v1(
         &self,
         payload: ExecutionPayloadV1,
+        #[cfg(feature = "telos")]
+        statediffs_account: Option<Vec<TelosAccountTableRow>>,
     ) -> EngineApiResult<PayloadStatus> {
         let payload = ExecutionPayload::from(payload);
         let payload_or_attrs =
@@ -104,7 +107,7 @@ where
             EngineApiMessageVersion::V1,
             payload_or_attrs,
         )?;
-        Ok(self.inner.beacon_consensus.new_payload(payload, None).await?)
+        Ok(self.inner.beacon_consensus.new_payload(payload, None, #[cfg(feature = "telos")] statediffs_account).await?)
     }
 
     /// See also <https://github.com/ethereum/execution-apis/blob/584905270d8ad665718058060267061ecfd79ca5/src/engine/shanghai.md#engine_newpayloadv2>
@@ -122,7 +125,7 @@ where
             EngineApiMessageVersion::V2,
             payload_or_attrs,
         )?;
-        Ok(self.inner.beacon_consensus.new_payload(payload, None).await?)
+        Ok(self.inner.beacon_consensus.new_payload(payload, None, #[cfg(feature = "telos")] None).await?)
     }
 
     /// See also <https://github.com/ethereum/execution-apis/blob/fe8e13c288c592ec154ce25c534e26cb7ce0530d/src/engine/cancun.md#engine_newpayloadv3>
@@ -146,7 +149,7 @@ where
 
         let cancun_fields = CancunPayloadFields { versioned_hashes, parent_beacon_block_root };
 
-        Ok(self.inner.beacon_consensus.new_payload(payload, Some(cancun_fields)).await?)
+        Ok(self.inner.beacon_consensus.new_payload(payload, Some(cancun_fields), #[cfg(feature = "telos")] None).await?)
     }
 
     /// Sends a message to the beacon consensus engine to update the fork choice _without_
@@ -487,10 +490,10 @@ where
     /// Handler for `engine_newPayloadV1`
     /// See also <https://github.com/ethereum/execution-apis/blob/3d627c95a4d3510a8187dd02e0250ecb4331d27e/src/engine/paris.md#engine_newpayloadv1>
     /// Caution: This should not accept the `withdrawals` field
-    async fn new_payload_v1(&self, payload: ExecutionPayloadV1) -> RpcResult<PayloadStatus> {
+    async fn new_payload_v1(&self, payload: ExecutionPayloadV1, statediffs_account: Option<Vec<TelosAccountTableRow>>) -> RpcResult<PayloadStatus> {
         trace!(target: "rpc::engine", "Serving engine_newPayloadV1");
         let start = Instant::now();
-        let res = EngineApi::new_payload_v1(self, payload).await;
+        let res = EngineApi::new_payload_v1(self, payload, #[cfg(feature = "telos")] statediffs_account).await;
         self.inner.metrics.new_payload_v1.record(start.elapsed());
         Ok(res?)
     }

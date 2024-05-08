@@ -35,6 +35,7 @@ use reth_rpc_types::engine::{
 };
 use reth_stages::{ControlFlow, Pipeline, PipelineError};
 use reth_tasks::TaskSpawner;
+use reth_telos::TelosAccountTableRow;
 use reth_tokio_util::EventListeners;
 use std::{
     pin::Pin,
@@ -1082,6 +1083,7 @@ where
         &mut self,
         payload: ExecutionPayload,
         cancun_fields: Option<CancunPayloadFields>,
+        statediffs_account: Option<Vec<TelosAccountTableRow>>,
     ) -> Result<PayloadStatus, BeaconOnNewPayloadError> {
         let block = match self.ensure_well_formed_payload(payload, cancun_fields) {
             Ok(block) => block,
@@ -1802,9 +1804,9 @@ where
                                 }
                             }
                         }
-                        BeaconEngineMessage::NewPayload { payload, cancun_fields, tx } => {
+                        BeaconEngineMessage::NewPayload { payload, cancun_fields, tx, #[cfg(feature = "telos")] statediffs_account } => {
                             this.metrics.new_payload_messages.increment(1);
-                            let res = this.on_new_payload(payload, cancun_fields);
+                            let res = this.on_new_payload(payload, cancun_fields, #[cfg(feature = "telos")] statediffs_account, #[cfg(not(feature = "telos"))] None);
                             let _ = tx.send(res);
                         }
                         BeaconEngineMessage::TransitionConfigurationExchanged => {

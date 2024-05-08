@@ -22,5 +22,9 @@ reth-node-api.workspace = true
 jsonrpsee = { workspace = true, features = ["server", "macros"] }
 serde_json.workspace = true
 
+# telos
+reth-telos.workspace = true
+
 [features]
 client = ["jsonrpsee/client", "jsonrpsee/async-client"]
+telos = []

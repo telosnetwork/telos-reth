@@ -26,6 +26,9 @@ revm-inspectors.workspace = true
 # common
 tracing.workspace = true
 
+# telos
+reth-telos = { workspace = true, optional = true }
+
 [dev-dependencies]
 reth-trie.workspace = true
 reth-node-ethereum.workspace = true
@@ -40,4 +43,5 @@ optimism = [
 js-tracer = ["revm-inspectors/js-tracer"]
 telos = [
   "revm/telos",
+  "dep:reth-telos",
 ]

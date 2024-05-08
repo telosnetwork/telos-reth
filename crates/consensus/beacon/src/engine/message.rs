@@ -10,6 +10,8 @@ use reth_rpc_types::engine::{
     CancunPayloadFields, ExecutionPayload, ForkChoiceUpdateResult, ForkchoiceUpdateError,
     ForkchoiceUpdated, PayloadId, PayloadStatus, PayloadStatusEnum,
 };
+#[cfg(feature = "telos")]
+use reth_telos::TelosAccountTableRow;
 use std::{
     future::Future,
     pin::Pin,
@@ -150,6 +152,9 @@ pub enum BeaconEngineMessage<Engine: EngineTypes> {
         cancun_fields: Option<CancunPayloadFields>,
         /// The sender for returning payload status result.
         tx: oneshot::Sender<Result<PayloadStatus, BeaconOnNewPayloadError>>,
+        #[cfg(feature = "telos")]
+        /// State Diffs for Account Table
+        statediffs_account: Option<Vec<TelosAccountTableRow>>,
     },
     /// Message with updated forkchoice state.
     ForkchoiceUpdated {

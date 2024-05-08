@@ -125,7 +125,7 @@ rayon.workspace = true
 boyer-moore-magiclen = "0.2.16"
 
 # telos
-reth-telos = { workspace = true, optional = true }
+reth-telos.workspace = true
 antelope-client = { workspace = true, optional = true }
 
 
@@ -176,7 +176,6 @@ ethereum = []
 
 telos = [
     "dep:antelope-client",
-    "dep:reth-telos",
     "reth-blockchain-tree/telos",
     "reth-interfaces/telos",
     "reth-rpc/telos",
@@ -195,7 +194,10 @@ telos = [
     "reth-revm/telos",
     "reth-transaction-pool/telos",
     "reth-trie/telos",
-    "reth-rpc-types-compat/telos"
+    "reth-rpc-types-compat/telos",
+    "reth-rpc-api/telos",
+    "reth-rpc-engine-api/telos",
+    "reth-beacon-consensus/telos",
 ]
 
 [[bin]]

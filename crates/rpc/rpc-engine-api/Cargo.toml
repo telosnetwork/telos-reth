@@ -39,6 +39,9 @@ jsonrpsee-core.workspace = true
 tracing.workspace = true
 serde.workspace = true
 
+# telos
+reth-telos.workspace = true
+
 [dev-dependencies]
 alloy-rlp.workspace = true
 reth-node-ethereum.workspace = true
@@ -50,3 +53,4 @@ assert_matches.workspace = true
 
 [features]
 optimism = ["reth-primitives/optimism", "reth-rpc-types/optimism"]
+telos = []
