@@ -198,6 +198,7 @@ telos = [
     "reth-rpc-api/telos",
     "reth-rpc-engine-api/telos",
     "reth-beacon-consensus/telos",
+    "reth-auto-seal-consensus/telos",
 ]
 
 [[bin]]

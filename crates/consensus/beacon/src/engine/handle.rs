@@ -14,6 +14,8 @@ use reth_rpc_types::engine::{
 use reth_telos::TelosAccountTableRow;
 use tokio::sync::{mpsc, mpsc::UnboundedSender, oneshot};
 use tokio_stream::wrappers::UnboundedReceiverStream;
+#[cfg(feature = "telos")]
+use reth_primitives::U256;
 
 /// A _shareable_ beacon consensus frontend type. Used to interact with the spawned beacon consensus
 /// engine task.
@@ -56,9 +58,13 @@ where
         cancun_fields: Option<CancunPayloadFields>,
         #[cfg(feature = "telos")]
         statediffs_account: Option<Vec<TelosAccountTableRow>>,
+        #[cfg(feature = "telos")]
+        revision_changes: Option<Vec<(u64,u64)>>,
+        #[cfg(feature = "telos")]
+        gasprice_changes: Option<Vec<(u64,U256)>>,
     ) -> Result<PayloadStatus, BeaconOnNewPayloadError> {
         let (tx, rx) = oneshot::channel();
-        let _ = self.to_engine.send(BeaconEngineMessage::NewPayload { payload, cancun_fields, tx, #[cfg(feature = "telos")] statediffs_account });
+        let _ = self.to_engine.send(BeaconEngineMessage::NewPayload { payload, cancun_fields, tx, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes });
         rx.await.map_err(|_| BeaconOnNewPayloadError::EngineUnavailable)?
     }
 

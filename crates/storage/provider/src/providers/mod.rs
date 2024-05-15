@@ -638,8 +638,12 @@ where
         &self,
         block: SealedBlockWithSenders,
         validation_kind: BlockValidationKind,
+        #[cfg(feature = "telos")]
+        revision_changes: Option<Vec<(u64,u64)>>,
+        #[cfg(feature = "telos")]
+        gasprice_changes: Option<Vec<(u64,U256)>>,
     ) -> Result<InsertPayloadOk, InsertBlockError> {
-        self.tree.insert_block(block, validation_kind)
+        self.tree.insert_block(block, validation_kind, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes)
     }
 
     fn finalize_block(&self, finalized_block: BlockNumber) {

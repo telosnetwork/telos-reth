@@ -72,6 +72,10 @@ impl AppendableChain {
         externals: &TreeExternals<DB, EF>,
         block_attachment: BlockAttachment,
         block_validation_kind: BlockValidationKind,
+        #[cfg(feature = "telos")]
+        revision_changes: Option<Vec<(u64,u64)>>,
+        #[cfg(feature = "telos")]
+        gasprice_changes: Option<Vec<(u64,U256)>>,
     ) -> Result<Self, InsertBlockErrorKind>
     where
         DB: Database,
@@ -94,6 +98,10 @@ impl AppendableChain {
             externals,
             block_attachment,
             block_validation_kind,
+            #[cfg(feature = "telos")]
+            revision_changes,
+            #[cfg(feature = "telos")]
+            gasprice_changes,
         )?;
 
         Ok(Self { chain: Chain::new(vec![block], bundle_state, trie_updates) })
@@ -139,6 +147,10 @@ impl AppendableChain {
             externals,
             BlockAttachment::HistoricalFork,
             block_validation_kind,
+            #[cfg(feature = "telos")]
+            None,
+            #[cfg(feature = "telos")]
+            None,
         )?;
         // extending will also optimize few things, mostly related to selfdestruct and wiping of
         // storage.
@@ -171,6 +183,10 @@ impl AppendableChain {
         externals: &TreeExternals<DB, EVM>,
         block_attachment: BlockAttachment,
         block_validation_kind: BlockValidationKind,
+        #[cfg(feature = "telos")]
+        revision_changes: Option<Vec<(u64,u64)>>,
+        #[cfg(feature = "telos")]
+        gasprice_changes: Option<Vec<(u64,U256)>>,
     ) -> RethResult<(BundleStateWithReceipts, Option<TrieUpdates>)>
     where
         BSDP: BundleStateDataProvider,
@@ -190,7 +206,7 @@ impl AppendableChain {
         let mut executor = externals.executor_factory.with_state(&provider);
         let block_hash = block.hash();
         let block = block.unseal();
-        executor.execute_and_verify_receipt(&block, U256::MAX)?;
+        executor.execute_and_verify_receipt(&block, U256::MAX, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes)?;
         let bundle_state = executor.take_output_state();
 
         // check state root if the block extends the canonical chain __and__ if state root
@@ -269,6 +285,10 @@ impl AppendableChain {
             externals,
             block_attachment,
             block_validation_kind,
+            #[cfg(feature = "telos")]
+            None,
+            #[cfg(feature = "telos")]
+            None,
         )?;
         // extend the state.
         self.chain.append_block(block, block_state, trie_updates);

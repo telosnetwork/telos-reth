@@ -23,6 +23,8 @@ use std::{
     sync::Arc,
 };
 use tracing::trace;
+#[cfg(feature = "telos")]
+use reth_primitives::U256;
 
 /// Shareable blockchain tree that is behind tokio::RwLock
 #[derive(Clone, Debug)]
@@ -50,10 +52,14 @@ impl<DB: Database, EF: ExecutorFactory> BlockchainTreeEngine for ShareableBlockc
         &self,
         block: SealedBlockWithSenders,
         validation_kind: BlockValidationKind,
+        #[cfg(feature = "telos")]
+        revision_changes: Option<Vec<(u64,u64)>>,
+        #[cfg(feature = "telos")]
+        gasprice_changes: Option<Vec<(u64,U256)>>,
     ) -> Result<InsertPayloadOk, InsertBlockError> {
         trace!(target: "blockchain_tree", hash=?block.hash(), number=block.number, parent_hash=?block.parent_hash, "Inserting block");
         let mut tree = self.tree.write();
-        let res = tree.insert_block(block, validation_kind);
+        let res = tree.insert_block(block, validation_kind, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes);
         tree.update_chains_metrics();
         res
     }

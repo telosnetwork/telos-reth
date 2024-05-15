@@ -4,6 +4,8 @@ use reth_primitives::{
     SealedHeader,
 };
 use std::collections::{BTreeMap, HashSet};
+#[cfg(feature = "telos")]
+use reth_primitives::U256;
 
 pub mod error;
 
@@ -23,9 +25,13 @@ pub trait BlockchainTreeEngine: BlockchainTreeViewer + Send + Sync {
         &self,
         block: SealedBlock,
         validation_kind: BlockValidationKind,
+        #[cfg(feature = "telos")]
+        revision_changes: Option<Vec<(u64,u64)>>,
+        #[cfg(feature = "telos")]
+        gasprice_changes: Option<Vec<(u64,U256)>>,
     ) -> Result<InsertPayloadOk, InsertBlockError> {
         match block.try_seal_with_senders() {
-            Ok(block) => self.insert_block(block, validation_kind),
+            Ok(block) => self.insert_block(block, validation_kind, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes),
             Err(block) => Err(InsertBlockError::sender_recovery_error(block)),
         }
     }
@@ -55,6 +61,10 @@ pub trait BlockchainTreeEngine: BlockchainTreeViewer + Send + Sync {
         &self,
         block: SealedBlockWithSenders,
         validation_kind: BlockValidationKind,
+        #[cfg(feature = "telos")]
+        revision_changes: Option<Vec<(u64,u64)>>,
+        #[cfg(feature = "telos")]
+        gasprice_changes: Option<Vec<(u64,U256)>>,
     ) -> Result<InsertPayloadOk, InsertBlockError>;
 
     /// Finalize blocks up until and including `finalized_block`, and remove them from the tree.

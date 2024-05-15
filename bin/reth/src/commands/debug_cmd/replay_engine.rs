@@ -227,8 +227,8 @@ impl Command {
                         beacon_engine_handle.fork_choice_updated(state, payload_attrs).await?;
                     debug!(target: "reth::cli", ?response, "Received for forkchoice updated");
                 }
-                StoredEngineApiMessage::NewPayload { payload, cancun_fields , #[cfg(feature = "telos")] statediffs_account } => {
-                    let response = beacon_engine_handle.new_payload(payload, cancun_fields, #[cfg(feature = "telos")] statediffs_account).await?;
+                StoredEngineApiMessage::NewPayload { payload, cancun_fields , #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes } => {
+                    let response = beacon_engine_handle.new_payload(payload, cancun_fields, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes).await?;
                     debug!(target: "reth::cli", ?response, "Received for new payload");
                 }
             };

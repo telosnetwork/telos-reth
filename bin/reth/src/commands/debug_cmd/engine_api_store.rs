@@ -13,6 +13,8 @@ use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, path::PathBuf, time::SystemTime};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tracing::*;
+#[cfg(feature = "telos")]
+use reth_primitives::U256;
 
 /// A message from the engine API that has been stored to disk.
 #[derive(Debug, Serialize, Deserialize)]
@@ -33,7 +35,13 @@ pub enum StoredEngineApiMessage<Attributes> {
         cancun_fields: Option<CancunPayloadFields>,
         #[cfg(feature = "telos")]
         /// State Diffs for Account Table
-        statediffs_account: Option<Vec<TelosAccountTableRow>>
+        statediffs_account: Option<Vec<TelosAccountTableRow>>,
+        #[cfg(feature = "telos")]
+        /// Revision changes in block
+        revision_changes: Option<Vec<(u64,u64)>>,
+        #[cfg(feature = "telos")]
+        /// Gas price changes in block
+        gasprice_changes: Option<Vec<(u64,U256)>>,
     },
 }
 
@@ -75,7 +83,7 @@ impl EngineApiStore {
                     })?,
                 )?;
             }
-            BeaconEngineMessage::NewPayload { payload, cancun_fields, tx: _tx, #[cfg(feature = "telos")] statediffs_account } => {
+            BeaconEngineMessage::NewPayload { payload, cancun_fields, tx: _tx, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes } => {
                 let filename = format!("{}-new_payload-{}.json", timestamp, payload.block_hash());
                 fs::write(
                     self.path.join(filename),
@@ -85,6 +93,10 @@ impl EngineApiStore {
                             cancun_fields: cancun_fields.clone(),
                             #[cfg(feature = "telos")]
                             statediffs_account: statediffs_account.clone(),
+                            #[cfg(feature = "telos")]
+                            revision_changes: revision_changes.clone(),
+                            #[cfg(feature = "telos")]
+                            gasprice_changes: gasprice_changes.clone(),
                         },
                     )?,
                 )?;

@@ -177,6 +177,10 @@ impl Command {
                 .with_recovered_senders()
                 .ok_or(BlockValidationError::SenderRecoveryError)?,
             merkle_block_td + block.difficulty,
+            #[cfg(feature = "telos")]
+            None,
+            #[cfg(feature = "telos")]
+            None,
         )?;
         let block_state = executor.take_output_state();
 

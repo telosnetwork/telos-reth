@@ -18,6 +18,8 @@ use std::{
     task::{ready, Context, Poll},
 };
 use tokio::sync::{mpsc::UnboundedSender, oneshot};
+#[cfg(feature = "telos")]
+use reth_primitives::U256;
 
 /// Represents the outcome of forkchoice update.
 ///
@@ -155,6 +157,12 @@ pub enum BeaconEngineMessage<Engine: EngineTypes> {
         #[cfg(feature = "telos")]
         /// State Diffs for Account Table
         statediffs_account: Option<Vec<TelosAccountTableRow>>,
+        #[cfg(feature = "telos")]
+        /// Revision changes in block
+        revision_changes: Option<Vec<(u64,u64)>>,
+        #[cfg(feature = "telos")]
+        /// Gas price changes in block
+        gasprice_changes: Option<Vec<(u64,U256)>>,
     },
     /// Message with updated forkchoice state.
     ForkchoiceUpdated {

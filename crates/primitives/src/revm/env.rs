@@ -162,6 +162,10 @@ pub fn fill_tx_env_with_beacon_root_contract_call(env: &mut Env, parent_beacon_b
         },
         #[cfg(feature = "telos")]
         first_new_address: None,
+        #[cfg(feature = "telos")]
+        revision_number: 0,
+        #[cfg(feature = "telos")]
+        fixed_gas_price: U256::ZERO,
     };
 
     // ensure the block gas limit is >= the tx

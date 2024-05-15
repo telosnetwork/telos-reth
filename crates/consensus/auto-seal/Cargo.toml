@@ -40,3 +40,4 @@ serde_json.workspace = true
 [features]
 # Included solely to ignore certain tests.
 optimism = []
+telos = []

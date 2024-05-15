@@ -36,6 +36,10 @@ pub trait BlockExecutor {
         &mut self,
         block: &BlockWithSenders,
         total_difficulty: U256,
+        #[cfg(feature = "telos")]
+        revision_changes: Option<Vec<(u64,u64)>>,
+        #[cfg(feature = "telos")]
+        gasprice_changes: Option<Vec<(u64,U256)>>,
     ) -> Result<(), Self::Error>;
 
     /// Runs the provided transactions and commits their state to the run-time database.
@@ -54,6 +58,10 @@ pub trait BlockExecutor {
         &mut self,
         block: &BlockWithSenders,
         total_difficulty: U256,
+        #[cfg(feature = "telos")]
+        revision_changes: Option<Vec<(u64,u64)>>,
+        #[cfg(feature = "telos")]
+        gasprice_changes: Option<Vec<(u64,U256)>>,
     ) -> Result<(Vec<Receipt>, u64), Self::Error>;
 
     /// Return bundle state. This is output of executed blocks.
