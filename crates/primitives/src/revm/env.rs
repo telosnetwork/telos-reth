@@ -163,9 +163,79 @@ pub fn fill_tx_env_with_beacon_root_contract_call(env: &mut Env, parent_beacon_b
         #[cfg(feature = "telos")]
         first_new_address: None,
         #[cfg(feature = "telos")]
-        revision_number: 0,
+        fixed_gas_price: if env.block.number < U256::from(255838760_u64) {
+            U256::from(499809179185_u64)
+        } else if env.block.number < U256::from(256919102_u64) {
+            U256::from(503604564858_u64)
+        } else if env.block.number < U256::from(258567748_u64) {
+            U256::from(503624212149_u64)
+        } else if env.block.number < U256::from(260508029_u64) {
+            U256::from(503659916170_u64)
+        } else if env.block.number < U256::from(261916623_u64) {
+            U256::from(503692840132_u64)
+        } else if env.block.number < U256::from(263258684_u64) {
+            U256::from(503730067379_u64)
+        } else if env.block.number < U256::from(265110408_u64) {
+            U256::from(503766558895_u64)
+        } else if env.block.number < U256::from(266854672_u64) {
+            U256::from(503847329123_u64)
+        } else if env.block.number < U256::from(271693305_u64) {
+            U256::from(503937085418_u64)
+        } else if env.block.number < U256::from(277570654_u64) {
+            U256::from(504169102143_u64)
+        } else if env.block.number < U256::from(281052225_u64) {
+            U256::from(504588007093_u64)
+        } else if env.block.number < U256::from(282427274_u64) {
+            U256::from(504730060459_u64)
+        } else if env.block.number < U256::from(286905983_u64) {
+            U256::from(504777487548_u64)
+        } else if env.block.number < U256::from(290533301_u64) {
+            U256::from(504901632992_u64)
+        } else if env.block.number < U256::from(296069390_u64) {
+            U256::from(505018605664_u64)
+        } else if env.block.number < U256::from(300562146_u64) {
+            U256::from(505225116066_u64)
+        } else if env.block.number < U256::from(307967043_u64) {
+            U256::from(505764887222_u64)
+        } else if env.block.number < U256::from(309157097_u64) {
+            U256::from(507293569984_u64)
+        } else if env.block.number < U256::from(312517437_u64) {
+            U256::from(507611802460_u64)
+        } else if env.block.number < U256::from(314907931_u64) {
+            U256::from(508508333703_u64)
+        } else if env.block.number < U256::from(319569825_u64) {
+            U256::from(509215569036_u64)
+        } else if env.block.number < U256::from(323391709_u64) {
+            U256::from(510837337450_u64)
+        } else if env.block.number < U256::from(324360809_u64) {
+            U256::from(511832996910_u64)
+        } else if env.block.number < U256::from(324398028_u64) {
+            U256::from(512009459358_u64)
+        } else if env.block.number < U256::from(325597355_u64) {
+            U256::from(512023715983_u64)
+        } else if env.block.number < U256::from(329239018_u64) {
+            U256::from(512509489520_u64)
+        } else if env.block.number < U256::from(329714374_u64) {
+            U256::from(513753813459_u64)
+        } else if env.block.number < U256::from(332358496_u64) {
+            U256::from(513889289168_u64)
+        } else if env.block.number < U256::from(334211846_u64) {
+            U256::from(514927973622_u64)
+        } else if env.block.number < U256::from(338022602_u64) {
+            U256::from(515474978733_u64)
+        } else if env.block.number < U256::from(339221402_u64) {
+            U256::from(516125417219_u64)
+        } else if env.block.number < U256::from(344908827_u64) {
+            U256::from(516282803626_u64)
+        } else {
+            U256::from(516900477336_u64)
+        },
         #[cfg(feature = "telos")]
-        fixed_gas_price: U256::ZERO,
+        revision_number: if env.block.number < U256::from(332317496_u64) {
+            0
+        } else {
+            1
+        },
     };
 
     // ensure the block gas limit is >= the tx
