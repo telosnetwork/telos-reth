@@ -230,20 +230,20 @@ pub static TEVMMAINNET_BASE: Lazy<Arc<ChainSpec>> = Lazy::new(|| {
         genesis: serde_json::from_str(include_str!("../../res/genesis/tevmmainnet_base.json"))
             .expect("Can't deserialize Tevmmainnet-base genesis json"),
         genesis_hash: Some(b256!(
-            "757720a8e51c63ef1d4f907d6569dacaa965e91c2661345902de18af11f81063"
+            "ed58397aca4c7ce2117fae8093bdced8f01d47855a46bb5ad6e4df4a93e8ee27"
         )),
         hardforks: BTreeMap::from([
-            (Hardfork::Frontier, ForkCondition::Block(180698823)),
-            (Hardfork::Homestead, ForkCondition::Block(180698823)),
-            (Hardfork::Dao, ForkCondition::Block(180698823)),
-            (Hardfork::Tangerine, ForkCondition::Block(180698823)),
-            (Hardfork::SpuriousDragon, ForkCondition::Block(180698823)),
-            (Hardfork::Byzantium, ForkCondition::Block(180698823)),
-            (Hardfork::Constantinople, ForkCondition::Block(180698823)),
-            (Hardfork::Petersburg, ForkCondition::Block(180698823)),
-            (Hardfork::Istanbul, ForkCondition::Block(180698823)),
-            (Hardfork::MuirGlacier, ForkCondition::Block(180698823)),
-            (Hardfork::Berlin, ForkCondition::Block(180698823)),
+            (Hardfork::Frontier, ForkCondition::Block(180698824)),
+            (Hardfork::Homestead, ForkCondition::Block(180698824)),
+            (Hardfork::Dao, ForkCondition::Block(180698824)),
+            (Hardfork::Tangerine, ForkCondition::Block(180698824)),
+            (Hardfork::SpuriousDragon, ForkCondition::Block(180698824)),
+            (Hardfork::Byzantium, ForkCondition::Block(180698824)),
+            (Hardfork::Constantinople, ForkCondition::Block(180698824)),
+            (Hardfork::Petersburg, ForkCondition::Block(180698824)),
+            (Hardfork::Istanbul, ForkCondition::Block(180698824)),
+            (Hardfork::MuirGlacier, ForkCondition::Block(180698824)),
+            (Hardfork::Berlin, ForkCondition::Block(180698824)),
         ]),
         ..Default::default()
     }
