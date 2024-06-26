@@ -131,7 +131,7 @@ pub const TEVMTESTNET_GENESIS_HASH: B256 =
 #[cfg(feature = "telos")]
 /// Tevmmainnet base genesis hash.
 pub const TEVMMAINNET_BASE_GENESIS_HASH: B256 =
-    b256!("212b08ae72e9fc282ad7bf0fe572164d8d54c4a17f026c9541dbcd2d3129786b");
+    b256!("757720a8e51c63ef1d4f907d6569dacaa965e91c2661345902de18af11f81063");
 
 #[cfg(feature = "telos")]
 /// Tevmtestnet base genesis hash.
