@@ -5,6 +5,8 @@ use crate::{
 use parking_lot::Mutex;
 use reth_interfaces::executor::BlockExecutionError;
 use reth_primitives::{BlockNumber, BlockWithSenders, PruneModes, Receipt, U256};
+#[cfg(feature = "telos")]
+use reth_telos::TelosAccountTableRow;
 use std::sync::Arc;
 /// Test executor with mocked result.
 #[derive(Debug)]
@@ -29,9 +31,11 @@ impl BlockExecutor for TestExecutor {
         _block: &BlockWithSenders,
         _total_difficulty: U256,
         #[cfg(feature = "telos")]
-        revision_changes: Option<Vec<(u64,u64)>>,
+        _statediffs_account: Option<Vec<TelosAccountTableRow>>,
         #[cfg(feature = "telos")]
-        gasprice_changes: Option<Vec<(u64,U256)>>,
+        _revision_changes: Option<Vec<(u64,u64)>>,
+        #[cfg(feature = "telos")]
+        _gasprice_changes: Option<Vec<(u64,U256)>>,
     ) -> Result<(), BlockExecutionError> {
         if self.0.is_none() {
             return Err(BlockExecutionError::UnavailableForTest)
@@ -43,6 +47,8 @@ impl BlockExecutor for TestExecutor {
         &mut self,
         _block: &BlockWithSenders,
         _total_difficulty: U256,
+        #[cfg(feature = "telos")]
+        _statediffs_account: Option<Vec<TelosAccountTableRow>>,
         #[cfg(feature = "telos")]
         _revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]

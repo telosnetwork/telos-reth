@@ -10,6 +10,7 @@ use antelope::serializer::{Decoder, Encoder, Packer};
 use antelope::{name, StructPacker};
 use reth_primitives::revm_primitives::{Account, AccountInfo, AccountStatus, FixedBytes, HashMap};
 use reth_primitives::{keccak256, Address, Bytes, TransactionSigned, U256};
+use revm::TransitionAccount;
 use serde::{Serialize,Deserialize};
 use std::time::{Duration, Instant};
 
@@ -163,7 +164,7 @@ pub async fn send_to_telos(
 
 // Converts native state diffs to revm state diffs (for comparision)
 pub fn native_state_diffs_to_revm(
-    statediffs_account: Vec<TelosAccountTableRow>
+    statediffs_account: Vec<TelosAccountTableRow>,
 ) -> HashMap<Address,Account> {
     let mut state: HashMap<reth_primitives::revm_primitives::Address, reth_primitives::revm_primitives::Account> = HashMap::new();
     for row in statediffs_account {
@@ -180,4 +181,18 @@ pub fn native_state_diffs_to_revm(
         state.insert(row.address,tmp);
     }
     return state;
+}
+
+pub fn compare_state_diffs(
+    revm_state_diffs: HashMap<Address,TransitionAccount>,
+    native_state_diffs: HashMap<Address,Account>,
+) -> bool {
+    // Check lengths
+    if revm_state_diffs.len() != native_state_diffs.len() {
+        return false
+    }
+
+    // Check balance and nonce
+    
+    return true
 }

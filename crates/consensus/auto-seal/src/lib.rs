@@ -329,7 +329,7 @@ impl StorageInner {
         // set the first block to find the correct index in bundle state
         executor.set_first_block(block.number);
 
-        let (receipts, gas_used) = executor.execute_transactions(block, U256::ZERO, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None)?;
+        let (receipts, gas_used) = executor.execute_transactions(block, U256::ZERO, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None)?;
 
         // Save receipts.
         executor.save_receipts(receipts)?;

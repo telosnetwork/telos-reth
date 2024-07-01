@@ -24,7 +24,6 @@ use reth_telos::TelosAccountTableRow;
 use std::{sync::Arc, time::Instant};
 use tokio::sync::oneshot;
 use tracing::trace;
-#[cfg(feature = "telos")]
 use reth_primitives::U256;
 
 /// The Engine API response sender.

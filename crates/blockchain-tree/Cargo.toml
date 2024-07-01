@@ -39,6 +39,9 @@ metrics.workspace = true
 aquamarine.workspace = true
 linked_hash_set = "0.1.4"
 
+# telos
+reth-telos = { workspace = true, optional = true }
+
 [dev-dependencies]
 reth-db = { workspace = true, features = ["test-utils"] }
 reth-interfaces = { workspace = true, features = ["test-utils"] }
@@ -53,4 +56,4 @@ assert_matches.workspace = true
 [features]
 test-utils = []
 optimism = ["reth-primitives/optimism", "reth-interfaces/optimism", "reth-provider/optimism", "reth-revm/optimism"]
-telos = []
+telos = ["dep:reth-telos"]

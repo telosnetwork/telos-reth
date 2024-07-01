@@ -14,6 +14,8 @@ use reth_provider::{
     BlockchainTreePendingStateProvider, BundleStateDataProvider, CanonStateNotificationSender,
     CanonStateNotifications, CanonStateSubscriptions,
 };
+#[cfg(feature = "telos")]
+use reth_telos::TelosAccountTableRow;
 use std::collections::{BTreeMap, HashSet};
 #[cfg(feature = "telos")]
 use reth_primitives::U256;
@@ -34,6 +36,8 @@ impl BlockchainTreeEngine for NoopBlockchainTree {
         &self,
         block: SealedBlockWithSenders,
         _validation_kind: BlockValidationKind,
+        #[cfg(feature = "telos")]
+        _statediffs_account: Option<Vec<TelosAccountTableRow>>,
         #[cfg(feature = "telos")]
         _revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]

@@ -21,6 +21,8 @@ use reth_provider::{
     providers::BundleStateProvider, BundleStateDataProvider, BundleStateWithReceipts, Chain,
     ExecutorFactory, StateRootProvider,
 };
+#[cfg(feature = "telos")]
+use reth_telos::TelosAccountTableRow;
 use reth_trie::updates::TrieUpdates;
 use std::{
     collections::BTreeMap,
@@ -73,6 +75,8 @@ impl AppendableChain {
         block_attachment: BlockAttachment,
         block_validation_kind: BlockValidationKind,
         #[cfg(feature = "telos")]
+        statediffs_account: Option<Vec<TelosAccountTableRow>>,
+        #[cfg(feature = "telos")]
         revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]
         gasprice_changes: Option<Vec<(u64,U256)>>,
@@ -98,6 +102,8 @@ impl AppendableChain {
             externals,
             block_attachment,
             block_validation_kind,
+            #[cfg(feature = "telos")]
+            statediffs_account,
             #[cfg(feature = "telos")]
             revision_changes,
             #[cfg(feature = "telos")]
@@ -151,6 +157,8 @@ impl AppendableChain {
             None,
             #[cfg(feature = "telos")]
             None,
+            #[cfg(feature = "telos")]
+            None,
         )?;
         // extending will also optimize few things, mostly related to selfdestruct and wiping of
         // storage.
@@ -184,6 +192,8 @@ impl AppendableChain {
         block_attachment: BlockAttachment,
         block_validation_kind: BlockValidationKind,
         #[cfg(feature = "telos")]
+        statediffs_account: Option<Vec<TelosAccountTableRow>>,
+        #[cfg(feature = "telos")]
         revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]
         gasprice_changes: Option<Vec<(u64,U256)>>,
@@ -206,7 +216,7 @@ impl AppendableChain {
         let mut executor = externals.executor_factory.with_state(&provider);
         let block_hash = block.hash();
         let block = block.unseal();
-        executor.execute_and_verify_receipt(&block, U256::MAX, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes)?;
+        executor.execute_and_verify_receipt(&block, U256::MAX, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes)?;
         let bundle_state = executor.take_output_state();
 
         // check state root if the block extends the canonical chain __and__ if state root
@@ -285,6 +295,8 @@ impl AppendableChain {
             externals,
             block_attachment,
             block_validation_kind,
+            #[cfg(feature = "telos")]
+            None,
             #[cfg(feature = "telos")]
             None,
             #[cfg(feature = "telos")]

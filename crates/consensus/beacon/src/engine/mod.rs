@@ -74,7 +74,6 @@ use crate::hooks::{EngineHookEvent, EngineHooks, PolledHook};
 pub use forkchoice::ForkchoiceStatus;
 use reth_interfaces::blockchain_tree::BlockValidationKind;
 use reth_payload_validator::ExecutionPayloadValidator;
-#[cfg(feature = "telos")]
 use reth_primitives::U256;
 
 mod metrics;
@@ -1111,7 +1110,7 @@ where
         let res = if self.sync.is_pipeline_idle() {
             // we can only insert new payloads if the pipeline is _not_ running, because it holds
             // exclusive access to the database
-            self.try_insert_new_payload(block, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes)
+            self.try_insert_new_payload(block, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes)
         } else {
             self.try_buffer_payload(block)
         };
@@ -1273,6 +1272,8 @@ where
         &mut self,
         block: SealedBlock,
         #[cfg(feature = "telos")]
+        statediffs_account: Option<Vec<TelosAccountTableRow>>,
+        #[cfg(feature = "telos")]
         revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]
         gasprice_changes: Option<Vec<(u64,U256)>>,
@@ -1283,7 +1284,7 @@ where
         let start = Instant::now();
         let status = self
             .blockchain
-            .insert_block_without_senders(block.clone(), BlockValidationKind::Exhaustive, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes)?;
+            .insert_block_without_senders(block.clone(), BlockValidationKind::Exhaustive, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes)?;
         let elapsed = start.elapsed();
         let mut latest_valid_hash = None;
         let block = Arc::new(block);
@@ -1401,7 +1402,7 @@ where
 
         match self
             .blockchain
-            .insert_block_without_senders(block, BlockValidationKind::SkipStateRootValidation, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None)
+            .insert_block_without_senders(block, BlockValidationKind::SkipStateRootValidation, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None)
         {
             Ok(status) => {
                 match status {
