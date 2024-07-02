@@ -44,6 +44,10 @@ impl BlockchainTreeEngine for NoopBlockchainTree {
         _revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]
         _gasprice_changes: Option<Vec<(u64,U256)>>,
+        #[cfg(feature = "telos")]
+        _new_addresses_using_create: Option<Vec<(u64,U256)>>,
+        #[cfg(feature = "telos")]
+        _new_addresses_using_openwallet: Option<Vec<(u64,U256)>>,
     ) -> Result<InsertPayloadOk, InsertBlockError> {
         Err(InsertBlockError::tree_error(
             BlockchainTreeError::BlockHashNotFoundInChain { block_hash: block.hash() },

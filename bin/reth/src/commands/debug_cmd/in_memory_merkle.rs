@@ -185,6 +185,10 @@ impl Command {
             None,
             #[cfg(feature = "telos")]
             None,
+            #[cfg(feature = "telos")]
+            None,
+            #[cfg(feature = "telos")]
+            None,
         )?;
         let block_state = executor.take_output_state();
 

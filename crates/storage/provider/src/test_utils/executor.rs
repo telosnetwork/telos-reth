@@ -38,6 +38,10 @@ impl BlockExecutor for TestExecutor {
         _revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]
         _gasprice_changes: Option<Vec<(u64,U256)>>,
+        #[cfg(feature = "telos")]
+        _new_addresses_using_create: Option<Vec<(u64,U256)>>,
+        #[cfg(feature = "telos")]
+        _new_addresses_using_openwallet: Option<Vec<(u64,U256)>>,
     ) -> Result<(), BlockExecutionError> {
         if self.0.is_none() {
             return Err(BlockExecutionError::UnavailableForTest)
@@ -57,6 +61,10 @@ impl BlockExecutor for TestExecutor {
         _revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]
         _gasprice_changes: Option<Vec<(u64,U256)>>,
+        #[cfg(feature = "telos")]
+        _new_addresses_using_create: Option<Vec<(u64,U256)>>,
+        #[cfg(feature = "telos")]
+        _new_addresses_using_openwallet: Option<Vec<(u64,U256)>>,
     ) -> Result<(Vec<Receipt>, u64), BlockExecutionError> {
         Err(BlockExecutionError::UnavailableForTest)
     }

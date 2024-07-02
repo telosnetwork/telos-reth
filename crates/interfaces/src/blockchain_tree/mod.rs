@@ -35,9 +35,13 @@ pub trait BlockchainTreeEngine: BlockchainTreeViewer + Send + Sync {
         revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]
         gasprice_changes: Option<Vec<(u64,U256)>>,
+        #[cfg(feature = "telos")]
+        new_addresses_using_create: Option<Vec<(u64,U256)>>,
+        #[cfg(feature = "telos")]
+        new_addresses_using_openwallet: Option<Vec<(u64,U256)>>,
     ) -> Result<InsertPayloadOk, InsertBlockError> {
         match block.try_seal_with_senders() {
-            Ok(block) => self.insert_block(block, validation_kind, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes),
+            Ok(block) => self.insert_block(block, validation_kind, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes, #[cfg(feature = "telos")] new_addresses_using_create, #[cfg(feature = "telos")] new_addresses_using_openwallet),
             Err(block) => Err(InsertBlockError::sender_recovery_error(block)),
         }
     }
@@ -75,6 +79,10 @@ pub trait BlockchainTreeEngine: BlockchainTreeViewer + Send + Sync {
         revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]
         gasprice_changes: Option<Vec<(u64,U256)>>,
+        #[cfg(feature = "telos")]
+        new_addresses_using_create: Option<Vec<(u64,U256)>>,
+        #[cfg(feature = "telos")]
+        new_addresses_using_openwallet: Option<Vec<(u64,U256)>>,
     ) -> Result<InsertPayloadOk, InsertBlockError>;
 
     /// Finalize blocks up until and including `finalized_block`, and remove them from the tree.

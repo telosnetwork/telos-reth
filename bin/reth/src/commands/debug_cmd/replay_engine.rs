@@ -227,8 +227,8 @@ impl Command {
                         beacon_engine_handle.fork_choice_updated(state, payload_attrs).await?;
                     debug!(target: "reth::cli", ?response, "Received for forkchoice updated");
                 }
-                StoredEngineApiMessage::NewPayload { payload, cancun_fields , #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes } => {
-                    let response = beacon_engine_handle.new_payload(payload, cancun_fields, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes).await?;
+                StoredEngineApiMessage::NewPayload { payload, cancun_fields , #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes, #[cfg(feature = "telos")] new_addresses_using_create, #[cfg(feature = "telos")] new_addresses_using_openwallet } => {
+                    let response = beacon_engine_handle.new_payload(payload, cancun_fields, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes, #[cfg(feature = "telos")] new_addresses_using_create, #[cfg(feature = "telos")] new_addresses_using_openwallet).await?;
                     debug!(target: "reth::cli", ?response, "Received for new payload");
                 }
             };

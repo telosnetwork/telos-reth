@@ -25,6 +25,8 @@ use revm::{
     primitives::{CfgEnvWithHandlerCfg, ResultAndState},
     Evm, Handler, State, StateBuilder,
 };
+#[cfg(feature = "telos")]
+use revm::primitives::{Account, AccountInfo, AccountStatus, Bytecode, HashMap, KECCAK_EMPTY};
 use std::{str::FromStr, sync::Arc, time::Instant};
 
 #[cfg(feature = "optimism")]
@@ -311,10 +313,14 @@ where
         revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]
         gasprice_changes: Option<Vec<(u64,U256)>>,
+        #[cfg(feature = "telos")]
+        new_addresses_using_create: Option<Vec<(u64,U256)>>,
+        #[cfg(feature = "telos")]
+        new_addresses_using_openwallet: Option<Vec<(u64,U256)>>,
     ) -> Result<Vec<Receipt>, BlockExecutionError> {
         self.init_env(&block.header, total_difficulty);
         self.apply_beacon_root_contract_call(block)?;
-        let (receipts, cumulative_gas_used) = self.execute_transactions(block, total_difficulty, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes)?;
+        let (receipts, cumulative_gas_used) = self.execute_transactions(block, total_difficulty, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes, #[cfg(feature = "telos")] new_addresses_using_create, #[cfg(feature = "telos")] new_addresses_using_openwallet)?;
 
         // Check if gas used matches the value set in header.
         if block.gas_used != cumulative_gas_used {
@@ -431,7 +437,7 @@ where
         block: &BlockWithSenders,
         total_difficulty: U256,
     ) -> Result<(), BlockExecutionError> {
-        let receipts = self.execute_inner(block, total_difficulty, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None)?;
+        let receipts = self.execute_inner(block, total_difficulty, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None)?;
         self.save_receipts(receipts)
     }
 
@@ -447,9 +453,13 @@ where
         revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]
         gasprice_changes: Option<Vec<(u64,U256)>>,
+        #[cfg(feature = "telos")]
+        new_addresses_using_create: Option<Vec<(u64,U256)>>,
+        #[cfg(feature = "telos")]
+        new_addresses_using_openwallet: Option<Vec<(u64,U256)>>,
     ) -> Result<(), BlockExecutionError> {
         // execute block
-        let receipts = self.execute_inner(block, total_difficulty, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes)?;
+        let receipts = self.execute_inner(block, total_difficulty, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes, #[cfg(feature = "telos")] new_addresses_using_create, #[cfg(feature = "telos")] new_addresses_using_openwallet)?;
 
         // TODO Before Byzantium, receipts contained state root that would mean that expensive
         // operation as hashing that is needed for state root got calculated in every
@@ -481,20 +491,33 @@ where
         revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]
         gasprice_changes: Option<Vec<(u64,U256)>>,
+        #[cfg(feature = "telos")]
+        new_addresses_using_create: Option<Vec<(u64,U256)>>,
+        #[cfg(feature = "telos")]
+        new_addresses_using_openwallet: Option<Vec<(u64,U256)>>,
     ) -> Result<(Vec<Receipt>, u64), BlockExecutionError> {
         self.init_env(&block.header, total_difficulty);
 
         // perf: do not execute empty blocks
         if block.body.is_empty() {
+            #[cfg(feature = "telos")]
+            for (_, address) in new_addresses_using_create.unwrap_or_default() {
+                let mut state: HashMap<Address, Account> = HashMap::new();
+                self.db_mut().insert_not_existing(Address::from_word(B256::from(address)));
+                state.insert(Address::from_word(B256::from(address)),Account{info: AccountInfo{balance: U256::ZERO, nonce: 1, code: Some(Bytecode::default()), code_hash: KECCAK_EMPTY}, storage: HashMap::new(), status: AccountStatus::Touched|AccountStatus::LoadedAsNotExisting});
+                self.db_mut().commit(state);
+            }
             return Ok((Vec::new(), 0))
         }
 
-        // #[cfg(feature = "telos")]
-        // let mut tx_index = 0;
+        #[cfg(feature = "telos")]
+        let mut tx_index = 0;
         // #[cfg(feature = "telos")]
         // let mut revision_changes_iter = revision_changes.as_ref().unwrap().into_iter().peekable();
         // #[cfg(feature = "telos")]
         // let mut gasprice_changes_iter = gasprice_changes.as_ref().unwrap().into_iter().peekable();
+        #[cfg(feature = "telos")]
+        let mut new_addresses_using_create_iter = new_addresses_using_create.as_ref().unwrap().into_iter().peekable();
         // #[cfg(feature = "telos")]
         // if revision_changes.as_ref().is_none() || revision_changes.as_ref().unwrap().len() == 0 {
         //     return Err(BlockExecutionError::ProviderError)
@@ -521,9 +544,18 @@ where
             //     gasprice = gasprice_changes_iter.peek().unwrap().1;
             //     gasprice_changes_iter.next();
             // }
-            // #[cfg(feature = "telos")] {
-            //     tx_index += 1;
-            // }
+            #[cfg(feature = "telos")]
+            while new_addresses_using_create_iter.peek().is_some() && new_addresses_using_create_iter.peek().unwrap().0 == tx_index {
+                let address = new_addresses_using_create_iter.peek().unwrap().1;
+                let mut state: HashMap<Address, Account> = HashMap::new();
+                self.db_mut().insert_not_existing(Address::from_word(B256::from(address)));
+                state.insert(Address::from_word(B256::from(address)),Account{info: AccountInfo{balance: U256::ZERO, nonce: 1, code: Some(Bytecode::default()), code_hash: KECCAK_EMPTY}, storage: HashMap::new(), status: AccountStatus::Touched|AccountStatus::LoadedAsNotExisting});
+                self.db_mut().commit(state);
+                new_addresses_using_create_iter.next();
+            }
+            #[cfg(feature = "telos")] {
+                tx_index += 1;
+            }
             // The sum of the transaction’s gas limit, Tg, and the gas utilized in this block prior,
             // must be no greater than the block’s gasLimit.
             let block_available_gas = block.header.gas_limit - cumulative_gas_used;
@@ -563,11 +595,21 @@ where
             });
         }
 
+        #[cfg(feature = "telos")]
+        while new_addresses_using_create_iter.peek().is_some() {
+            let address = new_addresses_using_create_iter.peek().unwrap().1;
+            let mut state: HashMap<Address, Account> = HashMap::new();
+            self.db_mut().insert_not_existing(Address::from_word(B256::from(address)));
+            state.insert(Address::from_word(B256::from(address)),Account{info: AccountInfo{balance: U256::ZERO, nonce: 1, code: Some(Bytecode::default()), code_hash: KECCAK_EMPTY}, storage: HashMap::new(), status: AccountStatus::Touched|AccountStatus::LoadedAsNotExisting});
+            self.db_mut().commit(state);
+            new_addresses_using_create_iter.next();
+        }
+
         // #[cfg(feature = "telos")]
         // // Perform state diff comparision
         // let revm_state_diffs = self.db_mut().transition_state.clone().unwrap().transitions;
         // let native_state_diffs = native_state_diffs_to_revm(statediffs_account.unwrap(),statediffs_accountstate.unwrap());
-        // println!("Compare: {}",compare_state_diffs(revm_state_diffs,native_state_diffs));
+        // println!("Compare: {}",compare_state_diffs(revm_state_diffs,native_state_diffs,new_addresses_using_create.unwrap(),new_addresses_using_openwallet.unwrap()));
 
         Ok((receipts, cumulative_gas_used))
     }

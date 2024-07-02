@@ -45,6 +45,12 @@ pub enum StoredEngineApiMessage<Attributes> {
         #[cfg(feature = "telos")]
         /// Gas price changes in block
         gasprice_changes: Option<Vec<(u64,U256)>>,
+        #[cfg(feature = "telos")]
+        /// New addresses using `create` action in block
+        new_addresses_using_create: Option<Vec<(u64,U256)>>,
+        #[cfg(feature = "telos")]
+        /// New addresses using `openwallet` action in block
+        new_addresses_using_openwallet: Option<Vec<(u64,U256)>>,
     },
 }
 
@@ -86,7 +92,7 @@ impl EngineApiStore {
                     })?,
                 )?;
             }
-            BeaconEngineMessage::NewPayload { payload, cancun_fields, tx: _tx, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes } => {
+            BeaconEngineMessage::NewPayload { payload, cancun_fields, tx: _tx, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes, #[cfg(feature = "telos")] new_addresses_using_create, #[cfg(feature = "telos")] new_addresses_using_openwallet } => {
                 let filename = format!("{}-new_payload-{}.json", timestamp, payload.block_hash());
                 fs::write(
                     self.path.join(filename),
@@ -102,6 +108,10 @@ impl EngineApiStore {
                             revision_changes: revision_changes.clone(),
                             #[cfg(feature = "telos")]
                             gasprice_changes: gasprice_changes.clone(),
+                            #[cfg(feature = "telos")]
+                            new_addresses_using_create: new_addresses_using_create.clone(),
+                            #[cfg(feature = "telos")]
+                            new_addresses_using_openwallet: new_addresses_using_openwallet.clone(),
                         },
                     )?,
                 )?;

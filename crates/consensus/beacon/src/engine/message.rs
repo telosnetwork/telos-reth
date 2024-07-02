@@ -166,6 +166,12 @@ pub enum BeaconEngineMessage<Engine: EngineTypes> {
         #[cfg(feature = "telos")]
         /// Gas price changes in block
         gasprice_changes: Option<Vec<(u64,U256)>>,
+        #[cfg(feature = "telos")]
+        /// New addresses using `create` action in block
+        new_addresses_using_create: Option<Vec<(u64,U256)>>,
+        #[cfg(feature = "telos")]
+        /// New addresses using `openwallet` action in block
+        new_addresses_using_openwallet: Option<Vec<(u64,U256)>>,
     },
     /// Message with updated forkchoice state.
     ForkchoiceUpdated {

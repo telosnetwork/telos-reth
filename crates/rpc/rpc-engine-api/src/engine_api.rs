@@ -103,6 +103,10 @@ where
         revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]
         gasprice_changes: Option<Vec<(u64,U256)>>,
+        #[cfg(feature = "telos")]
+        new_addresses_using_create: Option<Vec<(u64,U256)>>,
+        #[cfg(feature = "telos")]
+        new_addresses_using_openwallet: Option<Vec<(u64,U256)>>,
     ) -> EngineApiResult<PayloadStatus> {
         let payload = ExecutionPayload::from(payload);
         let payload_or_attrs =
@@ -114,7 +118,7 @@ where
             EngineApiMessageVersion::V1,
             payload_or_attrs,
         )?;
-        Ok(self.inner.beacon_consensus.new_payload(payload, None, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes).await?)
+        Ok(self.inner.beacon_consensus.new_payload(payload, None, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes, #[cfg(feature = "telos")] new_addresses_using_create, #[cfg(feature = "telos")] new_addresses_using_openwallet).await?)
     }
 
     /// See also <https://github.com/ethereum/execution-apis/blob/584905270d8ad665718058060267061ecfd79ca5/src/engine/shanghai.md#engine_newpayloadv2>
@@ -132,7 +136,7 @@ where
             EngineApiMessageVersion::V2,
             payload_or_attrs,
         )?;
-        Ok(self.inner.beacon_consensus.new_payload(payload, None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None).await?)
+        Ok(self.inner.beacon_consensus.new_payload(payload, None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None).await?)
     }
 
     /// See also <https://github.com/ethereum/execution-apis/blob/fe8e13c288c592ec154ce25c534e26cb7ce0530d/src/engine/cancun.md#engine_newpayloadv3>
@@ -156,7 +160,7 @@ where
 
         let cancun_fields = CancunPayloadFields { versioned_hashes, parent_beacon_block_root };
 
-        Ok(self.inner.beacon_consensus.new_payload(payload, Some(cancun_fields), #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None).await?)
+        Ok(self.inner.beacon_consensus.new_payload(payload, Some(cancun_fields), #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None).await?)
     }
 
     /// Sends a message to the beacon consensus engine to update the fork choice _without_
@@ -497,10 +501,10 @@ where
     /// Handler for `engine_newPayloadV1`
     /// See also <https://github.com/ethereum/execution-apis/blob/3d627c95a4d3510a8187dd02e0250ecb4331d27e/src/engine/paris.md#engine_newpayloadv1>
     /// Caution: This should not accept the `withdrawals` field
-    async fn new_payload_v1(&self, payload: ExecutionPayloadV1, statediffs_account: Option<Vec<TelosAccountTableRow>>, statediffs_accountstate: Option<Vec<TelosAccountStateTableRow>>, revision_changes: Option<Vec<(u64,u64)>>, gasprice_changes: Option<Vec<(u64,U256)>>) -> RpcResult<PayloadStatus> {
+    async fn new_payload_v1(&self, payload: ExecutionPayloadV1, statediffs_account: Option<Vec<TelosAccountTableRow>>, statediffs_accountstate: Option<Vec<TelosAccountStateTableRow>>, revision_changes: Option<Vec<(u64,u64)>>, gasprice_changes: Option<Vec<(u64,U256)>>, new_addresses_using_create: Option<Vec<(u64,U256)>>, new_addresses_using_openwallet: Option<Vec<(u64,U256)>>) -> RpcResult<PayloadStatus> {
         trace!(target: "rpc::engine", "Serving engine_newPayloadV1");
         let start = Instant::now();
-        let res = EngineApi::new_payload_v1(self, payload, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes).await;
+        let res = EngineApi::new_payload_v1(self, payload, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes, #[cfg(feature = "telos")] new_addresses_using_create, #[cfg(feature = "telos")] new_addresses_using_openwallet).await;
         self.inner.metrics.new_payload_v1.record(start.elapsed());
         Ok(res?)
     }

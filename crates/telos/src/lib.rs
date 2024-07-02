@@ -197,10 +197,19 @@ pub fn native_state_diffs_to_revm(
 pub fn compare_state_diffs(
     revm_state_diffs: HashMap<Address,TransitionAccount>,
     native_state_diffs: HashMap<Address,Account>,
+    new_addresses_using_create: Vec<(u64,U256)>,
+    new_addresses_using_openwallet: Vec<(u64,U256)>,
 ) -> bool {
     // Check lengths
     if revm_state_diffs.len() != native_state_diffs.len() {
         return false
+    }
+
+    for row in new_addresses_using_create {
+
+    }
+    for row in new_addresses_using_openwallet {
+        
     }
 
     // Check balance and nonce

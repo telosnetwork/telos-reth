@@ -82,6 +82,10 @@ impl AppendableChain {
         revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]
         gasprice_changes: Option<Vec<(u64,U256)>>,
+        #[cfg(feature = "telos")]
+        new_addresses_using_create: Option<Vec<(u64,U256)>>,
+        #[cfg(feature = "telos")]
+        new_addresses_using_openwallet: Option<Vec<(u64,U256)>>,
     ) -> Result<Self, InsertBlockErrorKind>
     where
         DB: Database,
@@ -112,6 +116,10 @@ impl AppendableChain {
             revision_changes,
             #[cfg(feature = "telos")]
             gasprice_changes,
+            #[cfg(feature = "telos")]
+            new_addresses_using_create,
+            #[cfg(feature = "telos")]
+            new_addresses_using_openwallet,
         )?;
 
         Ok(Self { chain: Chain::new(vec![block], bundle_state, trie_updates) })
@@ -165,6 +173,10 @@ impl AppendableChain {
             None,
             #[cfg(feature = "telos")]
             None,
+            #[cfg(feature = "telos")]
+            None,
+            #[cfg(feature = "telos")]
+            None,
         )?;
         // extending will also optimize few things, mostly related to selfdestruct and wiping of
         // storage.
@@ -205,6 +217,10 @@ impl AppendableChain {
         revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]
         gasprice_changes: Option<Vec<(u64,U256)>>,
+        #[cfg(feature = "telos")]
+        new_addresses_using_create: Option<Vec<(u64,U256)>>,
+        #[cfg(feature = "telos")]
+        new_addresses_using_openwallet: Option<Vec<(u64,U256)>>,
     ) -> RethResult<(BundleStateWithReceipts, Option<TrieUpdates>)>
     where
         BSDP: BundleStateDataProvider,
@@ -224,7 +240,7 @@ impl AppendableChain {
         let mut executor = externals.executor_factory.with_state(&provider);
         let block_hash = block.hash();
         let block = block.unseal();
-        executor.execute_and_verify_receipt(&block, U256::MAX, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes)?;
+        executor.execute_and_verify_receipt(&block, U256::MAX, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes, #[cfg(feature = "telos")] new_addresses_using_create, #[cfg(feature = "telos")] new_addresses_using_openwallet)?;
         let bundle_state = executor.take_output_state();
 
         // check state root if the block extends the canonical chain __and__ if state root
@@ -303,6 +319,10 @@ impl AppendableChain {
             externals,
             block_attachment,
             block_validation_kind,
+            #[cfg(feature = "telos")]
+            None,
+            #[cfg(feature = "telos")]
+            None,
             #[cfg(feature = "telos")]
             None,
             #[cfg(feature = "telos")]
