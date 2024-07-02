@@ -4,7 +4,7 @@ use crate::{bundle_state::BundleStateWithReceipts, StateProvider};
 use reth_interfaces::executor::BlockExecutionError;
 use reth_primitives::{BlockNumber, BlockWithSenders, PruneModes, Receipt, U256};
 #[cfg(feature = "telos")]
-use reth_telos::TelosAccountTableRow;
+use reth_telos::{TelosAccountTableRow,TelosAccountStateTableRow};
 use std::time::Duration;
 use tracing::debug;
 
@@ -41,6 +41,8 @@ pub trait BlockExecutor {
         #[cfg(feature = "telos")]
         statediffs_account: Option<Vec<TelosAccountTableRow>>,
         #[cfg(feature = "telos")]
+        statediffs_accountstate: Option<Vec<TelosAccountStateTableRow>>,
+        #[cfg(feature = "telos")]
         revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]
         gasprice_changes: Option<Vec<(u64,U256)>>,
@@ -64,6 +66,8 @@ pub trait BlockExecutor {
         total_difficulty: U256,
         #[cfg(feature = "telos")]
         statediffs_account: Option<Vec<TelosAccountTableRow>>,
+        #[cfg(feature = "telos")]
+        statediffs_accountstate: Option<Vec<TelosAccountStateTableRow>>,
         #[cfg(feature = "telos")]
         revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]

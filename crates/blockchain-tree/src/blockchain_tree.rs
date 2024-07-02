@@ -29,7 +29,7 @@ use reth_provider::{
 };
 use reth_stages::{MetricEvent, MetricEventsSender};
 #[cfg(feature = "telos")]
-use reth_telos::TelosAccountTableRow;
+use reth_telos::{TelosAccountTableRow,TelosAccountStateTableRow};
 use std::{
     collections::{BTreeMap, HashSet},
     sync::Arc,
@@ -292,6 +292,8 @@ impl<DB: Database, EVM: ExecutorFactory> BlockchainTree<DB, EVM> {
         #[cfg(feature = "telos")]
         statediffs_account: Option<Vec<TelosAccountTableRow>>,
         #[cfg(feature = "telos")]
+        statediffs_accountstate: Option<Vec<TelosAccountStateTableRow>>,
+        #[cfg(feature = "telos")]
         revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]
         gasprice_changes: Option<Vec<(u64,U256)>>,
@@ -308,7 +310,7 @@ impl<DB: Database, EVM: ExecutorFactory> BlockchainTree<DB, EVM> {
 
         // if not found, check if the parent can be found inside canonical chain.
         if self.is_block_hash_canonical(&parent.hash)? {
-            return self.try_append_canonical_chain(block.clone(), block_validation_kind, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes)
+            return self.try_append_canonical_chain(block.clone(), block_validation_kind, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes)
         }
 
         // this is another check to ensure that if the block points to a canonical block its block
@@ -359,6 +361,8 @@ impl<DB: Database, EVM: ExecutorFactory> BlockchainTree<DB, EVM> {
         block_validation_kind: BlockValidationKind,
         #[cfg(feature = "telos")]
         statediffs_account: Option<Vec<TelosAccountTableRow>>,
+        #[cfg(feature = "telos")]
+        statediffs_accountstate: Option<Vec<TelosAccountStateTableRow>>,
         #[cfg(feature = "telos")]
         revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]
@@ -414,6 +418,8 @@ impl<DB: Database, EVM: ExecutorFactory> BlockchainTree<DB, EVM> {
             block_validation_kind,
             #[cfg(feature = "telos")]
             statediffs_account,
+            #[cfg(feature = "telos")]
+            statediffs_accountstate,
             #[cfg(feature = "telos")]
             revision_changes,
             #[cfg(feature = "telos")]
@@ -641,7 +647,7 @@ impl<DB: Database, EVM: ExecutorFactory> BlockchainTree<DB, EVM> {
         block: SealedBlock,
     ) -> Result<InsertPayloadOk, InsertBlockError> {
         match block.try_seal_with_senders() {
-            Ok(block) => self.insert_block(block, BlockValidationKind::Exhaustive, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None),
+            Ok(block) => self.insert_block(block, BlockValidationKind::Exhaustive, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None),
             Err(block) => Err(InsertBlockError::sender_recovery_error(block)),
         }
     }
@@ -735,6 +741,8 @@ impl<DB: Database, EVM: ExecutorFactory> BlockchainTree<DB, EVM> {
         #[cfg(feature = "telos")]
         statediffs_account: Option<Vec<TelosAccountTableRow>>,
         #[cfg(feature = "telos")]
+        statediffs_accountstate: Option<Vec<TelosAccountStateTableRow>>,
+        #[cfg(feature = "telos")]
         revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]
         gasprice_changes: Option<Vec<(u64,U256)>>,
@@ -752,7 +760,7 @@ impl<DB: Database, EVM: ExecutorFactory> BlockchainTree<DB, EVM> {
         }
 
         let status = self
-            .try_insert_validated_block(block.clone(), block_validation_kind, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes)
+            .try_insert_validated_block(block.clone(), block_validation_kind, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes)
             .map_err(|kind| InsertBlockError::new(block.block, kind))?;
         Ok(InsertPayloadOk::Inserted(status))
     }
@@ -862,7 +870,7 @@ impl<DB: Database, EVM: ExecutorFactory> BlockchainTree<DB, EVM> {
         for block in include_blocks.into_iter() {
             // dont fail on error, just ignore the block.
             let _ = self
-                .try_insert_validated_block(block, BlockValidationKind::SkipStateRootValidation, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None)
+                .try_insert_validated_block(block, BlockValidationKind::SkipStateRootValidation, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None)
                 .map_err(|err| {
                     debug!(
                         target: "blockchain_tree", %err,

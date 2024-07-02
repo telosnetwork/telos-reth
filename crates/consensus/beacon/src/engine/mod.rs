@@ -35,7 +35,7 @@ use reth_rpc_types::engine::{
 };
 use reth_stages::{ControlFlow, Pipeline, PipelineError};
 use reth_tasks::TaskSpawner;
-use reth_telos::TelosAccountTableRow;
+use reth_telos::{TelosAccountTableRow,TelosAccountStateTableRow};
 use reth_tokio_util::EventListeners;
 use std::{
     pin::Pin,
@@ -1085,6 +1085,7 @@ where
         payload: ExecutionPayload,
         cancun_fields: Option<CancunPayloadFields>,
         statediffs_account: Option<Vec<TelosAccountTableRow>>,
+        statediffs_accountstate: Option<Vec<TelosAccountStateTableRow>>,
         revision_changes: Option<Vec<(u64,u64)>>,
         gasprice_changes: Option<Vec<(u64,U256)>>,
     ) -> Result<PayloadStatus, BeaconOnNewPayloadError> {
@@ -1110,7 +1111,7 @@ where
         let res = if self.sync.is_pipeline_idle() {
             // we can only insert new payloads if the pipeline is _not_ running, because it holds
             // exclusive access to the database
-            self.try_insert_new_payload(block, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes)
+            self.try_insert_new_payload(block, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes)
         } else {
             self.try_buffer_payload(block)
         };
@@ -1274,6 +1275,8 @@ where
         #[cfg(feature = "telos")]
         statediffs_account: Option<Vec<TelosAccountTableRow>>,
         #[cfg(feature = "telos")]
+        statediffs_accountstate: Option<Vec<TelosAccountStateTableRow>>,
+        #[cfg(feature = "telos")]
         revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]
         gasprice_changes: Option<Vec<(u64,U256)>>,
@@ -1284,7 +1287,7 @@ where
         let start = Instant::now();
         let status = self
             .blockchain
-            .insert_block_without_senders(block.clone(), BlockValidationKind::Exhaustive, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes)?;
+            .insert_block_without_senders(block.clone(), BlockValidationKind::Exhaustive, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes)?;
         let elapsed = start.elapsed();
         let mut latest_valid_hash = None;
         let block = Arc::new(block);
@@ -1402,7 +1405,7 @@ where
 
         match self
             .blockchain
-            .insert_block_without_senders(block, BlockValidationKind::SkipStateRootValidation, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None)
+            .insert_block_without_senders(block, BlockValidationKind::SkipStateRootValidation, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None)
         {
             Ok(status) => {
                 match status {
@@ -1813,9 +1816,9 @@ where
                                 }
                             }
                         }
-                        BeaconEngineMessage::NewPayload { payload, cancun_fields, tx, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes } => {
+                        BeaconEngineMessage::NewPayload { payload, cancun_fields, tx, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes } => {
                             this.metrics.new_payload_messages.increment(1);
-                            let res = this.on_new_payload(payload, cancun_fields, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes, #[cfg(not(feature = "telos"))] None, #[cfg(not(feature = "telos"))] None, #[cfg(not(feature = "telos"))] None);
+                            let res = this.on_new_payload(payload, cancun_fields, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes, #[cfg(not(feature = "telos"))] None, #[cfg(not(feature = "telos"))] None, #[cfg(not(feature = "telos"))] None, #[cfg(not(feature = "telos"))] None);
                             let _ = tx.send(res);
                         }
                         BeaconEngineMessage::TransitionConfigurationExchanged => {

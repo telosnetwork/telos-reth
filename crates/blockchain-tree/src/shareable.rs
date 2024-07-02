@@ -19,7 +19,7 @@ use reth_provider::{
     ExecutorFactory,
 };
 #[cfg(feature = "telos")]
-use reth_telos::TelosAccountTableRow;
+use reth_telos::{TelosAccountTableRow,TelosAccountStateTableRow};
 use std::{
     collections::{BTreeMap, HashSet},
     sync::Arc,
@@ -57,13 +57,15 @@ impl<DB: Database, EF: ExecutorFactory> BlockchainTreeEngine for ShareableBlockc
         #[cfg(feature = "telos")]
         statediffs_account: Option<Vec<TelosAccountTableRow>>,
         #[cfg(feature = "telos")]
+        statediffs_accountstate: Option<Vec<TelosAccountStateTableRow>>,
+        #[cfg(feature = "telos")]
         revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]
         gasprice_changes: Option<Vec<(u64,U256)>>,
     ) -> Result<InsertPayloadOk, InsertBlockError> {
         trace!(target: "blockchain_tree", hash=?block.hash(), number=block.number, parent_hash=?block.parent_hash, "Inserting block");
         let mut tree = self.tree.write();
-        let res = tree.insert_block(block, validation_kind, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes);
+        let res = tree.insert_block(block, validation_kind, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes);
         tree.update_chains_metrics();
         res
     }

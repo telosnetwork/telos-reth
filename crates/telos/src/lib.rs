@@ -32,12 +32,20 @@ pub struct TelosNetworkConfig {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ssz", derive(ssz_derive::Encode, ssz_derive::Decode))]
 pub struct TelosAccountTableRow {
-    pub index: u64,
     pub address: Address,
     pub account: String,
     pub nonce: u64,
     pub code: Bytes,
     pub balance: U256
+}
+
+// Telos EVM Account State Table Row
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ssz", derive(ssz_derive::Encode, ssz_derive::Decode))]
+pub struct TelosAccountStateTableRow {
+    pub address: Address,
+    pub key: U256,
+    pub value: U256
 }
 
 #[derive(StructPacker)]
@@ -165,6 +173,7 @@ pub async fn send_to_telos(
 // Converts native state diffs to revm state diffs (for comparision)
 pub fn native_state_diffs_to_revm(
     statediffs_account: Vec<TelosAccountTableRow>,
+    statediffs_accountstate: Vec<TelosAccountStateTableRow>,
 ) -> HashMap<Address,Account> {
     let mut state: HashMap<reth_primitives::revm_primitives::Address, reth_primitives::revm_primitives::Account> = HashMap::new();
     for row in statediffs_account {
@@ -179,6 +188,8 @@ pub fn native_state_diffs_to_revm(
             status: AccountStatus::Loaded,
         };
         state.insert(row.address,tmp);
+    }
+    for row in statediffs_accountstate {
     }
     return state;
 }

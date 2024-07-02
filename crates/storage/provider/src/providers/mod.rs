@@ -23,7 +23,7 @@ use reth_primitives::{
     U256,
 };
 #[cfg(feature = "telos")]
-use reth_telos::TelosAccountTableRow;
+use reth_telos::{TelosAccountTableRow,TelosAccountStateTableRow};
 use revm::primitives::{BlockEnv, CfgEnvWithHandlerCfg};
 use std::{
     collections::{BTreeMap, HashSet},
@@ -643,11 +643,13 @@ where
         #[cfg(feature = "telos")]
         statediffs_account: Option<Vec<TelosAccountTableRow>>,
         #[cfg(feature = "telos")]
+        statediffs_accountstate: Option<Vec<TelosAccountStateTableRow>>,
+        #[cfg(feature = "telos")]
         revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]
         gasprice_changes: Option<Vec<(u64,U256)>>,
     ) -> Result<InsertPayloadOk, InsertBlockError> {
-        self.tree.insert_block(block, validation_kind, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes)
+        self.tree.insert_block(block, validation_kind, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes)
     }
 
     fn finalize_block(&self, finalized_block: BlockNumber) {

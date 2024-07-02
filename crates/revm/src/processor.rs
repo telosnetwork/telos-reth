@@ -17,7 +17,7 @@ use reth_provider::{
 #[cfg(feature = "telos")]
 use reth_telos::{native_state_diffs_to_revm,compare_state_diffs};
 #[cfg(feature = "telos")]
-use reth_telos::TelosAccountTableRow;
+use reth_telos::{TelosAccountTableRow,TelosAccountStateTableRow};
 use revm::{
     db::{states::bundle_state::BundleRetention, EmptyDBTyped, StateDBBox},
     inspector_handle_register,
@@ -306,13 +306,15 @@ where
         #[cfg(feature = "telos")]
         statediffs_account: Option<Vec<TelosAccountTableRow>>,
         #[cfg(feature = "telos")]
+        statediffs_accountstate: Option<Vec<TelosAccountStateTableRow>>,
+        #[cfg(feature = "telos")]
         revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]
         gasprice_changes: Option<Vec<(u64,U256)>>,
     ) -> Result<Vec<Receipt>, BlockExecutionError> {
         self.init_env(&block.header, total_difficulty);
         self.apply_beacon_root_contract_call(block)?;
-        let (receipts, cumulative_gas_used) = self.execute_transactions(block, total_difficulty, #[cfg(feature = "telos")] statediffs_account,#[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes)?;
+        let (receipts, cumulative_gas_used) = self.execute_transactions(block, total_difficulty, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes)?;
 
         // Check if gas used matches the value set in header.
         if block.gas_used != cumulative_gas_used {
@@ -429,7 +431,7 @@ where
         block: &BlockWithSenders,
         total_difficulty: U256,
     ) -> Result<(), BlockExecutionError> {
-        let receipts = self.execute_inner(block, total_difficulty, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None)?;
+        let receipts = self.execute_inner(block, total_difficulty, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None, #[cfg(feature = "telos")] None)?;
         self.save_receipts(receipts)
     }
 
@@ -440,12 +442,14 @@ where
         #[cfg(feature = "telos")]
         statediffs_account: Option<Vec<TelosAccountTableRow>>,
         #[cfg(feature = "telos")]
+        statediffs_accountstate: Option<Vec<TelosAccountStateTableRow>>,
+        #[cfg(feature = "telos")]
         revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]
         gasprice_changes: Option<Vec<(u64,U256)>>,
     ) -> Result<(), BlockExecutionError> {
         // execute block
-        let receipts = self.execute_inner(block, total_difficulty, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes)?;
+        let receipts = self.execute_inner(block, total_difficulty, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes)?;
 
         // TODO Before Byzantium, receipts contained state root that would mean that expensive
         // operation as hashing that is needed for state root got calculated in every
@@ -471,6 +475,8 @@ where
         total_difficulty: U256,
         #[cfg(feature = "telos")]
         statediffs_account: Option<Vec<TelosAccountTableRow>>,
+        #[cfg(feature = "telos")]
+        statediffs_accountstate: Option<Vec<TelosAccountStateTableRow>>,
         #[cfg(feature = "telos")]
         revision_changes: Option<Vec<(u64,u64)>>,
         #[cfg(feature = "telos")]
@@ -560,7 +566,7 @@ where
         // #[cfg(feature = "telos")]
         // // Perform state diff comparision
         // let revm_state_diffs = self.db_mut().transition_state.clone().unwrap().transitions;
-        // let native_state_diffs = native_state_diffs_to_revm(statediffs_account.unwrap());
+        // let native_state_diffs = native_state_diffs_to_revm(statediffs_account.unwrap(),statediffs_accountstate.unwrap());
         // println!("Compare: {}",compare_state_diffs(revm_state_diffs,native_state_diffs));
 
         Ok((receipts, cumulative_gas_used))

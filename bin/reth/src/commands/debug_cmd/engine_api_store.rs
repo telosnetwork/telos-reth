@@ -8,7 +8,7 @@ use reth_rpc_types::{
     ExecutionPayload,
 };
 #[cfg(feature = "telos")]
-use reth_telos::TelosAccountTableRow;
+use reth_telos::{TelosAccountTableRow,TelosAccountStateTableRow};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, path::PathBuf, time::SystemTime};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -36,6 +36,9 @@ pub enum StoredEngineApiMessage<Attributes> {
         #[cfg(feature = "telos")]
         /// State Diffs for Account Table
         statediffs_account: Option<Vec<TelosAccountTableRow>>,
+        #[cfg(feature = "telos")]
+        /// State Diffs for Account State Table
+        statediffs_accountstate: Option<Vec<TelosAccountStateTableRow>>,
         #[cfg(feature = "telos")]
         /// Revision changes in block
         revision_changes: Option<Vec<(u64,u64)>>,
@@ -83,7 +86,7 @@ impl EngineApiStore {
                     })?,
                 )?;
             }
-            BeaconEngineMessage::NewPayload { payload, cancun_fields, tx: _tx, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes } => {
+            BeaconEngineMessage::NewPayload { payload, cancun_fields, tx: _tx, #[cfg(feature = "telos")] statediffs_account, #[cfg(feature = "telos")] statediffs_accountstate, #[cfg(feature = "telos")] revision_changes, #[cfg(feature = "telos")] gasprice_changes } => {
                 let filename = format!("{}-new_payload-{}.json", timestamp, payload.block_hash());
                 fs::write(
                     self.path.join(filename),
@@ -93,6 +96,8 @@ impl EngineApiStore {
                             cancun_fields: cancun_fields.clone(),
                             #[cfg(feature = "telos")]
                             statediffs_account: statediffs_account.clone(),
+                            #[cfg(feature = "telos")]
+                            statediffs_accountstate: statediffs_accountstate.clone(),
                             #[cfg(feature = "telos")]
                             revision_changes: revision_changes.clone(),
                             #[cfg(feature = "telos")]

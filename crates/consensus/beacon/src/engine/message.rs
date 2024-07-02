@@ -11,7 +11,7 @@ use reth_rpc_types::engine::{
     ForkchoiceUpdated, PayloadId, PayloadStatus, PayloadStatusEnum,
 };
 #[cfg(feature = "telos")]
-use reth_telos::TelosAccountTableRow;
+use reth_telos::{TelosAccountTableRow,TelosAccountStateTableRow};
 use std::{
     future::Future,
     pin::Pin,
@@ -157,6 +157,9 @@ pub enum BeaconEngineMessage<Engine: EngineTypes> {
         #[cfg(feature = "telos")]
         /// State Diffs for Account Table
         statediffs_account: Option<Vec<TelosAccountTableRow>>,
+        #[cfg(feature = "telos")]
+        /// State Diffs for Account State Table
+        statediffs_accountstate: Option<Vec<TelosAccountStateTableRow>>,
         #[cfg(feature = "telos")]
         /// Revision changes in block
         revision_changes: Option<Vec<(u64,u64)>>,
