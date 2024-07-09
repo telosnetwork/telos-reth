@@ -517,7 +517,7 @@ where
         // #[cfg(feature = "telos")]
         // let mut gasprice_changes_iter = gasprice_changes.as_ref().unwrap().into_iter().peekable();
         #[cfg(feature = "telos")]
-        let mut new_addresses_using_create_iter = new_addresses_using_create.as_ref().unwrap().into_iter().peekable();
+        let mut new_addresses_using_create_iter = new_addresses_using_create.unwrap_or_default().into_iter().peekable();
         // #[cfg(feature = "telos")]
         // if revision_changes.as_ref().is_none() || revision_changes.as_ref().unwrap().len() == 0 {
         //     return Err(BlockExecutionError::ProviderError)
