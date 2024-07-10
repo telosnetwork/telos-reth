@@ -1,4 +1,7 @@
-use std::fmt::{Debug, Formatter};
+use std::{
+    fmt,
+    fmt::{Debug, Formatter}
+};
 use antelope::api::client::{APIClient, DefaultProvider};
 use antelope::api::v1::structs::GetTableRowsParams;
 use antelope::chain::action::{Action, PermissionLevel};
@@ -11,7 +14,7 @@ use antelope::{name, StructPacker};
 use reth_primitives::revm_primitives::{Account, AccountInfo, AccountStatus, FixedBytes, HashMap};
 use reth_primitives::{keccak256, Address, Bytes, TransactionSigned, U256};
 use revm::TransitionAccount;
-use serde::{Serialize,Deserialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::time::{Duration, Instant};
 
 pub mod telos_args;
@@ -28,6 +31,30 @@ pub struct TelosNetworkConfig {
     pub gas_cache: GasPriceCache,
 }
 
+pub fn deserialize_u256<'de, D>(deserializer: D) -> Result<U256, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct U256Visitor;
+
+    impl<'de> serde::de::Visitor<'de> for U256Visitor {
+        type Value = U256;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+            formatter.write_str("a hex string representing a U256 value")
+        }
+
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(U256::from_str_radix(v, 16).unwrap())
+        }
+    }
+
+    deserializer.deserialize_str(U256Visitor)
+}
+
 // Telos EVM Account Table Row
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ssz", derive(ssz_derive::Encode, ssz_derive::Decode))]
@@ -36,6 +63,7 @@ pub struct TelosAccountTableRow {
     pub account: String,
     pub nonce: u64,
     pub code: Bytes,
+    #[serde(deserialize_with = "deserialize_u256")]
     pub balance: U256
 }
 
@@ -44,7 +72,9 @@ pub struct TelosAccountTableRow {
 #[cfg_attr(feature = "ssz", derive(ssz_derive::Encode, ssz_derive::Decode))]
 pub struct TelosAccountStateTableRow {
     pub address: Address,
+    #[serde(deserialize_with = "deserialize_u256")]
     pub key: U256,
+    #[serde(deserialize_with = "deserialize_u256")]
     pub value: U256
 }
 
