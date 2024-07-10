@@ -567,7 +567,77 @@ where
                 .into())
             }
             // Execute transaction.
-            let ResultAndState { result, state } = self.transact(transaction, *sender, #[cfg(feature = "telos")] 0, #[cfg(feature = "telos")] U256::from_str("499809179185").unwrap())?;
+            let ResultAndState { result, state } = self.transact(transaction, *sender, #[cfg(feature = "telos")] if block.number < 332317496 {
+                0
+            } else {
+                1
+            }, #[cfg(feature = "telos")] if block.number < 255838760 {
+                U256::from(499809179185_u64)
+            } else if block.number < 256919102 {
+                U256::from(503604564858_u64)
+            } else if block.number < 258567748 {
+                U256::from(503624212149_u64)
+            } else if block.number < 260508029 {
+                U256::from(503659916170_u64)
+            } else if block.number < 261916623 {
+                U256::from(503692840132_u64)
+            } else if block.number < 263258684 {
+                U256::from(503730067379_u64)
+            } else if block.number < 265110408 {
+                U256::from(503766558895_u64)
+            } else if block.number < 266854672 {
+                U256::from(503847329123_u64)
+            } else if block.number < 271693305 {
+                U256::from(503937085418_u64)
+            } else if block.number < 277570654 {
+                U256::from(504169102143_u64)
+            } else if block.number < 281052225 {
+                U256::from(504588007093_u64)
+            } else if block.number < 282427274 {
+                U256::from(504730060459_u64)
+            } else if block.number < 286905983 {
+                U256::from(504777487548_u64)
+            } else if block.number < 290533301 {
+                U256::from(504901632992_u64)
+            } else if block.number < 296069390 {
+                U256::from(505018605664_u64)
+            } else if block.number < 300562146 {
+                U256::from(505225116066_u64)
+            } else if block.number < 307967043 {
+                U256::from(505764887222_u64)
+            } else if block.number < 309157097 {
+                U256::from(507293569984_u64)
+            } else if block.number < 312517437 {
+                U256::from(507611802460_u64)
+            } else if block.number < 314907931 {
+                U256::from(508508333703_u64)
+            } else if block.number < 319569825 {
+                U256::from(509215569036_u64)
+            } else if block.number < 323391709 {
+                U256::from(510837337450_u64)
+            } else if block.number < 324360809 {
+                U256::from(511832996910_u64)
+            } else if block.number < 324398028 {
+                U256::from(512009459358_u64)
+            } else if block.number < 325597355 {
+                U256::from(512023715983_u64)
+            } else if block.number < 329239018 {
+                U256::from(512509489520_u64)
+            } else if block.number < 329714374 {
+                U256::from(513753813459_u64)
+            } else if block.number < 332358496 {
+                U256::from(513889289168_u64)
+            } else if block.number < 334211846 {
+                U256::from(514927973622_u64)
+            } else if block.number < 338022602 {
+                U256::from(515474978733_u64)
+            } else if block.number < 339221402 {
+                U256::from(516125417219_u64)
+            } else if block.number < 344908827 {
+                U256::from(516282803626_u64)
+            } else {
+                U256::from(516900477336_u64)
+            })?;
             trace!(
                 target: "evm",
                 ?transaction, ?result, ?state,
