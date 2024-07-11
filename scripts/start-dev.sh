@@ -7,7 +7,7 @@ cd $INSTALL_ROOT
 LOG_NAME="$(basename $INSTALL_ROOT)"
 LOG_PATH="$INSTALL_ROOT/$LOG_NAME.log"
 
-CLIENT_BIN="$INSTALL_ROOT/target/release/reth"
+CLIENT_BIN="$INSTALL_ROOT/target/debug/reth"
 
 export RUST_BACKTRACE=full
 
