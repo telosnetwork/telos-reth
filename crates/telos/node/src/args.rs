@@ -1,5 +1,7 @@
 //! clap [Args](clap::Args) for telos configuration
 
+use serde::{Deserialize, Serialize};
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, clap::Args)]
 #[clap(next_help_heading = "Telos")]
 pub struct TelosArgs {

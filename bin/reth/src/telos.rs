@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 use clap::Parser;
+use reth::cli::Cli;
 use reth_node_telos::TelosArgs;
 use reth_node_telos::TelosNode;
 use reth_telos_rpc::TelosClient;
