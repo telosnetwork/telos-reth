@@ -25,7 +25,7 @@ struct TelosClientInner {
 }
 
 #[derive(StructPacker)]
-struct RawActionData {
+pub struct RawActionData {
     pub ram_payer: Name,
     pub tx: Vec<u8>,
     pub estimate_gas: bool,
