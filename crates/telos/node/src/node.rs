@@ -3,7 +3,6 @@ use reth_evm_ethereum::EthEvmConfig;
 use reth_node_api::{FullNodeTypes, NodeTypes};
 use reth_node_builder::components::ComponentsBuilder;
 use reth_node_builder::{Node, PayloadTypes};
-use reth_node_ethereum::EthereumNode;
 use reth_node_ethereum::node::{EthereumAddOns, EthereumConsensusBuilder, EthereumExecutorBuilder, EthereumNetworkBuilder, EthereumPayloadBuilder, EthereumPoolBuilder};
 use crate::args::TelosArgs;
 

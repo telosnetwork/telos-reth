@@ -6467,7 +6467,6 @@ name = "reth"
 version = "1.0.5"
 dependencies = [
  "alloy-rlp",
- "antelope-client",
  "aquamarine",
  "backon",
  "clap",
