@@ -2,7 +2,7 @@ use antelope::api::client::{APIClient, DefaultProvider};
 use reth::{
     args::RpcServerArgs,
     builder::{NodeBuilder, NodeConfig},
-    tasks::{TaskExecutor, TaskManager},
+    tasks::{TaskManager},
 };
 use reth_chainspec::{ChainSpecBuilder, MAINNET};
 use reth_e2e_test_utils::node::NodeTestContext;
@@ -60,9 +60,7 @@ async fn start_ship() -> ContainerAsync<GenericImage> {
     container
 }
 
-fn init_reth() -> eyre::Result<(NodeConfig, TaskExecutor, String)> {
-    let exec = TaskManager::current();
-    let exec = exec.executor();
+fn init_reth() -> eyre::Result<(NodeConfig, String)> {
     // Chain spec with test allocs
     let genesis: Genesis =
         serde_json::from_str(include_str!("../../../ethereum/node/tests/assets/genesis.json"))
@@ -83,7 +81,7 @@ fn init_reth() -> eyre::Result<(NodeConfig, TaskExecutor, String)> {
     let node_config = NodeConfig::test().with_chain(chain_spec).with_rpc(rpc_config.clone());
 
     let jwt = fs::read_to_string(node_config.rpc.auth_jwtsecret.clone().unwrap())?;
-    Ok((node_config, exec, jwt))
+    Ok((node_config, jwt))
 }
 
 async fn start_consensus(reth_handle: TelosRethNodeHandle, ship_port: u16, chain_port: u16) {
@@ -108,10 +106,13 @@ async fn testing_chain_sync() {
     tracing_subscriber::fmt::init();
 
     let container = start_ship().await;
-    let ship_port = container.get_host_port_ipv4(8888).await.unwrap();
-    let chain_port = container.get_host_port_ipv4(18999).await.unwrap();
+    let chain_port = container.get_host_port_ipv4(8888).await.unwrap();
+    let ship_port = container.get_host_port_ipv4(18999).await.unwrap();
 
-    let (node_config, exec, jwt_secret) = init_reth().unwrap();
+    let (node_config, jwt_secret) = init_reth().unwrap();
+
+    let exec = TaskManager::current();
+    let exec = exec.executor();
 
     reth_tracing::init_test_tracing();
 
