@@ -86,6 +86,7 @@ fn init_reth() -> eyre::Result<(NodeConfig, String)> {
 
 async fn start_consensus(reth_handle: TelosRethNodeHandle, ship_port: u16, chain_port: u16) {
     let config = AppConfig {
+        chain_id: 41,
         execution_endpoint: format!("http://localhost:{}", reth_handle.execution_port),
         jwt_secret: reth_handle.jwt_secret,
         ship_endpoint: format!("ws://localhost:{ship_port}"),
@@ -93,6 +94,7 @@ async fn start_consensus(reth_handle: TelosRethNodeHandle, ship_port: u16, chain
         batch_size: 5,
         block_delta: None,
         prev_hash: B256::ZERO.to_string(),
+        validate_hash: None,
         start_block: 0,
         stop_block: Some(60),
     };
