@@ -1,8 +1,8 @@
 use antelope::api::client::{APIClient, DefaultProvider};
 use reth::{
     args::RpcServerArgs,
-    builder::{NodeBuilder, NodeConfig, NodeHandle},
-    tasks::TaskManager,
+    builder::{NodeBuilder, NodeConfig},
+    tasks::{TaskExecutor, TaskManager},
 };
 use reth_chainspec::{ChainSpecBuilder, MAINNET};
 use reth_e2e_test_utils::node::NodeTestContext;
@@ -17,17 +17,12 @@ use testcontainers::core::ContainerPort::Tcp;
 use testcontainers::{runners::AsyncRunner, ContainerAsync, GenericImage};
 use tracing::info;
 
-struct ShipHandle {
-    ship_port: u16,
-    chain_port: u16,
-}
-
 struct TelosRethNodeHandle {
     execution_port: u16,
     jwt_secret: String,
 }
 
-async fn start_ship() -> ShipHandle {
+async fn start_ship() -> ContainerAsync<GenericImage> {
     // Change this container to a local image if using new ship data,
     //   then make sure to update the ship data in the testcontainer-nodeos-evm repo and build a new version
 
@@ -44,7 +39,6 @@ async fn start_ship() -> ShipHandle {
     .unwrap();
 
     let port_8888 = container.get_host_port_ipv4(8888).await.unwrap();
-    let port_18999 = container.get_host_port_ipv4(18999).await.unwrap();
 
     let api_base_url = format!("http://localhost:{port_8888}");
     let api_client = APIClient::<DefaultProvider>::default_provider(api_base_url).unwrap();
@@ -63,14 +57,12 @@ async fn start_ship() -> ShipHandle {
         last_block = info.head_block_num;
     }
 
-    ShipHandle { ship_port: port_18999, chain_port: port_8888 }
+    container
 }
 
-async fn start_reth() -> eyre::Result<TelosRethNodeHandle> {
-    reth_tracing::init_test_tracing();
+fn init_reth() -> eyre::Result<(NodeConfig, TaskExecutor, String)> {
     let exec = TaskManager::current();
     let exec = exec.executor();
-
     // Chain spec with test allocs
     let genesis: Genesis =
         serde_json::from_str(include_str!("../../../ethereum/node/tests/assets/genesis.json"))
@@ -90,19 +82,8 @@ async fn start_reth() -> eyre::Result<TelosRethNodeHandle> {
     // Node setup
     let node_config = NodeConfig::test().with_chain(chain_spec).with_rpc(rpc_config.clone());
 
-    let NodeHandle { node, node_exit_future: _ } = NodeBuilder::new(node_config.clone())
-        .testing_node(exec)
-        .node(EthereumNode::default())
-        .launch()
-        .await?;
-    let _node_context = NodeTestContext::new(node.clone()).await?;
-
-    info!("Started Reth!");
     let jwt = fs::read_to_string(node_config.rpc.auth_jwtsecret.clone().unwrap())?;
-    Ok(TelosRethNodeHandle {
-        execution_port: node.auth_server_handle().local_addr().port(),
-        jwt_secret: jwt,
-    })
+    Ok((node_config, exec, jwt))
 }
 
 async fn start_consensus(reth_handle: TelosRethNodeHandle, ship_port: u16, chain_port: u16) {
@@ -119,13 +100,32 @@ async fn start_consensus(reth_handle: TelosRethNodeHandle, ship_port: u16, chain
     };
 
     let mut client_under_test = ConsensusClient::new(config).await;
-    client_under_test.run().await;
+    _ = client_under_test.run().await;
 }
 
 #[tokio::test]
 async fn testing_chain_sync() {
     tracing_subscriber::fmt::init();
-    let ship_handle = start_ship().await;
-    let reth_handle = start_reth().await.unwrap();
-    start_consensus(reth_handle, ship_handle.ship_port, ship_handle.chain_port).await;
+
+    let container = start_ship().await;
+    let ship_port = container.get_host_port_ipv4(8888).await.unwrap();
+    let chain_port = container.get_host_port_ipv4(18999).await.unwrap();
+
+    let (node_config, exec, jwt_secret) = init_reth().unwrap();
+
+    reth_tracing::init_test_tracing();
+
+    let node_handle = NodeBuilder::new(node_config.clone())
+        .testing_node(exec)
+        .node(EthereumNode::default())
+        .launch()
+        .await
+        .unwrap();
+
+    let execution_port = node_handle.node.auth_server_handle().local_addr().port();
+    let reth_handle = TelosRethNodeHandle { execution_port, jwt_secret };
+    _ = NodeTestContext::new(node_handle.node.clone()).await.unwrap();
+    info!("Started Reth!");
+
+    start_consensus(reth_handle, ship_port, chain_port).await;
 }
