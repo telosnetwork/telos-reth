@@ -6,7 +6,6 @@
     issue_tracker_base_url = "https://github.com/telosnetwork/telos-reth/issues/"
 )]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
-
 #![cfg(feature = "telos")]
 
 pub mod args;

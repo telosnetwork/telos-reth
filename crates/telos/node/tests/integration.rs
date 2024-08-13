@@ -1,26 +1,21 @@
-use std::fs;
-use std::path::PathBuf;
 use antelope::api::client::{APIClient, DefaultProvider};
-use reth_primitives::{B256, Genesis};
 use reth::{
     args::RpcServerArgs,
     builder::{NodeBuilder, NodeConfig, NodeHandle},
     tasks::TaskManager,
 };
 use reth_chainspec::{ChainSpecBuilder, MAINNET};
-use reth_e2e_test_utils::{
-    node::NodeTestContext, setup, transaction::TransactionTestContext, wallet::Wallet,
-};
+use reth_e2e_test_utils::node::NodeTestContext;
+use reth_node_ethereum::EthereumNode;
+use reth_primitives::{Genesis, B256};
+use std::fs;
+use std::path::PathBuf;
 use std::sync::Arc;
-use antelope::util::bytes_to_hex;
 use telos_consensus_client::client::ConsensusClient;
 use telos_consensus_client::config::AppConfig;
 use testcontainers::core::ContainerPort::Tcp;
 use testcontainers::{runners::AsyncRunner, ContainerAsync, GenericImage};
 use tracing::info;
-use reth::rpc::builder::config::RethRpcServerConfig;
-use reth::rpc::types::engine::JwtSecret;
-use reth_node_ethereum::EthereumNode;
 
 struct ShipHandle {
     ship_port: u16,
@@ -29,7 +24,7 @@ struct ShipHandle {
 
 struct TelosRethNodeHandle {
     execution_port: u16,
-    jwt_secret: String
+    jwt_secret: String,
 }
 
 async fn start_ship() -> ShipHandle {
@@ -42,11 +37,11 @@ async fn start_ship() -> ShipHandle {
         "ghcr.io/telosnetwork/testcontainer-nodeos-evm",
         "v0.1.4@sha256:a8dc857e46404d74b286f8c8d8646354ca6674daaaf9eb6f972966052c95eb4a",
     )
-        .with_exposed_port(Tcp(8888))
-        .with_exposed_port(Tcp(18999))
-        .start()
-        .await
-        .unwrap();
+    .with_exposed_port(Tcp(8888))
+    .with_exposed_port(Tcp(18999))
+    .start()
+    .await
+    .unwrap();
 
     let port_8888 = container.get_host_port_ipv4(8888).await.unwrap();
     let port_18999 = container.get_host_port_ipv4(18999).await.unwrap();
@@ -68,10 +63,7 @@ async fn start_ship() -> ShipHandle {
         last_block = info.head_block_num;
     }
 
-    ShipHandle {
-        ship_port: port_18999,
-        chain_port: port_8888,
-    }
+    ShipHandle { ship_port: port_18999, chain_port: port_8888 }
 }
 
 async fn start_reth() -> eyre::Result<TelosRethNodeHandle> {
@@ -80,7 +72,9 @@ async fn start_reth() -> eyre::Result<TelosRethNodeHandle> {
     let exec = exec.executor();
 
     // Chain spec with test allocs
-    let genesis: Genesis = serde_json::from_str(include_str!("../../../ethereum/node/tests/assets/genesis.json")).unwrap();
+    let genesis: Genesis =
+        serde_json::from_str(include_str!("../../../ethereum/node/tests/assets/genesis.json"))
+            .unwrap();
     let chain_spec = Arc::new(
         ChainSpecBuilder::default()
             .chain(MAINNET.chain)
@@ -94,9 +88,7 @@ async fn start_reth() -> eyre::Result<TelosRethNodeHandle> {
 
     //let _jwt = rpc_config.auth_server_config(JwtSecret::random());
     // Node setup
-    let node_config = NodeConfig::test()
-        .with_chain(chain_spec)
-        .with_rpc(rpc_config.clone());
+    let node_config = NodeConfig::test().with_chain(chain_spec).with_rpc(rpc_config.clone());
 
     let NodeHandle { node, node_exit_future: _ } = NodeBuilder::new(node_config.clone())
         .testing_node(exec)
@@ -109,7 +101,7 @@ async fn start_reth() -> eyre::Result<TelosRethNodeHandle> {
     let jwt = fs::read_to_string(node_config.rpc.auth_jwtsecret.clone().unwrap())?;
     Ok(TelosRethNodeHandle {
         execution_port: node.auth_server_handle().local_addr().port(),
-        jwt_secret: jwt
+        jwt_secret: jwt,
     })
 }
 

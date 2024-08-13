@@ -1,10 +1,15 @@
-use reth_ethereum_engine_primitives::{EthBuiltPayload, EthEngineTypes, EthPayloadAttributes, EthPayloadBuilderAttributes};
+use crate::args::TelosArgs;
+use reth_ethereum_engine_primitives::{
+    EthBuiltPayload, EthEngineTypes, EthPayloadAttributes, EthPayloadBuilderAttributes,
+};
 use reth_evm_ethereum::EthEvmConfig;
 use reth_node_api::{FullNodeTypes, NodeTypes};
 use reth_node_builder::components::ComponentsBuilder;
 use reth_node_builder::{Node, PayloadTypes};
-use reth_node_ethereum::node::{EthereumAddOns, EthereumConsensusBuilder, EthereumExecutorBuilder, EthereumNetworkBuilder, EthereumPayloadBuilder, EthereumPoolBuilder};
-use crate::args::TelosArgs;
+use reth_node_ethereum::node::{
+    EthereumAddOns, EthereumConsensusBuilder, EthereumExecutorBuilder, EthereumNetworkBuilder,
+    EthereumPayloadBuilder, EthereumPoolBuilder,
+};
 
 /// Type configuration for a regular Telos node.
 #[derive(Debug, Default, Clone)]
@@ -71,4 +76,3 @@ where
         Self::components()
     }
 }
-
