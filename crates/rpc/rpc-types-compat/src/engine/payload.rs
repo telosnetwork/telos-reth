@@ -1,6 +1,9 @@
 //! Standalone Conversion Functions for Handling Different Versions of Execution Payloads in
 //! Ethereum's Engine
 
+#[cfg(not(feature = "telos"))]
+use reth_primitives::UintTryTo;
+
 use alloy_eips::eip2718::{Decodable2718, Encodable2718};
 use alloy_primitives::{B256, U256};
 use alloy_rpc_types_engine::{

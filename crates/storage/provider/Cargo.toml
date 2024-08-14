@@ -103,3 +103,7 @@ telos = [
     "revm/telos",
     "dep:reth-telos-rpc-engine-api",
 ]
+telos = [
+    "revm/telos",
+    "dep:reth-telos-rpc-engine-api",
+]

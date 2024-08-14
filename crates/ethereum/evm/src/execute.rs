@@ -413,13 +413,15 @@ where
         mut self,
         input: Self::Input<'_>,
         mut witness: F,
+        #[cfg(feature = "telos")]
+        telos_extra_fields: Option<TelosEngineAPIExtraFields>
     ) -> Result<Self::Output, Self::Error>
     where
         F: FnMut(&State<DB>),
     {
         let BlockExecutionInput { block, total_difficulty } = input;
         let EthExecuteOutput { receipts, requests, gas_used } =
-            self.execute_without_verification(block, total_difficulty, #[cfg(feature = "telos")] None)?;
+            self.execute_without_verification(block, total_difficulty, #[cfg(feature = "telos")] telos_extra_fields)?;
 
         // NOTE: we need to merge keep the reverts for the bundle retention
         self.state.merge_transitions(BundleRetention::Reverts);
