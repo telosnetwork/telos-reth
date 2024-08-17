@@ -11176,7 +11176,7 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 [[package]]
 name = "telos-consensus-client"
 version = "0.1.0"
-source = "git+https://github.com/telosnetwork/telos-consensus-client?branch=translator_integration#58cad8b39bc09b461d3a6657c8dfb8ed01e66e40"
+source = "git+https://github.com/telosnetwork/telos-consensus-client?branch=translator_integration#9776b6c4ec2fb7f39f78960feaa5da26ed6da889"
 dependencies = [
  "alloy",
  "alloy-consensus",
@@ -11188,6 +11188,8 @@ dependencies = [
  "clap",
  "csv",
  "env_logger",
+ "eyre",
+ "futures",
  "hex",
  "jsonwebtoken",
  "log",
