@@ -29,7 +29,7 @@ async fn start_ship() -> ContainerAsync<GenericImage> {
     //   and should be the tag for linux/amd64
     let container: ContainerAsync<GenericImage> = GenericImage::new(
         "ghcr.io/telosnetwork/testcontainer-nodeos-evm",
-        "v0.1.5@sha256:d66a3d5347a31be0419385f1326b3f122b124fc95d5365a464f90626a451cbeb",
+        "v0.1.6@sha256:bd1692372f42bacef7b41a398ba1a32c7cceb87240e778abee85261651faf95e",
     )
     .with_exposed_port(Tcp(8888))
     .with_exposed_port(Tcp(18999))
@@ -104,8 +104,7 @@ async fn start_consensus(
         prev_hash: "b25034033c9ca7a40e879ddcc29cf69071a22df06688b5fe8cc2d68b4e0528f9".to_string(),
         validate_hash: None,
         start_block: 1,
-        // TODO: Determine a good stop block and test it here
-        stop_block: None,
+        stop_block: Some(31),
     };
 
     let mut client_under_test = ConsensusClient::new(config).await?;
