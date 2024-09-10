@@ -12,14 +12,14 @@ use reth_node_telos::{TelosArgs, TelosNode};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 use telos_consensus_client::client::ConsensusClient;
 use telos_consensus_client::config::AppConfig;
 use testcontainers::core::ContainerPort::Tcp;
 use testcontainers::{runners::AsyncRunner, ContainerAsync, GenericImage};
 use tokio::time::sleep;
 use tokio::sync::oneshot;
-use tracing::info;
-use tracing_subscriber::fmt::format;
+use tracing::{error, info};
 
 struct TelosRethNodeHandle {
     execution_port: u16,
@@ -36,11 +36,11 @@ async fn start_ship() -> ContainerAsync<GenericImage> {
         "ghcr.io/telosnetwork/testcontainer-nodeos-evm",
         "v0.1.5@sha256:d66a3d5347a31be0419385f1326b3f122b124fc95d5365a464f90626a451cbeb",
     )
-    .with_exposed_port(Tcp(8888))
-    .with_exposed_port(Tcp(18999))
-    .start()
-    .await
-    .unwrap();
+        .with_exposed_port(Tcp(8888))
+        .with_exposed_port(Tcp(18999))
+        .start()
+        .await
+        .unwrap();
 
     let port_8888 = container.get_host_port_ipv4(8888).await.unwrap();
 
@@ -96,7 +96,7 @@ async fn start_consensus(
     reth_handle: TelosRethNodeHandle,
     ship_port: u16,
     chain_port: u16,
-) -> eyre::Result<()> {
+) -> Result<ConsensusClient> {
     let config = AppConfig {
         log_level: "debug".to_string(),
         chain_id: 41,
@@ -112,10 +112,9 @@ async fn start_consensus(
         // TODO: Determine a good stop block and test it here
         stop_block: None,
     };
-    let (_, receiver) = oneshot::channel();
 
-    let mut client_under_test = ConsensusClient::new(config).await?;
-    Ok(client_under_test.run(receiver).await?)
+    let client_under_test = ConsensusClient::new(config).await?;
+    Ok(client_under_test)
 }
 
 #[tokio::test]
@@ -156,20 +155,32 @@ async fn testing_chain_sync() {
     let rpc_url = format!("http://localhost:{}", rpc_port).parse().unwrap();
     let provider = ProviderBuilder::new().on_http(rpc_url);
 
-    let consensus_run_future = start_consensus(reth_handle, ship_port, chain_port);
+    let mut consensus_client = start_consensus(reth_handle, ship_port, chain_port).await.unwrap();
+    let (send, receiver) = oneshot::channel();
 
-    loop {
-        sleep(tokio::time::Duration::from_secs(1)).await;
-        let latest_block = provider.get_block_number().await.unwrap();
-        info!("Latest block: {latest_block}");
-        if latest_block > 0 {
-            break;
+    let client = consensus_client.clone();
+
+
+    let handle = tokio::spawn(async move {
+        println!("Task started...");
+        loop {
+            sleep(Duration::from_millis(100)).await;
+            let latest_block = provider.get_block_number().await.unwrap();
+            info!("Latest block: {latest_block}");
+            // on block 33 reth returns invalid status and and consensus client stops.
+            if latest_block == 32 {
+                if let Err(e) = client.shutdown(send) {
+                    error!("Failed to send shutdown signal: {}",e);
+                }
+                break;
+            }
         }
-    }
+        info!("Task done!");
+    });
 
     // run_tests(&rpc_url.to_string(), "26e86e45f6fc45ec6e2ecd128cec80fa1d1505e5507dcd2ae58c3130a7a97b48").await;
-
-    if let Err(error) = consensus_run_future.await {
-        panic!("Error with consensus client: {error:?}");
+    if let Err(e) = consensus_client.run(receiver).await {
+        error!("Error with consensus client: {e:?}");
     }
+    handle.await.unwrap();
 }
