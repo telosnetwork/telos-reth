@@ -1217,7 +1217,7 @@ dependencies = [
 [[package]]
 name = "antelope-client"
 version = "0.2.1"
-source = "git+https://github.com/telosnetwork/antelope-rs?branch=finish_table_rows_params#feb151b28499946698c25c3411b574801cc869e6"
+source = "git+https://github.com/telosnetwork/antelope-rs.git?branch=development#c1760e6c2d8cacfcf342e34c36749458c429808b"
 dependencies = [
  "antelope-client-macros",
  "async-trait",
@@ -1249,7 +1249,7 @@ dependencies = [
 [[package]]
 name = "antelope-client"
 version = "0.2.1"
-source = "git+https://github.com/telosnetwork/antelope-rs?branch=serialization#4bb0af2b4dab220b8185e450ba84f008209df896"
+source = "git+https://github.com/telosnetwork/antelope-rs?branch=finish_table_rows_params#feb151b28499946698c25c3411b574801cc869e6"
 dependencies = [
  "antelope-client-macros",
  "async-trait",
@@ -11690,19 +11690,18 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 [[package]]
 name = "telos-consensus-client"
 version = "0.1.0"
-source = "git+https://github.com/telosnetwork/telos-consensus-client?rev=b0c70e49fe4488146adb55923f9e02a0173d2a37#b0c70e49fe4488146adb55923f9e02a0173d2a37"
+source = "git+https://github.com/telosnetwork/telos-consensus-client?rev=99e91511e3a431143d421f123e1d0e8f16b2c41e#99e91511e3a431143d421f123e1d0e8f16b2c41e"
 dependencies = [
  "alloy 0.2.1",
  "alloy-consensus 0.2.1",
  "alloy-rlp",
- "antelope-client 0.2.1 (git+https://github.com/telosnetwork/antelope-rs?branch=serialization)",
+ "antelope-client 0.2.1 (git+https://github.com/telosnetwork/antelope-rs.git?branch=development)",
  "arrowbatch",
  "base64 0.22.1",
  "bytes",
  "chrono",
  "clap",
  "csv",
- "env_logger",
  "eyre",
  "futures",
  "hex",
@@ -11726,13 +11725,13 @@ dependencies = [
 [[package]]
 name = "telos-translator-rs"
 version = "0.1.0"
-source = "git+https://github.com/telosnetwork/telos-consensus-client?rev=b0c70e49fe4488146adb55923f9e02a0173d2a37#b0c70e49fe4488146adb55923f9e02a0173d2a37"
+source = "git+https://github.com/telosnetwork/telos-consensus-client?rev=99e91511e3a431143d421f123e1d0e8f16b2c41e#99e91511e3a431143d421f123e1d0e8f16b2c41e"
 dependencies = [
  "alloy 0.2.1",
  "alloy-consensus 0.2.1",
  "alloy-eips 0.2.1",
  "alloy-rlp",
- "antelope-client 0.2.1 (git+https://github.com/telosnetwork/antelope-rs?branch=finish_table_rows_params)",
+ "antelope-client 0.2.1 (git+https://github.com/telosnetwork/antelope-rs.git?branch=development)",
  "bytes",
  "clap",
  "dashmap 5.5.3",
