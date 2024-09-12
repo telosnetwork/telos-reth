@@ -5606,7 +5606,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4979f22fdb869068da03c9f7528f8297c6fd2606bc3a4affe42e6a823fdb8da4"
 dependencies = [
  "cfg-if",
- "windows-targets 0.52.6",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -10466,7 +10466,7 @@ dependencies = [
 [[package]]
 name = "revm"
 version = "13.0.0"
-source = "git+https://github.com/telosnetwork/telos-revm?branch=telos-main#e8dab814da3cf35f456901db814d39d6aaf94a88"
+source = "git+https://github.com/telosnetwork/telos-revm?branch=telos-main#dd4813f32d9ea064c469888d15d3ed91d7a10d75"
 dependencies = [
  "auto_impl",
  "cfg-if",
@@ -10497,7 +10497,7 @@ dependencies = [
 [[package]]
 name = "revm-interpreter"
 version = "9.0.0"
-source = "git+https://github.com/telosnetwork/telos-revm?branch=telos-main#e8dab814da3cf35f456901db814d39d6aaf94a88"
+source = "git+https://github.com/telosnetwork/telos-revm?branch=telos-main#dd4813f32d9ea064c469888d15d3ed91d7a10d75"
 dependencies = [
  "revm-primitives",
  "serde",
@@ -10506,7 +10506,7 @@ dependencies = [
 [[package]]
 name = "revm-precompile"
 version = "10.0.0"
-source = "git+https://github.com/telosnetwork/telos-revm?branch=telos-main#e8dab814da3cf35f456901db814d39d6aaf94a88"
+source = "git+https://github.com/telosnetwork/telos-revm?branch=telos-main#dd4813f32d9ea064c469888d15d3ed91d7a10d75"
 dependencies = [
  "aurora-engine-modexp",
  "blst",
@@ -10525,7 +10525,7 @@ dependencies = [
 [[package]]
 name = "revm-primitives"
 version = "8.0.0"
-source = "git+https://github.com/telosnetwork/telos-revm?branch=telos-main#e8dab814da3cf35f456901db814d39d6aaf94a88"
+source = "git+https://github.com/telosnetwork/telos-revm?branch=telos-main#dd4813f32d9ea064c469888d15d3ed91d7a10d75"
 dependencies = [
  "alloy-eips 0.2.1",
  "alloy-primitives 0.7.7",
