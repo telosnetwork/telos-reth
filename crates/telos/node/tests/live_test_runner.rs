@@ -18,7 +18,6 @@ use tracing::info;
 use reth::primitives::BlockNumberOrTag::Number;
 use reth::rpc::builder::Identity;
 
-type SignerProvider = FillProvider<JoinFill<Identity, WalletFiller<EthereumWallet>>, ReqwestProvider, Http<Client>, Ethereum>;
 #[tokio::test]
 pub async fn run_local() {
     env_logger::builder().is_test(true).try_init().unwrap();
@@ -29,7 +28,6 @@ pub async fn run_local() {
 
 pub async fn run_tests(url: &str, private_key: &str) {
     let signer = PrivateKeySigner::from_str(private_key).unwrap();
-    let address = signer.address();
     let wallet = EthereumWallet::from(signer);
 
     let provider = ProviderBuilder::new().wallet(wallet.clone()).on_http(Url::from_str(url).unwrap());
@@ -74,7 +72,7 @@ pub async fn test_blocknum_onchain(url: &str, private_key: &str) {
         chain_id: Some(chain_id),
         nonce,
         gas_price: gas_price.into(),
-        gas_limit: 1_000_000,
+        gas_limit: 20_000_000,
         to: reth::primitives::TxKind::Create,
         value: U256::ZERO,
         input: BlockNumChecker::BYTECODE.to_vec().into(),

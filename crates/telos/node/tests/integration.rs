@@ -23,6 +23,8 @@ use tokio::sync::oneshot;
 use tracing_subscriber::fmt::format;
 use tokio::sync::oneshot::Sender;
 use tracing::{info};
+use reth::args::DevArgs;
+
 pub mod live_test_runner;
 
 struct TelosRethNodeHandle {
@@ -90,7 +92,11 @@ fn init_reth() -> eyre::Result<(NodeConfig, String)> {
 
     //let _jwt = rpc_config.auth_server_config(JwtSecret::random());
     // Node setup
-    let node_config = NodeConfig::test().with_chain(chain_spec).with_rpc(rpc_config.clone());
+    let node_config = NodeConfig::test().with_chain(chain_spec).with_rpc(rpc_config.clone()).with_dev(DevArgs{
+        dev: true,
+        block_max_transactions: None,
+        block_time: None,
+    });
 
     let jwt = fs::read_to_string(node_config.rpc.auth_jwtsecret.clone().unwrap())?;
     Ok((node_config, jwt))
@@ -132,7 +138,9 @@ async fn start_consensus(
 
 #[tokio::test]
 async fn testing_chain_sync() {
-    tracing_subscriber::fmt().with_env_filter("integration=info").init();
+    tracing_subscriber::fmt()
+        // .with_env_filter("integration=info")
+    .init();
 
     let container = start_ship().await;
     let chain_port = container.get_host_port_ipv4(8888).await.unwrap();
@@ -168,7 +176,6 @@ async fn testing_chain_sync() {
     _ = NodeTestContext::new(node_handle.node.clone()).await.unwrap();
 
     let rpc_url = format!("http://localhost:{}", rpc_port).to_string();
-    let provider = ProviderBuilder::new().on_http(Url::from_str(rpc_url.as_str()).unwrap());
 
     let consensus_run_future = start_consensus(reth_handle, ship_port, chain_port);
 
@@ -184,7 +191,7 @@ async fn testing_chain_sync() {
     live_test_runner::run_tests(&rpc_url.clone().to_string(), "26e86e45f6fc45ec6e2ecd128cec80fa1d1505e5507dcd2ae58c3130a7a97b48").await;
 
     match consensus_run_future.await {
-        Ok((shutdown_sender, consensus_handle)) => {
+        Ok((shutdown_sender, _consensus_handle)) => {
             tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
             shutdown_sender.send(()).unwrap();
         }
