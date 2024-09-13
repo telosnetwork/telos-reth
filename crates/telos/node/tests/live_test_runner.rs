@@ -1,25 +1,24 @@
 use std::str::FromStr;
-use alloy::consensus::TxLegacy;
-use alloy::eips::BlockId;
-use alloy::eips::BlockNumberOrTag::Number;
-use alloy::network::{Ethereum, EthereumWallet};
-use alloy::network::primitives::BlockTransactionsKind;
-use alloy::primitives::{Address, TxKind, U256};
-use alloy::primitives::TxKind::Create;
-use alloy::primitives::utils::{parse_units, Unit};
-use alloy::providers::{Identity, Network, Provider, ProviderBuilder, ReqwestProvider};
-use alloy::providers::fillers::{FillProvider, JoinFill, WalletFiller};
-use alloy::rpc::types::TransactionRequest;
-use alloy::signers::local::PrivateKeySigner;
-use alloy::transports::http::reqwest::Url;
-use alloy::sol;
-use alloy::sol_types::SolCall;
-use alloy::transports::http::{Client, Http};
-use reth::rpc::types::TransactionReceipt;
+use alloy_network::{Ethereum, Network};
+use alloy_provider::network::EthereumWallet;
+use alloy_provider::{Provider, ProviderBuilder, ReqwestProvider};
+use alloy_provider::fillers::{FillProvider, JoinFill, WalletFiller};
+use alloy_rpc_types::TransactionRequest;
+use alloy_signer_local::PrivateKeySigner;
+use alloy_sol_types::private::primitives::TxKind::Create;
+use alloy_sol_types::{sol, SolValue};
+use alloy_transport_http::Http;
+use reth::primitives::{AccessList, Address, BlockId, U256};
+
+use reth::rpc::types::{BlockTransactionsKind, TransactionInput, TransactionReceipt};
 use reth_primitives::constants::GWEI_TO_WEI;
+use reth_primitives::TxLegacy;
+use reqwest::{Client, Url};
+use tracing::info;
+use reth::primitives::BlockNumberOrTag::Number;
+use reth::rpc::builder::Identity;
 
 type SignerProvider = FillProvider<JoinFill<Identity, WalletFiller<EthereumWallet>>, ReqwestProvider, Http<Client>, Ethereum>;
-
 #[tokio::test]
 pub async fn run_local() {
     env_logger::builder().is_test(true).try_init().unwrap();
@@ -36,7 +35,7 @@ pub async fn run_tests(url: &str, private_key: &str) {
     let provider = ProviderBuilder::new().wallet(wallet.clone()).on_http(Url::from_str(url).unwrap());
 
     let block = provider.get_block(BlockId::Number(Number(1)), BlockTransactionsKind::Full).await;
-    println!("{:?}", block);
+    info!("{:?}", block);
 
     test_blocknum_onchain(url, private_key).await;
 }
@@ -58,8 +57,14 @@ pub async fn test_blocknum_onchain(url: &str, private_key: &str) {
         }
     }
 
-    let (address, wallet, provider) = create_provider(url, private_key);
-    println!("Deploying contract using address {address}");
+    let signer = PrivateKeySigner::from_str(private_key).unwrap();
+    let address = signer.address();
+    let wallet = EthereumWallet::from(signer);
+
+    let provider = ProviderBuilder::new().wallet(wallet.clone()).on_http(Url::from_str(url).unwrap());
+
+
+    info!("Deploying contract using address {address}");
 
     let nonce = provider.get_transaction_count(address).await.unwrap();
     let chain_id = provider.get_chain_id().await.unwrap();
@@ -70,27 +75,29 @@ pub async fn test_blocknum_onchain(url: &str, private_key: &str) {
         nonce,
         gas_price: gas_price.into(),
         gas_limit: 1_000_000,
-        to: Create,
+        to: reth::primitives::TxKind::Create,
         value: U256::ZERO,
-        input: BlockNumChecker::BYTECODE.clone().into(),
+        input: BlockNumChecker::BYTECODE.to_vec().into(),
     };
 
-    let mut legacy_tx_request: <Ethereum as Network>::TransactionRequest = legacy_tx.into();
-    legacy_tx_request.to = Some(Create);
+    let legacy_tx_request = TransactionRequest {
+        from: Some(address),
+        to: Some(legacy_tx.to),
+        gas: Some(legacy_tx.gas_limit as u128),
+        gas_price: Some(legacy_tx.gas_price),
+        value: Some(legacy_tx.value),
+        input: TransactionInput::from(legacy_tx.input),
+        nonce: Some(legacy_tx.nonce),
+        access_list: Some(AccessList::default()),
+        chain_id: legacy_tx.chain_id,
+        ..Default::default()
+    };
+
     let deploy_result = provider.send_transaction(legacy_tx_request).await.unwrap();
 
     let deploy_tx_hash = deploy_result.tx_hash();
-    println!("Deployed contract with tx hash: {deploy_tx_hash}");
+    info!("Deployed contract with tx hash: {deploy_tx_hash}");
     let receipt = deploy_result.get_receipt().await.unwrap();
-    println!("Receipt: {:?}", receipt);
-
+    info!("Receipt: {:?}", receipt);
 }
 
-fn create_provider(url: &str, private_key: &str) -> (Address, EthereumWallet, SignerProvider) {
-    let signer = PrivateKeySigner::from_str(private_key).unwrap();
-    let address = signer.address();
-    let wallet = EthereumWallet::from(signer);
-
-    let provider: SignerProvider = ProviderBuilder::new().wallet(wallet.clone()).on_http(Url::from_str(url).unwrap());
-    (address, wallet, provider)
-}

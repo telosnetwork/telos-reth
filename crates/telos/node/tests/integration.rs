@@ -1,5 +1,4 @@
 use antelope::api::client::{APIClient, DefaultProvider};
-use alloy::providers::{Provider, ProviderBuilder};
 use eyre::Result;
 use reth::{
     args::RpcServerArgs,
@@ -11,7 +10,10 @@ use reth_e2e_test_utils::node::NodeTestContext;
 use reth_node_telos::{TelosArgs, TelosNode};
 use std::fs;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::Arc;
+use alloy_provider::{Provider, ProviderBuilder};
+use reqwest::Url;
 use telos_consensus_client::client::ConsensusClient;
 use telos_consensus_client::config::{AppConfig, CliArgs};
 use testcontainers::core::ContainerPort::Tcp;
@@ -21,6 +23,7 @@ use tokio::sync::oneshot;
 use tracing_subscriber::fmt::format;
 use tokio::sync::oneshot::Sender;
 use tracing::{info};
+pub mod live_test_runner;
 
 struct TelosRethNodeHandle {
     execution_port: u16,
@@ -37,11 +40,11 @@ async fn start_ship() -> ContainerAsync<GenericImage> {
         "ghcr.io/telosnetwork/testcontainer-nodeos-evm",
         "v0.1.5@sha256:d66a3d5347a31be0419385f1326b3f122b124fc95d5365a464f90626a451cbeb",
     )
-    .with_exposed_port(Tcp(8888))
-    .with_exposed_port(Tcp(18999))
-    .start()
-    .await
-    .unwrap();
+        .with_exposed_port(Tcp(8888))
+        .with_exposed_port(Tcp(18999))
+        .start()
+        .await
+        .unwrap();
 
     let port_8888 = container.get_host_port_ipv4(8888).await.unwrap();
 
@@ -129,7 +132,7 @@ async fn start_consensus(
 
 #[tokio::test]
 async fn testing_chain_sync() {
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt().with_env_filter("integration=info").init();
 
     let container = start_ship().await;
     let chain_port = container.get_host_port_ipv4(8888).await.unwrap();
@@ -164,20 +167,21 @@ async fn testing_chain_sync() {
     info!("Started Reth on RPC port {}!", rpc_port);
     _ = NodeTestContext::new(node_handle.node.clone()).await.unwrap();
 
-    let rpc_url = format!("http://localhost:{}", rpc_port).parse().unwrap();
-    let provider = ProviderBuilder::new().on_http(rpc_url);
+    let rpc_url = format!("http://localhost:{}", rpc_port).to_string();
+    let provider = ProviderBuilder::new().on_http(Url::from_str(rpc_url.as_str()).unwrap());
 
     let consensus_run_future = start_consensus(reth_handle, ship_port, chain_port);
 
-    loop {
-        sleep(tokio::time::Duration::from_secs(1)).await;
-        let latest_block = provider.get_block_number().await.unwrap();
-        info!("Latest block: {latest_block}");
-        if latest_block > 0 {
-            break;
-        }
-    }
-    // run_tests(&rpc_url.to_string(), "26e86e45f6fc45ec6e2ecd128cec80fa1d1505e5507dcd2ae58c3130a7a97b48").await;
+    // loop {
+    //     sleep(tokio::time::Duration::from_secs(1)).await;
+    //     let latest_block = provider.get_block_number().await.unwrap();
+    //     info!("Latest block: {latest_block}");
+    //     if latest_block > 0 {
+    //         break;
+    //     }
+    // }
+
+    live_test_runner::run_tests(&rpc_url.clone().to_string(), "26e86e45f6fc45ec6e2ecd128cec80fa1d1505e5507dcd2ae58c3130a7a97b48").await;
 
     match consensus_run_future.await {
         Ok((shutdown_sender, consensus_handle)) => {
