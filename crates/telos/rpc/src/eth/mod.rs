@@ -1,4 +1,4 @@
-//! Telos-Reth `eth_` endpoint implementation.
+//! Telos `eth_` endpoint implementation.
 
 pub mod receipt;
 pub mod transaction;
@@ -52,13 +52,13 @@ pub type EthApiNodeBackend<N> = EthApiInner<
     <N as FullNodeComponents>::Evm,
 >;
 
-/// OP-Reth `Eth` API implementation.
+/// Telos `Eth` API implementation.
 ///
 /// This type provides the functionality for handling `eth_` related requests.
 ///
 /// This wraps a default `Eth` implementation, and provides additional functionality where the
-/// optimism spec deviates from the default (ethereum) spec, e.g. transaction forwarding to the
-/// sequencer, receipts, additional RPC fields for transaction receipts.
+/// Telos spec deviates from the default (ethereum) spec, e.g. transaction forwarding to the
+/// native network
 ///
 /// This type implements the [`FullEthApi`](reth_rpc_eth_api::helpers::FullEthApi) by implemented
 /// all the `Eth` helper traits and prerequisite traits.

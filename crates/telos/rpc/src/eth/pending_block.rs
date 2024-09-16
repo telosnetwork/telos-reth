@@ -1,4 +1,4 @@
-//! Loads OP pending block for a RPC response.
+//! Loads Telos pending block for a RPC response.
 
 use reth_chainspec::EthereumHardforks;
 use reth_evm::ConfigureEvm;
