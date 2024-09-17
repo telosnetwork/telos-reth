@@ -10,11 +10,10 @@ use reth_node_telos::{TelosArgs, TelosNode};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::thread::{sleep};
 use std::time::Duration;
 use alloy_provider::{Provider, ProviderBuilder};
-use telos_consensus_client::main_utils::{build_consensus_client};
-use telos_consensus_client::client::{ConsensusClient};
+use telos_consensus_client::main_utils::build_consensus_client;
+use telos_consensus_client::client::ConsensusClient;
 use telos_consensus_client::config::{AppConfig, CliArgs};
 use telos_consensus_client::data::Block;
 use telos_translator_rs::block::TelosEVMBlock;
@@ -190,7 +189,7 @@ async fn testing_chain_sync() {
         println!("Waiting to send shutdown signal...");
 
         loop {
-            sleep(Duration::from_secs(1));
+            tokio::time::sleep(Duration::from_secs(1)).await;
             let latest_block = provider.get_block_number().await.unwrap();
             println!("Latest block: {latest_block}");
             if latest_block > 1 {
