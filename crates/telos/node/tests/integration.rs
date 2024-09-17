@@ -101,7 +101,7 @@ async fn build_consensus_and_translator(
 ) -> (ConsensusClient, Translator, Option<Block>) {
     let mut config = AppConfig {
         log_level: "debug".to_string(),
-        chain_id: 41,
+        chain_id: 41.into(),
         execution_endpoint: format!("http://localhost:{}", reth_handle.execution_port),
         jwt_secret: reth_handle.jwt_secret,
         ship_endpoint: format!("ws://localhost:{ship_port}"),

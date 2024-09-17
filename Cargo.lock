@@ -11089,7 +11089,7 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 [[package]]
 name = "telos-consensus-client"
 version = "0.1.0"
-source = "git+https://github.com/telosnetwork/telos-consensus-client?rev=7ce6b11fe671504f6ee5c0c5d9291cc12f7e5fbc#7ce6b11fe671504f6ee5c0c5d9291cc12f7e5fbc"
+source = "git+https://github.com/telosnetwork/telos-consensus-client?rev=5daae00639a4b9fce8daf5709a1904092e73c454#5daae00639a4b9fce8daf5709a1904092e73c454"
 dependencies = [
  "alloy",
  "alloy-consensus",
@@ -11125,7 +11125,7 @@ dependencies = [
 [[package]]
 name = "telos-translator-rs"
 version = "0.1.0"
-source = "git+https://github.com/telosnetwork/telos-consensus-client?rev=7ce6b11fe671504f6ee5c0c5d9291cc12f7e5fbc#7ce6b11fe671504f6ee5c0c5d9291cc12f7e5fbc"
+source = "git+https://github.com/telosnetwork/telos-consensus-client?rev=5daae00639a4b9fce8daf5709a1904092e73c454#5daae00639a4b9fce8daf5709a1904092e73c454"
 dependencies = [
  "alloy",
  "alloy-consensus",
