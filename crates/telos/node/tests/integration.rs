@@ -93,7 +93,9 @@ fn init_reth() -> eyre::Result<(NodeConfig, String)> {
     rpc_config.auth_jwtsecret = Some(PathBuf::from("tests/assets/jwt.hex"));
 
     // Node setup
-    let node_config = NodeConfig::test().with_chain(chain_spec).with_rpc(rpc_config.clone());
+    let node_config = NodeConfig::test().with_chain(chain_spec)
+
+        .with_rpc(rpc_config.clone());//.with_dev(DevArgs{dev: true, block_max_transactions: None, block_time: None });
 
     let jwt = fs::read_to_string(node_config.rpc.auth_jwtsecret.clone().unwrap())?;
     Ok((node_config, jwt))
@@ -126,9 +128,9 @@ async fn build_consensus_and_translator(
     };
 
     let cli_args = CliArgs { config: "".to_string(), clean: true };
-
-    let (c, lib) = build_consensus_client(&cli_args, &mut config).await.unwrap();
-    let translator = Translator::new((&config).into());
+    let cfg = config.clone();
+    let (c, lib) = build_consensus_client(&cli_args, config).await.unwrap();
+    let translator = Translator::new((&cfg).into());
 
     (c, translator, lib)
 }

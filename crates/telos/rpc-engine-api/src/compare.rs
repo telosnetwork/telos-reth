@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use reth_primitives::{Address, B256, U256};
 use reth_primitives::revm_primitives::HashMap;
 use revm::TransitionAccount;
-
+use log::info;
 use crate::structs::{TelosAccountStateTableRow, TelosAccountTableRow};
 
 /// This function compares the state diffs between revm and Telos EVM contract

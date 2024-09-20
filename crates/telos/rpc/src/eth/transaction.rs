@@ -1,7 +1,7 @@
 //! Loads and formats OP transaction RPC response.
 
 use alloy_primitives::{Bytes, B256};
-
+use log::info;
 use reth_node_api::FullNodeComponents;
 use reth_provider::{BlockReaderIdExt, TransactionsProvider};
 use reth_rpc_eth_api::{
@@ -84,6 +84,11 @@ where
 
     /// Returns the `TelosClient` if one is set.
     pub fn raw_tx_forwarder(&self) -> Option<TelosClient> {
+
+        info!("raw_tx_forwarder {:?}", self.telos_client.read());
+
         self.telos_client.read().clone()
+
+
     }
 }

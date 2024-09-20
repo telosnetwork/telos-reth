@@ -12,6 +12,7 @@ exclude.workspace = true
 serde.workspace = true
 reth-primitives.workspace = true
 revm.workspace = true
+log = "0.4.22"
 
 [lints]
 workspace = true

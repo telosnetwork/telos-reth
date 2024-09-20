@@ -67,13 +67,13 @@ pub async fn test_blocknum_onchain(url: &str, private_key: &str) {
 
     info!("Deploying contract using address {address}");
 
-    let nonce = provider.get_transaction_count(address).await.unwrap();
+    let account = provider.get_account(address).await.unwrap();
     let chain_id = provider.get_chain_id().await.unwrap();
     let gas_price: u128 = 600 * (GWEI_TO_WEI as u128);
 
     let legacy_tx = TxLegacy {
         chain_id: Some(chain_id),
-        nonce,
+        nonce: account.nonce,
         gas_price: gas_price.into(),
         gas_limit: 20_000_000,
         to: reth::primitives::TxKind::Create,

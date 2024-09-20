@@ -148,6 +148,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "alloy-contract"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "335d62de1a887f1b780441f8a3037f39c9fb26839cc9acd891c9b80396145cd5"
+dependencies = [
+ "alloy-dyn-abi",
+ "alloy-json-abi",
+ "alloy-network",
+ "alloy-network-primitives",
+ "alloy-primitives 0.8.0",
+ "alloy-provider",
+ "alloy-rpc-types-eth",
+ "alloy-sol-types",
+ "alloy-transport",
+ "futures",
+ "futures-util",
+ "thiserror",
+]
+
+[[package]]
 name = "alloy-core"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1326,7 +1346,7 @@ dependencies = [
  "arrow",
  "base64 0.22.1",
  "chrono",
- "env_logger",
+ "env_logger 0.10.2",
  "futures",
  "futures-util",
  "hex",
@@ -3145,6 +3165,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "env_filter"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f2c92ceda6ceec50f43169f9ee8424fe2db276791afde7b2cd8bc084cb376ab"
+dependencies = [
+ "log",
+ "regex",
+]
+
+[[package]]
 name = "env_logger"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3155,6 +3185,19 @@ dependencies = [
  "log",
  "regex",
  "termcolor",
+]
+
+[[package]]
+name = "env_logger"
+version = "0.11.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e13fa619b91fb2381732789fc5de83b45675e882f66623b7d8cb4f643017018d"
+dependencies = [
+ "anstream",
+ "anstyle",
+ "env_filter",
+ "humantime",
+ "log",
 ]
 
 [[package]]
@@ -5088,7 +5131,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4979f22fdb869068da03c9f7528f8297c6fd2606bc3a4affe42e6a823fdb8da4"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -8711,10 +8754,18 @@ dependencies = [
 name = "reth-node-telos"
 version = "1.0.6"
 dependencies = [
+ "alloy-contract",
+ "alloy-network",
  "alloy-provider",
+ "alloy-rpc-types",
+ "alloy-signer-local",
+ "alloy-sol-types",
+ "alloy-transport-http",
  "antelope-client 0.2.1 (git+https://github.com/telosnetwork/antelope-rs?branch=finish_table_rows_params)",
  "clap",
+ "env_logger 0.11.5",
  "eyre",
+ "reqwest 0.12.7",
  "reth",
  "reth-auto-seal-consensus",
  "reth-basic-payload-builder",
@@ -8732,6 +8783,7 @@ dependencies = [
  "reth-provider",
  "reth-rpc",
  "reth-stages",
+ "reth-telos-rpc",
  "reth-tracing",
  "reth-transaction-pool",
  "serde",
@@ -9661,18 +9713,37 @@ dependencies = [
 name = "reth-telos-rpc"
 version = "1.0.6"
 dependencies = [
+ "alloy-network",
+ "alloy-primitives 0.8.0",
  "antelope-client 0.2.1 (git+https://github.com/telosnetwork/antelope-rs?branch=finish_table_rows_params)",
  "async-trait",
+ "jsonrpsee-types",
  "log",
- "reth-node-telos",
+ "parking_lot 0.12.3",
+ "reth-chainspec",
+ "reth-evm",
+ "reth-network-api",
+ "reth-node-api",
+ "reth-node-builder",
+ "reth-primitives 1.0.6",
+ "reth-provider",
+ "reth-rpc",
  "reth-rpc-eth-api",
  "reth-rpc-eth-types",
+ "reth-rpc-server-types",
+ "reth-rpc-types 1.0.6",
+ "reth-tasks",
+ "reth-transaction-pool",
+ "thiserror",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
 name = "reth-telos-rpc-engine-api"
 version = "1.0.6"
 dependencies = [
+ "log",
  "reth-primitives 1.0.6",
  "revm",
  "serde",
@@ -11090,7 +11161,7 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 [[package]]
 name = "telos-consensus-client"
 version = "0.1.0"
-source = "git+https://github.com/telosnetwork/telos-consensus-client?rev=9a2137c578584d571854db03b4f981cfa4ea997a#9a2137c578584d571854db03b4f981cfa4ea997a"
+source = "git+https://github.com/telosnetwork/telos-consensus-client?rev=37e9cccb14fdf749efa04564a87293634a5a52db#37e9cccb14fdf749efa04564a87293634a5a52db"
 dependencies = [
  "alloy",
  "alloy-consensus",
@@ -11126,7 +11197,7 @@ dependencies = [
 [[package]]
 name = "telos-translator-rs"
 version = "0.1.0"
-source = "git+https://github.com/telosnetwork/telos-consensus-client?rev=9a2137c578584d571854db03b4f981cfa4ea997a#9a2137c578584d571854db03b4f981cfa4ea997a"
+source = "git+https://github.com/telosnetwork/telos-consensus-client?rev=37e9cccb14fdf749efa04564a87293634a5a52db#37e9cccb14fdf749efa04564a87293634a5a52db"
 dependencies = [
  "alloy",
  "alloy-consensus",

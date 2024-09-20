@@ -58,7 +58,7 @@ pub type EthApiNodeBackend<N> = EthApiInner<
 /// all the `Eth` helper traits and prerequisite traits.
 pub struct TelosEthApi<N: FullNodeComponents> {
     inner: Arc<EthApiNodeBackend<N>>,
-    telos_client: parking_lot::RwLock<Option<TelosClient>>,
+    telos_client: Arc<parking_lot::RwLock<Option<TelosClient>>>,
 }
 
 impl<N: FullNodeComponents> TelosEthApi<N> {
@@ -83,7 +83,7 @@ impl<N: FullNodeComponents> TelosEthApi<N> {
             ctx.config.proof_permits,
         );
 
-        Self { inner: Arc::new(inner), telos_client: parking_lot::RwLock::new(None) }
+        Self { inner: Arc::new(inner), telos_client: Arc::new(parking_lot::RwLock::new(None)) }
     }
 }
 
@@ -95,7 +95,7 @@ where
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
-            telos_client: parking_lot::RwLock::new(self.telos_client.read().clone()),
+            telos_client: self.telos_client.clone()
         }
     }
 }
