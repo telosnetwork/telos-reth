@@ -258,9 +258,8 @@ where
         #[cfg(feature = "telos")] {
         // Perform state diff comparision
         let revm_state_diffs = evm.db_mut().transition_state.clone().unwrap_or_default().transitions;
-        let block_num = block.block.header.number;
-        println!(
-            "Compare: block {block_num} {}",
+            let block_num = block.block.header.number;
+
             compare_state_diffs(
                 &mut evm,
                 revm_state_diffs,
@@ -268,8 +267,9 @@ where
                 unwrapped_telos_extra_fields.statediffs_accountstate.unwrap_or_default(),
                 unwrapped_telos_extra_fields.new_addresses_using_create.unwrap_or_default(),
                 unwrapped_telos_extra_fields.new_addresses_using_openwallet.unwrap_or_default()
-            )
-        );
+            ).expect("State comparison failed");
+
+            println!("Compared block {block_num} state");
         }
 
         let requests = if self.chain_spec.is_prague_active_at_timestamp(block.timestamp) {
