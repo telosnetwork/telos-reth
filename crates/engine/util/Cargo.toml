@@ -49,6 +49,7 @@ tracing.workspace = true
 
 # telos
 reth-telos-rpc-engine-api = { workspace = true, optional = true }
+reth-telos-primitives-traits = { workspace = true, optional = true }
 
 [features]
 optimism = [
@@ -61,4 +62,5 @@ telos = [
 telos = [
     "revm-primitives/telos",
     "dep:reth-telos-rpc-engine-api",
+    "dep:reth-telos-primitives-traits"
 ]

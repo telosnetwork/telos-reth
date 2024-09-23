@@ -39,6 +39,9 @@ use revm_inspectors::{
 };
 use tokio::sync::{AcquireError, OwnedSemaphorePermit};
 
+#[cfg(feature = "telos")]
+use reth_telos_primitives_traits::TelosTxEnv;
+
 /// `trace` API implementation.
 ///
 /// This type provides the functionality for handling `trace` related requests.
@@ -122,10 +125,18 @@ where
 
         let (cfg, block, at) = self.inner.eth_api.evm_env_at(block_id.unwrap_or_default()).await?;
 
+        #[cfg(feature = "telos")]
+        let telox_tx_env = self.provider()
+                            .block(BlockHashOrNumber::Hash(block_id.unwrap_or_default().as_block_hash().unwrap()))
+                            .unwrap().unwrap() // TODO: Fix this
+                            .header
+                            .telos_block_extension
+                            .tx_env_at(0);
+
         let env = EnvWithHandlerCfg::new_with_cfg_env(
             cfg,
             block,
-            Call::evm_config(self.eth_api()).tx_env(&tx.into_ecrecovered_transaction()),
+            Call::evm_config(self.eth_api()).tx_env(&tx.into_ecrecovered_transaction(), #[cfg(feature = "telos")] telox_tx_env),
         );
 
         let config = TracingInspectorConfig::from_parity_config(&trace_types);
@@ -153,6 +164,14 @@ where
         let at = block_id.unwrap_or(BlockId::pending());
         let (cfg, block_env, at) = self.inner.eth_api.evm_env_at(at).await?;
 
+        #[cfg(feature = "telos")]
+        let telos_tx_env = self.provider()
+                            .block(BlockHashOrNumber::Hash(at.as_block_hash().unwrap()))
+                            .unwrap().unwrap() // TODO: Fix this
+                            .header
+                            .telos_block_extension
+                            .tx_env_at(0);
+
         let gas_limit = self.inner.eth_api.call_gas_limit();
         let this = self.clone();
         // execute all transactions on top of each other and record the traces
@@ -171,6 +190,8 @@ where
                         gas_limit,
                         &mut db,
                         Default::default(),
+                        #[cfg(feature = "telos")]
+                        telos_tx_env.clone(),
                     )?;
                     let config = TracingInspectorConfig::from_parity_config(&trace_types);
                     let mut inspector = TracingInspector::new(config);

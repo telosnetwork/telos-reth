@@ -48,6 +48,7 @@ telos = [
     "reth-basic-payload-builder/telos",
     "reth-beacon-consensus/telos",
     "reth-chainspec/telos",
+    "reth-ethereum-engine-primitives/telos",
     "reth-ethereum-payload-builder/telos",
     "reth-node-builder/telos",
     "reth-payload-builder/telos",
@@ -59,10 +60,12 @@ telos = [
 ]
 
 [dev-dependencies]
+alloy-consensus.workspace = true
 alloy-contract = "0.3.0"
 alloy-primitives.workspace = true
 alloy-provider.workspace = true
 alloy-network.workspace = true
+alloy-rpc-client.workspace = true
 alloy-rpc-types.workspace = true
 alloy-signer-local.workspace = true
 alloy-sol-types.workspace = true
@@ -81,4 +84,5 @@ telos-translator-rs = { git = "https://github.com/telosnetwork/telos-consensus-c
 
 env_logger = "0.11.5"
 testcontainers = "0.21.1"
+derive_more.workspace = true
 

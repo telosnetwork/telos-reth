@@ -33,6 +33,8 @@ use std::{
 };
 use tokio::sync::oneshot;
 use tracing::*;
+use reth_telos_primitives_traits::TelosBlockExtension;
+use reth_telos_rpc_engine_api::structs::TelosEngineAPIExtraFields;
 
 #[derive(Debug)]
 enum EngineReorgState<Engine: EngineTypes> {
@@ -168,6 +170,8 @@ where
                         *this.depth,
                         payload.clone(),
                         cancun_fields.clone(),
+                        #[cfg(feature = "telos")]
+                        telos_extra_fields.clone(),
                     ) {
                         Ok(result) => result,
                         Err(error) => {
@@ -238,6 +242,8 @@ fn create_reorg_head<Provider, Evm, Spec>(
     mut depth: usize,
     next_payload: ExecutionPayload,
     next_cancun_fields: Option<CancunPayloadFields>,
+    #[cfg(feature = "telos")]
+    telos_extra_fields: Option<TelosEngineAPIExtraFields>,
 ) -> RethResult<(ExecutionPayload, Option<CancunPayloadFields>)>
 where
     Provider: BlockReader + StateProviderFactory,
@@ -248,7 +254,7 @@ where
 
     // Ensure next payload is valid.
     let next_block = payload_validator
-        .ensure_well_formed_payload(next_payload, next_cancun_fields.into())
+        .ensure_well_formed_payload(next_payload, next_cancun_fields.into(), #[cfg(feature = "telos")] telos_extra_fields.clone().unwrap_or_default())
         .map_err(RethError::msg)?;
 
     // Fetch reorg target block depending on its depth and its parent.
@@ -298,6 +304,8 @@ where
         &mut evm,
     )?;
 
+    #[cfg(feature = "telos")]
+    let mut tx_index = 0;
     let mut cumulative_gas_used = 0;
     let mut sum_blob_gas_used = 0;
     let mut transactions = Vec::new();
@@ -313,7 +321,7 @@ where
         let tx_recovered = tx.clone().try_into_ecrecovered().map_err(|_| {
             BlockExecutionError::Validation(BlockValidationError::SenderRecoveryError)
         })?;
-        evm_config.fill_tx_env(evm.tx_mut(), &tx_recovered, tx_recovered.signer());
+        evm_config.fill_tx_env(evm.tx_mut(), &tx_recovered, tx_recovered.signer(), #[cfg(feature = "telos")] reorg_target.header.telos_block_extension.tx_env_at(tx_index));
         let exec_result = match evm.transact() {
             Ok(result) => result,
             error @ Err(EVMError::Transaction(_) | EVMError::Header(_)) => {
@@ -346,6 +354,11 @@ where
 
         // append transaction to the list of executed transactions
         transactions.push(tx);
+
+        #[cfg(feature = "telos")]
+        {
+            tx_index += 1;
+        }
     }
     drop(evm);
 
@@ -408,6 +421,12 @@ where
             blob_gas_used: blob_gas_used.map(Into::into),
             excess_blob_gas: excess_blob_gas.map(Into::into),
             state_root: state_provider.state_root(hashed_state)?,
+            #[cfg(feature = "telos")]
+            telos_block_extension: TelosBlockExtension::from_parent_and_changes(
+                &reorg_target_parent.header.telos_block_extension,
+                telos_extra_fields.clone().unwrap_or_default().gasprice_changes,
+                telos_extra_fields.clone().unwrap_or_default().revision_changes,
+            ),
         },
         body: BlockBody {
             transactions,

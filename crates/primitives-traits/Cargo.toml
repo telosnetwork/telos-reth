@@ -38,6 +38,9 @@ arbitrary = { workspace = true, features = ["derive"], optional = true }
 proptest = { workspace = true, optional = true }
 proptest-arbitrary-interop = { workspace = true, optional = true }
 
+# telos
+reth-telos-primitives-traits = { workspace = true, optional = true }
+
 [dev-dependencies]
 reth-testing-utils.workspace = true
 
@@ -63,6 +66,9 @@ arbitrary = [
     "dep:arbitrary",
     "dep:proptest",
     "dep:proptest-arbitrary-interop",
+    "reth-telos-primitives-traits/arbitrary",
 ]
 serde-bincode-compat = ["serde_with", "alloy-consensus/serde-bincode-compat"]
-telos = []
+telos = [
+    "dep:reth-telos-primitives-traits",
+]

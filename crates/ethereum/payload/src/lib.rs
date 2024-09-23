@@ -42,6 +42,8 @@ use revm::{
 use revm_primitives::calc_excess_blob_gas;
 use std::sync::Arc;
 use tracing::{debug, trace, warn};
+#[cfg(feature = "telos")]
+use reth_telos_primitives_traits::TelosTxEnv;
 
 /// Ethereum payload builder
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -229,6 +231,8 @@ where
             initialized_cfg.clone(),
             initialized_block_env.clone(),
             evm_config.tx_env(&tx),
+            // Telos will never build payloads here, so using Default below is OK
+            evm_config.tx_env(&tx, #[cfg(feature = "telos")] TelosTxEnv::default()),
         );
 
         // Configure the environment for the block.
@@ -414,6 +418,9 @@ where
         blob_gas_used: blob_gas_used.map(Into::into),
         excess_blob_gas: excess_blob_gas.map(Into::into),
         requests_root,
+        #[cfg(feature = "telos")]
+        // Ok to use Default here because Telos will never build a payload in reth
+        telos_block_extension: Default::default(),
     };
 
     // seal the block

@@ -102,5 +102,6 @@ telos = [
     "reth-engine-tree/telos",
     "reth-engine-util/telos",
     "reth-exex/telos",
+    "reth-payload-validator/telos",
     "reth-rpc-engine-api/telos",
 ]

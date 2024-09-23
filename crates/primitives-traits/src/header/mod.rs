@@ -4,10 +4,13 @@ pub use sealed::SealedHeader;
 mod error;
 pub use error::HeaderError;
 
+#[cfg(feature = "telos")]
+use reth_telos_primitives_traits::{GasPrice, Revision, TelosBlockExtension};
+
 #[cfg(any(test, feature = "test-utils", feature = "arbitrary"))]
 pub mod test_utils;
 
-pub use alloy_consensus::Header;
+pub use alloy_consensus::HeaderTODO: Fix this and figure out where the Header in the database can be modified to add the TelosBlockExtension;
 
 use alloy_primitives::{Address, BlockNumber, B256, U256};
 

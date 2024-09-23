@@ -56,6 +56,10 @@ auto_impl.workspace = true
 dyn-clone.workspace = true
 tracing.workspace = true
 
+# telos
+reth-telos-rpc-engine-api = { workspace = true, optional = true }
+reth-telos-primitives-traits = { workspace = true, optional = true }
+
 [features]
 js-tracer = ["revm-inspectors/js-tracer", "reth-rpc-eth-types/js-tracer"]
 client = ["jsonrpsee/client", "jsonrpsee/async-client"]
@@ -63,4 +67,9 @@ optimism = [
     "reth-primitives/optimism",
     "revm/optimism",
     "reth-provider/optimism",
+]
+
+telos = [
+    "dep:reth-telos-rpc-engine-api",
+    "dep:reth-telos-primitives-traits",
 ]

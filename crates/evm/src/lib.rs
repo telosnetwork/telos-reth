@@ -20,6 +20,9 @@ use reth_primitives_traits::BlockHeader;
 use revm::{Database, Evm, GetInspector};
 use revm_primitives::{BlockEnv, CfgEnvWithHandlerCfg, Env, EnvWithHandlerCfg, SpecId, TxEnv};
 
+#[cfg(feature = "telos")]
+use reth_telos_primitives_traits::TelosTxEnv;
+
 pub mod builder;
 pub mod either;
 pub mod execute;
@@ -112,14 +115,14 @@ pub trait ConfigureEvmEnv: Send + Sync + Unpin + Clone + 'static {
     type Header: BlockHeader;
 
     /// Returns a [`TxEnv`] from a [`TransactionSignedEcRecovered`].
-    fn tx_env(&self, transaction: &TransactionSignedEcRecovered) -> TxEnv {
+    fn tx_env(&self, transaction: &TransactionSignedEcRecovered, #[cfg(feature = "telos")] telos_tx_env: TelosTxEnv) -> TxEnv {
         let mut tx_env = TxEnv::default();
-        self.fill_tx_env(&mut tx_env, transaction.deref(), transaction.signer());
+        self.fill_tx_env(&mut tx_env, transaction.deref(), transaction.signer(), #[cfg(feature = "telos")] telos_tx_env);
         tx_env
     }
 
     /// Fill transaction environment from a [`TransactionSigned`] and the given sender address.
-    fn fill_tx_env(&self, tx_env: &mut TxEnv, transaction: &TransactionSigned, sender: Address);
+    fn fill_tx_env(&self, tx_env: &mut TxEnv, transaction: &TransactionSigned, sender: Address, #[cfg(feature = "telos")] telos_tx_env: TelosTxEnv);
 
     /// Fill transaction environment with a system contract call.
     fn fill_tx_env_system_contract_call(

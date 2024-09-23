@@ -36,9 +36,14 @@ where
         // On Telos, transactions are forwarded directly to the native network to be included in a block.
         if let Some(client) = self.raw_tx_forwarder().as_ref() {
             tracing::debug!( target: "rpc::eth",  "forwarding raw transaction to Telos native");
-            let _ = client.send_to_telos(&tx).await.inspect_err(|err| {
+            let result = client.send_to_telos(&tx).await.inspect_err(|err| {
                     tracing::debug!(target: "rpc::eth", %err, hash=% *pool_transaction.hash(), "failed to forward raw transaction");
                 });
+
+            // TODO: Retry here if it's a network error, parse errors from Telos and try to return appropriate error to client
+            if let Err(err) = result {
+                return Err(Self::Error::from_eth_err(err));
+            }
         }
 
         // submit the transaction to the pool with a `Local` origin

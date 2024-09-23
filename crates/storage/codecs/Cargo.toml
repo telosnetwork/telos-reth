@@ -61,3 +61,7 @@ alloy = [
 ]
 optimism = ["alloy", "dep:op-alloy-consensus"]
 test-utils = []
+
+telos = [
+    "reth-codecs-derive/telos",
+]
