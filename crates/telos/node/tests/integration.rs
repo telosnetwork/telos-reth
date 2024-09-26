@@ -32,7 +32,7 @@ struct TelosRethNodeHandle {
     jwt_secret: String,
 }
 
-const CONTAINER_TAG: &str = "v0.1.10@sha256:20d60112cfffaa9973cd87adbabce32aaa8ef3b2a4f212f64275bada4685d498";
+const CONTAINER_TAG: &str = "v0.1.11@sha256:d138f2e08db108d5d420b4db99a57fb9d45a3ee3e0f0faa7d4c4a065f7f018ce";
 
 // This is the last block in the container, after this block the node is done syncing and is running live
 const CONTAINER_LAST_EVM_BLOCK: u64 = 1010;
