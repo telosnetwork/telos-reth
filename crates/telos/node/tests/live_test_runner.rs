@@ -89,7 +89,6 @@ pub async fn test_blocknum_onchain(url: &str, private_key: &str) {
         value: Some(legacy_tx.value),
         input: TransactionInput::from(legacy_tx.input),
         nonce: Some(legacy_tx.nonce),
-        access_list: Some(AccessList::default()),
         chain_id: legacy_tx.chain_id,
         ..Default::default()
     };
