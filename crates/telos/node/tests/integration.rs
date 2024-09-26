@@ -32,8 +32,10 @@ struct TelosRethNodeHandle {
     jwt_secret: String,
 }
 
-const CONTAINER_TAG: &str = "v0.1.9@sha256:6d4946f112e5c26712a938ea332b76e742035e64af93149227d97dd67e1a9012";
-const CONTAINER_LAST_EVM_BLOCK: u64 = 50;
+const CONTAINER_TAG: &str = "v0.1.10@sha256:20d60112cfffaa9973cd87adbabce32aaa8ef3b2a4f212f64275bada4685d498";
+
+// This is the last block in the container, after this block the node is done syncing and is running live
+const CONTAINER_LAST_EVM_BLOCK: u64 = 1010;
 
 async fn start_ship() -> ContainerAsync<GenericImage> {
     // Change this container to a local image if using new ship data,
@@ -111,7 +113,7 @@ async fn build_consensus_and_translator(
         jwt_secret: reth_handle.jwt_secret,
         ship_endpoint: format!("ws://localhost:{ship_port}"),
         chain_endpoint: format!("http://localhost:{chain_port}"),
-        batch_size: 10,
+        batch_size: 1,
         prev_hash: "b25034033c9ca7a40e879ddcc29cf69071a22df06688b5fe8cc2d68b4e0528f9".to_string(),
         validate_hash: None,
         evm_start_block: 1,
@@ -194,9 +196,6 @@ async fn testing_chain_sync() {
     let rpc_url = Url::from(format!("http://localhost:{}", rpc_port).parse().unwrap());
     let provider = ProviderBuilder::new().on_http(rpc_url.clone());
 
-    // todo wait time or anything else to wait for shutdown
-    println!("Waiting to send shutdown signal...");
-
     loop {
         tokio::time::sleep(Duration::from_secs(1)).await;
         let latest_block = provider.get_block_number().await.unwrap();
@@ -206,19 +205,21 @@ async fn testing_chain_sync() {
             break;
         }
         if latest_block > CONTAINER_LAST_EVM_BLOCK {
-            _ = translator_shutdown.shutdown().await.unwrap();
-            _ = consensus_shutdown.shutdown().await.unwrap();
             break;
         }
     }
-
-    _ = tokio::join!(client_handle, translator_handle);
-    println!("Translator shutdown done.");
-    println!("Client shutdown done.");
 
     live_test_runner::run_tests(
         &rpc_url.clone().to_string(),
         "87ef69a835f8cd0c44ab99b7609a20b2ca7f1c8470af4f0e5b44db927d542084",
     )
     .await;
+
+    _ = translator_shutdown.shutdown().await.unwrap();
+    _ = consensus_shutdown.shutdown().await.unwrap();
+
+    println!("Client shutdown done.");
+
+    _ = tokio::join!(client_handle, translator_handle);
+    println!("Translator shutdown done.");
 }
