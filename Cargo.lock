@@ -8764,15 +8764,18 @@ dependencies = [
 name = "reth-node-telos"
 version = "1.0.6"
 dependencies = [
+ "alloy-consensus",
  "alloy-contract",
  "alloy-network",
  "alloy-provider",
+ "alloy-rpc-client",
  "alloy-rpc-types",
  "alloy-signer-local",
  "alloy-sol-types",
  "alloy-transport-http",
  "antelope-client 0.2.1 (git+https://github.com/telosnetwork/antelope-rs?branch=finish_table_rows_params)",
  "clap",
+ "derive_more 1.0.0",
  "env_logger 0.11.5",
  "eyre",
  "reqwest 0.12.7",

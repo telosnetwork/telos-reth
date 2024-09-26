@@ -1,12 +1,13 @@
 use std::str::FromStr;
-use alloy_network::{Ethereum, Network};
+use alloy_network::{Ethereum, Network, ReceiptResponse, TransactionBuilder};
 use alloy_provider::network::EthereumWallet;
 use alloy_provider::{Provider, ProviderBuilder, ReqwestProvider};
 use alloy_provider::fillers::{FillProvider, JoinFill, WalletFiller};
+use alloy_rpc_client::ClientBuilder;
 use alloy_rpc_types::TransactionRequest;
 use alloy_signer_local::PrivateKeySigner;
-use alloy_sol_types::private::primitives::TxKind::Create;
-use alloy_sol_types::{sol, SolValue};
+use alloy_sol_types::private::primitives::TxKind::{Call, Create};
+use alloy_sol_types::{sol, SolEvent, SolValue};
 use alloy_transport_http::Http;
 use reth::primitives::{AccessList, Address, BlockId, U256};
 
@@ -29,7 +30,12 @@ pub async fn run_local() {
 pub async fn run_tests(url: &str, private_key: &str) {
     let signer = PrivateKeySigner::from_str(private_key).unwrap();
     let wallet = EthereumWallet::from(signer.clone());
-    let provider = ProviderBuilder::new().wallet(wallet.clone()).on_http(Url::from_str(url).unwrap());
+
+    let provider = ProviderBuilder::new()
+        //.network::<TelosNetwork>()
+        .wallet(wallet.clone())
+        .on_http(Url::from_str(url).unwrap());
+
     let signer_address = signer.address();
     let balance = provider.get_balance(signer_address).await.unwrap();
 
@@ -76,7 +82,7 @@ pub async fn test_blocknum_onchain(url: &str, private_key: &str) {
         nonce,
         gas_price: gas_price.into(),
         gas_limit: 20_000_000,
-        to: reth::primitives::TxKind::Create,
+        to: Create,
         value: U256::ZERO,
         input: BlockNumChecker::BYTECODE.to_vec().into(),
     };
@@ -99,4 +105,50 @@ pub async fn test_blocknum_onchain(url: &str, private_key: &str) {
     info!("Deployed contract with tx hash: {deploy_tx_hash}");
     let receipt = deploy_result.get_receipt().await.unwrap();
     info!("Receipt: {:?}", receipt);
+
+    let contract_address = receipt.contract_address().unwrap();
+    let block_num_checker = BlockNumChecker::new(contract_address, provider.clone());
+    // let legacy_tx = TxLegacy {
+    //     chain_id: Some(chain_id),
+    //     nonce: provider.get_transaction_count(address).await.unwrap(),
+    //     gas_price: gas_price.into(),
+    //     gas_limit: 20_000_000,
+    //     to: Call(contract_address),
+    //     value: U256::ZERO,
+    //     input: block_num_checker.logBlockNum().calldata().clone(),
+    // };
+    //
+    // let legacy_tx_request = TransactionRequest {
+    //     from: Some(address),
+    //     to: Some(legacy_tx.to),
+    //     gas: Some(legacy_tx.gas_limit as u128),
+    //     gas_price: Some(legacy_tx.gas_price),
+    //     value: Some(legacy_tx.value),
+    //     input: TransactionInput::from(legacy_tx.input),
+    //     nonce: Some(legacy_tx.nonce),
+    //     chain_id: legacy_tx.chain_id,
+    //     ..Default::default()
+    // };
+
+    let legacy_tx_request = TransactionRequest::default()
+        .with_from(address)
+        .with_to(contract_address)
+        .with_gas_limit(20_000_000)
+        .with_gas_price(gas_price)
+        .with_input(block_num_checker.logBlockNum().calldata().clone())
+        .with_nonce(provider.get_transaction_count(address).await.unwrap())
+        .with_chain_id(chain_id);
+
+    let log_block_num_tx_result = provider.send_transaction(legacy_tx_request).await.unwrap();
+
+    let log_block_num_tx_hash = log_block_num_tx_result.tx_hash();
+    info!("Called contract with tx hash: {log_block_num_tx_hash}");
+    let receipt = log_block_num_tx_result.get_receipt().await.unwrap();
+    info!("log block number receipt: {:?}", receipt);
+    let rpc_block_num = receipt.block_number().unwrap();
+    let receipt = receipt.inner;
+    let logs = receipt.logs();
+    let first_log = logs[0].clone().inner;
+    let block_num_event = BlockNumChecker::BlockNumber::decode_log(&first_log, true).unwrap();
+    assert_eq!(U256::from(rpc_block_num), block_num_event.number);
 }

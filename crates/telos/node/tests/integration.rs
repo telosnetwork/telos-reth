@@ -13,17 +13,19 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
+use alloy_network::{AnyTxType, Network};
+use alloy_network::eip2718::Eip2718Error;
 use reqwest::Url;
 use telos_consensus_client::client::ConsensusClient;
 use telos_consensus_client::config::{AppConfig, CliArgs};
-use telos_consensus_client::data::Block;
 use telos_translator_rs::{block::TelosEVMBlock, types::translator_types::ChainId};
 use telos_consensus_client::main_utils::build_consensus_client;
 use telos_translator_rs::translator::Translator;
 use testcontainers::core::ContainerPort::Tcp;
 use testcontainers::{runners::AsyncRunner, ContainerAsync, GenericImage};
 use tokio::sync::mpsc;
-use tokio::time::sleep;
+use reth::rpc::types::{AnyTransactionReceipt, Header, Transaction, TransactionRequest, WithOtherFields};
+use derive_more::Display;
 
 pub mod live_test_runner;
 
