@@ -9768,6 +9768,7 @@ dependencies = [
  "reth-storage-errors 1.0.6",
  "revm",
  "serde",
+ "tracing",
 ]
 
 [[package]]
