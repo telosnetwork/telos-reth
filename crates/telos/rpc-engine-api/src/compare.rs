@@ -1,11 +1,12 @@
-use crate::structs::{TelosAccountStateTableRow, TelosAccountTableRow};
-use reth_primitives::revm_primitives::HashMap;
-use reth_primitives::{Address, B256, U256};
-use reth_storage_errors::provider::ProviderError;
-use revm::{Database, Evm, State, TransitionAccount};
 use std::collections::HashSet;
 use std::fmt::Display;
-use tracing::{debug, info};
+use reth_primitives::{Address, B256, U256};
+use reth_primitives::revm_primitives::HashMap;
+use revm::db::AccountStatus;
+use revm::{Database, Evm, State, TransitionAccount};
+use reth_storage_errors::provider::ProviderError;
+use crate::structs::{TelosAccountStateTableRow, TelosAccountTableRow};
+use tracing::info;
 
 /// This function compares the state diffs between revm and Telos EVM contract
 pub fn compare_state_diffs<Ext, DB>(
@@ -13,7 +14,7 @@ pub fn compare_state_diffs<Ext, DB>(
     revm_state_diffs: HashMap<Address, TransitionAccount>,
     statediffs_account: Vec<TelosAccountTableRow>,
     statediffs_accountstate: Vec<TelosAccountStateTableRow>,
-    new_addresses_using_create: Vec<(u64, U256)>,
+    _new_addresses_using_create: Vec<(u64, U256)>,
     new_addresses_using_openwallet: Vec<(u64, U256)>,
 ) -> bool
 where
@@ -23,8 +24,6 @@ where
     if !revm_state_diffs.is_empty()
         || !statediffs_account.is_empty()
         || !statediffs_accountstate.is_empty()
-        || !new_addresses_using_create.is_empty()
-        || !new_addresses_using_openwallet.is_empty()
     {
         let block_number = evm.block().number;
 
@@ -33,129 +32,103 @@ where
         info!("{block_number} TEVM State diffs accountstate: {:#?}", statediffs_accountstate);
     }
 
-    let mut new_addresses_using_openwallet_hashsetset = HashSet::new();
+    let revm_db: &mut &mut State<DB> = evm.db_mut();
+
+    let mut new_addresses_using_openwallet_hashset = HashSet::new();
     for row in &new_addresses_using_openwallet {
-        new_addresses_using_openwallet_hashsetset.insert(Address::from_word(B256::from(row.1)));
+        new_addresses_using_openwallet_hashset.insert(Address::from_word(B256::from(row.1)));
     }
 
-    let mut modified_addresses = HashSet::new();
+    let mut statediffs_account_hashmap = HashSet::new();
+    for row in &statediffs_account {
+        statediffs_account_hashmap.insert(row.address);
+    }
+    let mut statediffs_accountstate_hashmap = HashSet::new();
+    for row in &statediffs_accountstate {
+        statediffs_accountstate_hashmap.insert((row.address,row.key));
+    }
 
     for row in &statediffs_account {
         // Skip if address is created using openwallet and is empty
-        if new_addresses_using_openwallet_hashsetset.contains(&row.address)
-            && row.balance == U256::ZERO
-            && row.nonce == 0
-            && row.code.len() == 0
-        {
+        if new_addresses_using_openwallet_hashset.contains(&row.address) && row.balance == U256::ZERO && row.nonce == 0 && row.code.len() == 0 {
             continue;
         }
-        modified_addresses.insert(row.address);
-    }
-    for row in &statediffs_accountstate {
-        modified_addresses.insert(row.address);
-    }
-    for (address, account) in &revm_state_diffs {
-        // There is a situation that revm produce a state diff for an account but the critical values (balance,nonce,code,storage) are not actually changed and we should exclude them to make comparison
-        if account.storage.len() == 0 && !account.storage_was_destroyed {
-            if let (Some(info), Some(previous_info)) =
-                (account.info.clone(), account.previous_info.clone())
-            {
-                if info.balance == previous_info.balance
-                    && info.nonce == previous_info.nonce
-                    && info.code_hash == previous_info.code_hash
-                {
-                    modified_addresses.insert(*address);
+        // Skip if row is removed
+        if row.removed {
+            continue
+        }
+        if let Ok(revm_row) = revm_db.basic(row.address) {
+            if let Some(unwrapped_revm_row) = revm_row {
+                // Check balance inequality
+                if unwrapped_revm_row.balance != row.balance {
+                    panic!("Difference in balance, address: {:?} - revm: {:?} - tevm: {:?}",row.address,unwrapped_revm_row.balance,row.balance);
                 }
-            }
-        }
-    }
-
-    if modified_addresses.len() != revm_state_diffs.len() {
-        panic!("Difference in number of modified addresses");
-    }
-
-    for row in statediffs_account {
-        // Skip if address is created using openwallet and is empty
-        if new_addresses_using_openwallet_hashsetset.contains(&row.address)
-            && row.balance == U256::ZERO
-            && row.nonce == 0
-            && row.code.len() == 0
-        {
-            continue;
-        }
-        let revm_side_row = revm_state_diffs.get(&row.address);
-        // Key doesn't exist on revm state diffs
-        if revm_side_row.is_none() {
-            panic!("A modified `account` table row not found on revm state diffs");
-        }
-        let unrappwed_revm_side_row = revm_side_row.unwrap();
-        // Revm state diff is none
-        if unrappwed_revm_side_row.info.is_none() {
-            panic!("A modified `account` table row found on revm state diffs, but contains no information");
-        }
-        // Check balance inequality
-        if unrappwed_revm_side_row.info.clone().unwrap().balance != row.balance {
-            panic!("Difference in balance");
-        }
-        // Check nonce inequality
-        if unrappwed_revm_side_row.info.clone().unwrap().nonce != row.nonce {
-            panic!("Difference in nonce");
-        }
-        // Check code size inequality
-        if unrappwed_revm_side_row.info.clone().unwrap().code.is_none() && row.code.len() != 0
-            || unrappwed_revm_side_row.info.clone().unwrap().code.is_some()
-                && !unrappwed_revm_side_row.info.clone().unwrap().code.unwrap().is_empty()
-                && row.code.len() == 0
-        {
-            panic!("Difference in code existence");
-        }
-        // // Check code content inequality
-        // if unrappwed_revm_side_row.info.clone().unwrap().code.is_some() && !unrappwed_revm_side_row.info.clone().unwrap().code.unwrap().is_empty() && unrappwed_revm_side_row.info.clone().unwrap().code.unwrap().bytes() != row.code {
-        //     panic!("Difference in code content, revm: {:?}, tevm: {:?}",unrappwed_revm_side_row.info.clone().unwrap().code.unwrap().bytes(),row.code);
-        // }
-    }
-
-    for row in statediffs_accountstate {
-        let revm_side_row = revm_state_diffs.get(&row.address);
-        // Key doesn't exist on revm state diffs
-        if revm_side_row.is_none() {
-            panic!("A modified `accountstate` table row not found on revm state diffs");
-        }
-        let unrappwed_revm_side_row = revm_side_row.unwrap();
-        // Check key existance
-        let storage_row = unrappwed_revm_side_row.storage.get(&row.key);
-        if let Some(storage_row) = storage_row {
-            // Check value inequality
-            if storage_row.present_value != row.value
-                && !(storage_row.present_value == U256::ZERO && row.removed == true)
-            {
-                panic!("Difference in value on modified storage: \nblock: {}\naddress: {}\nkey: {}\nrevm value: {}\ntevm value: {}",
-                       evm.block().number,
-                       row.address,
-                       row.key,
-                       storage_row.present_value,
-                       row.value
-                );
+                // Check nonce inequality
+                if unwrapped_revm_row.nonce != row.nonce {
+                    panic!("Difference in nonce, address: {:?} - revm: {:?} - tevm: {:?}",row.address,unwrapped_revm_row.nonce,row.nonce);
+                }
+                // Check code size inequality
+                if unwrapped_revm_row.clone().code.is_none() && row.code.len() != 0 || unwrapped_revm_row.clone().code.is_some() && !unwrapped_revm_row.clone().code.unwrap().is_empty() && row.code.len() == 0 {
+                    match revm_db.code_by_hash(unwrapped_revm_row.code_hash) {
+                        Ok(code_by_hash) =>
+                            if (code_by_hash.is_empty() && row.code.len() != 0) || (!code_by_hash.is_empty() && row.code.len() == 0) {
+                                panic!("Difference in code existence, address: {:?} - revm: {:?} - tevm: {:?}",row.address,code_by_hash,row.code)
+                            },
+                        Err(_) => panic!("Difference in code existence, address: {:?} - revm: {:?} - tevm: {:?}",row.address,unwrapped_revm_row.code,row.code),
+                    }
+                }
+                // // Check code content inequality
+                // if unwrapped_revm_row.clone().unwrap().code.is_some() && !unwrapped_revm_row.clone().unwrap().code.unwrap().is_empty() && unwrapped_revm_row.clone().unwrap().code.unwrap().bytes() != row.code {
+                //     panic!("Difference in code content, revm: {:?}, tevm: {:?}",unwrapped_revm_row.clone().unwrap().code.unwrap().bytes(),row.code);
+                // }
+            } else {
+                // Skip if address is empty on both sides
+                if !(row.balance == U256::ZERO && row.nonce == 0 && row.code.len() == 0) {
+                    if let Some(unwrapped_revm_state_diff) = revm_state_diffs.get(&row.address) {
+                        if !(unwrapped_revm_state_diff.status == AccountStatus::Destroyed && row.nonce == 0 && row.balance == U256::ZERO && row.code.len() == 0) {
+                            panic!("A modified `account` table row was found on both revm state and revm state diffs, but seems to be destroyed on just one side, address: {:?}",row.address);
+                        }
+                    } else {
+                        panic!("A modified `account` table row was found on revm state, but contains no information, address: {:?}",row.address);
+                    }
+                }
             }
         } else {
-            // The TEVM state diffs will include all storage "modifications" even if the value is the same
-            //   so if it's not in the REVM diffs, we need to check if the REVM db matches the TEVM state diff
-            let revm_db: &mut &mut State<DB> = evm.db_mut();
-            let revm_row = revm_db.storage(row.address, row.key);
-            if let Ok(revm_row) = revm_row {
-                if revm_row != row.value && !(revm_row == U256::ZERO && row.removed == true) {
-                    panic!("Difference in value on revm storage");
-                }
-            } else {
-                panic!("Key not found on revm storage");
+            // Skip if address is empty on both sides
+            if !(row.balance == U256::ZERO && row.nonce == 0 && row.code.len() == 0) {
+                panic!("A modified `account` table row was not found on revm state, address: {:?}",row.address);
             }
         }
     }
+    for row in &statediffs_accountstate {
+        if let Ok(revm_row) = revm_db.storage(row.address, row.key) {
+            // The values should match, but if it is removed, then the revm value should be zero
+            if !(revm_row == row.value) && !(revm_row != U256::ZERO || row.removed == true) {
+                panic!("Difference in value on revm storage, address: {:?}, key: {:?}, revm-value: {:?}, tevm-row: {:?}",row.address,row.key,revm_row,row);
+            }
+        } else {
+            panic!("Key was not found on revm storage, address: {:?}, key: {:?}",row.address,row.key);
+        }
+    }
 
-    for _row in new_addresses_using_create {}
-    for _row in new_addresses_using_openwallet {}
-
-    // Check balance and nonce
-
-    return true;
+    for (address, account) in &revm_state_diffs {
+        if let (Some(info),Some(previous_info)) = (account.info.clone(),account.previous_info.clone()) {
+            if !(info.balance == previous_info.balance && info.nonce == previous_info.nonce && info.code_hash == previous_info.code_hash) {
+                if statediffs_account_hashmap.get(address).is_none() {
+                    panic!("A modified address was not found on tevm state diffs, address: {:?}",address); 
+                }
+            }
+        } else {
+            if statediffs_account_hashmap.get(address).is_none() {
+                panic!("A modified address was not found on tevm state diffs, address: {:?}",address); 
+            }
+        }
+        for (key,_) in account.storage.clone() {
+            if statediffs_accountstate_hashmap.get(&(*address,key)).is_none() {
+                panic!("A modified storage slot was not found on tevm state diffs, address: {:?}",address); 
+            }
+        }
+    }
+    
+    return true
 }
