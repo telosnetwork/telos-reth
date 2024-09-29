@@ -19,6 +19,9 @@ impl FillTxEnv for TransactionSigned {
             envelope
         };
 
+        #[cfg(feature = "telos")] {
+            tx_env.first_new_address = None;
+        }
         tx_env.caller = sender;
         match self.as_ref() {
             Transaction::Legacy(tx) => {
