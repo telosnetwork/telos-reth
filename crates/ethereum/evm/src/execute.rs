@@ -180,9 +180,11 @@ where
         #[cfg(feature = "telos")]
         let mut new_addresses_using_create_iter = unwrapped_telos_extra_fields.new_addresses_using_create.as_ref().unwrap().into_iter().peekable();
 
+        let pre_exec_state = evm.context.evm.journaled_state.checkpoint();
+
         // execute transactions
         let mut cumulative_gas_used = 0;
-        let mut receipts = Vec::with_capacity(block.body.len());
+        // let mut receipts = Vec::with_capacity(block.body.len());
         for (sender, transaction) in block.transactions_with_sender() {
             #[cfg(feature = "telos")]
             while new_addresses_using_create_iter.peek().is_some() && new_addresses_using_create_iter.peek().unwrap().0 == tx_index {
@@ -229,20 +231,20 @@ where
             // append gas used
             cumulative_gas_used += result.gas_used();
 
-            // Push transaction changeset and calculate header bloom filter for receipt.
-            receipts.push(
-                #[allow(clippy::needless_update)] // side-effect of optimism fields
-                Receipt {
-                    tx_type: transaction.tx_type(),
-                    // Success flag was added in `EIP-658: Embedding transaction status code in
-                    // receipts`.
-                    success: result.is_success(),
-                    cumulative_gas_used,
-                    // convert to reth log
-                    logs: result.into_logs(),
-                    ..Default::default()
-                },
-            );
+            // // Push transaction changeset and calculate header bloom filter for receipt.
+            // receipts.push(
+            //     #[allow(clippy::needless_update)] // side-effect of optimism fields
+            //     Receipt {
+            //         tx_type: transaction.tx_type(),
+            //         // Success flag was added in `EIP-658: Embedding transaction status code in
+            //         // receipts`.
+            //         success: result.is_success(),
+            //         cumulative_gas_used,
+            //         // convert to reth log
+            //         logs: result.into_logs(),
+            //         ..Default::default()
+            //     },
+            // );
         }
 
         #[cfg(feature = "telos")]
@@ -272,6 +274,12 @@ where
         );
         }
 
+        let receipts = if unwrapped_telos_extra_fields.receipts.is_some() {
+            unwrapped_telos_extra_fields.receipts.unwrap().clone()
+        } else {
+            vec![]
+        };
+
         let requests = if self.chain_spec.is_prague_active_at_timestamp(block.timestamp) {
             // Collect all EIP-6110 deposits
             let deposit_requests =
@@ -290,7 +298,13 @@ where
             vec![]
         };
 
-        Ok(EthExecuteOutput { receipts, requests, gas_used: cumulative_gas_used })
+        evm.context.evm.journaled_state.checkpoint_revert(pre_exec_state);
+
+        Ok(EthExecuteOutput {
+            receipts,
+            requests,
+            gas_used: cumulative_gas_used
+        })
     }
 }
 
