@@ -43,4 +43,5 @@ default = ["std"]
 std = []
 telos = [
     "dep:reth-telos-rpc-engine-api",
+    "reth-ethereum-consensus/telos",
 ]
