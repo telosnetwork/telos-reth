@@ -64,6 +64,7 @@ impl<ChainSpec: EthChainSpec + EthereumHardforks> EthBeaconConsensus<ChainSpec> 
                 parent.gas_limit
             };
 
+        #[cfg(not(feature = "telos"))]
         // Check for an increase in gas limit beyond the allowed threshold.
 
         if header.gas_limit > parent_gas_limit {
