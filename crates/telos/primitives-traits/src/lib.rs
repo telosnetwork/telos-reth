@@ -1,3 +1,12 @@
+//! Crate for Telos specific primitive traits
+
+#![doc(
+    html_logo_url = "https://raw.githubusercontent.com/paradigmxyz/reth/main/assets/reth-docs.png",
+    html_favicon_url = "https://avatars0.githubusercontent.com/u/97369466?s=256",
+    issue_tracker_base_url = "https://github.com/telosnetwork/telos-reth/issues/"
+)]
+#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+
 use alloy_primitives::U256;
 use serde::{Deserialize, Serialize};
 use reth_codecs::Compact;
@@ -17,8 +26,8 @@ pub struct TelosBlockExtension {
 }
 
 impl TelosBlockExtension {
-    /// Create a new TelosBlockExtension using a parent extension to fetch the starting price/revision
-    ///   plus the TelosExtraAPIFields for the current block
+    /// Create a new `TelosBlockExtension` using a parent extension to fetch the starting price/revision
+    ///   plus the `TelosExtraAPIFields` for the current block
     pub fn from_parent_and_changes(
         parent: &Self,
         gas_price_change: Option<(u64, U256)>,
@@ -82,6 +91,7 @@ impl TelosBlockExtension {
         }
     }
 
+    /// Get the ending gas price of this block
     pub fn get_last_gas_price(&self) -> U256 {
         if self.gas_price_change.is_none() {
             self.starting_gas_price
@@ -90,6 +100,7 @@ impl TelosBlockExtension {
         }
     }
 
+    /// Get the ending revision number of this block
     pub fn get_last_revision(&self) -> u64 {
         if self.revision_change.is_none() {
             self.starting_revision_number
@@ -98,15 +109,15 @@ impl TelosBlockExtension {
         }
     }
 
-    /// Get TelosTxEnv at a given transaction index
+    /// Get `TelosTxEnv` at a given transaction index
     pub fn tx_env_at(&self, height: u64) -> TelosTxEnv {
-        let gas_price = if (self.gas_price_change.is_some() && self.gas_price_change.as_ref().unwrap().height <= height) {
+        let gas_price = if self.gas_price_change.is_some() && self.gas_price_change.as_ref().unwrap().height <= height {
             self.gas_price_change.as_ref().unwrap().price
         } else {
             self.starting_gas_price
         };
 
-        let revision = if (self.revision_change.is_some() && self.revision_change.as_ref().unwrap().height <= height) {
+        let revision = if self.revision_change.is_some() && self.revision_change.as_ref().unwrap().height <= height {
             self.revision_change.as_ref().unwrap().revision
         } else {
             self.starting_revision_number
@@ -123,7 +134,9 @@ impl TelosBlockExtension {
 #[cfg_attr(any(test, feature = "arbitrary"), derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Compact)]
 pub struct TelosTxEnv {
+    /// Gas price for this transaction
     pub gas_price: U256,
+    /// Revision number for this transaction
     pub revision: u64,
 }
 

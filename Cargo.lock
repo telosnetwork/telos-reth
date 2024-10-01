@@ -7871,6 +7871,7 @@ dependencies = [
  "reth-stages-api",
  "reth-static-file",
  "reth-tasks",
+ "reth-telos-rpc-engine-api 1.0.6",
  "reth-tracing",
  "reth-trie",
  "thiserror",
@@ -7898,6 +7899,7 @@ dependencies = [
  "reth-revm",
  "reth-rpc-types 1.0.6",
  "reth-rpc-types-compat",
+ "reth-telos-primitives-traits",
  "reth-telos-rpc-engine-api 1.0.6",
  "reth-trie",
  "revm-primitives",
@@ -8064,6 +8066,7 @@ dependencies = [
  "reth-primitives 1.0.6",
  "reth-provider",
  "reth-revm",
+ "reth-telos-primitives-traits",
  "reth-transaction-pool",
  "reth-trie",
  "revm",
@@ -8094,6 +8097,7 @@ dependencies = [
  "reth-primitives 1.0.6",
  "reth-prune-types",
  "reth-storage-errors 1.0.6",
+ "reth-telos-primitives-traits",
  "reth-telos-rpc-engine-api 1.0.6",
  "revm",
  "revm-primitives",
@@ -8113,6 +8117,7 @@ dependencies = [
  "reth-primitives 1.0.6",
  "reth-prune-types",
  "reth-revm",
+ "reth-telos-primitives-traits",
  "reth-telos-rpc-engine-api 1.0.6",
  "reth-testing-utils",
  "revm-primitives",
@@ -8981,6 +8986,7 @@ dependencies = [
  "reth-primitives 1.0.6",
  "reth-rpc-types 1.0.6",
  "reth-rpc-types-compat",
+ "reth-telos-rpc-engine-api 1.0.6",
 ]
 
 [[package]]
@@ -9015,6 +9021,7 @@ dependencies = [
  "reth-optimism-chainspec",
  "reth-primitives-traits 1.0.6",
  "reth-static-file-types 1.0.6",
+ "reth-telos-primitives-traits",
  "reth-trie-common 1.0.6",
  "revm-primitives",
  "secp256k1",
@@ -9078,6 +9085,7 @@ dependencies = [
  "proptest-arbitrary-interop",
  "rand 0.8.5",
  "reth-codecs 1.0.6",
+ "reth-telos-primitives-traits",
  "revm-primitives",
  "roaring",
  "serde",
@@ -9256,6 +9264,7 @@ dependencies = [
  "reth-rpc-types 1.0.6",
  "reth-rpc-types-compat",
  "reth-tasks",
+ "reth-telos-primitives-traits",
  "reth-testing-utils",
  "reth-transaction-pool",
  "reth-trie",
@@ -9411,6 +9420,8 @@ dependencies = [
  "reth-rpc-types 1.0.6",
  "reth-rpc-types-compat",
  "reth-tasks",
+ "reth-telos-primitives-traits",
+ "reth-telos-rpc-engine-api 1.0.6",
  "reth-transaction-pool",
  "reth-trie",
  "revm",
@@ -9537,6 +9548,7 @@ dependencies = [
  "alloy-rpc-types",
  "reth-primitives 1.0.6",
  "reth-rpc-types 1.0.6",
+ "reth-telos-primitives-traits",
  "reth-trie-common 1.0.6",
  "serde_json",
 ]
@@ -9731,6 +9743,18 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-futures",
+]
+
+[[package]]
+name = "reth-telos-primitives-traits"
+version = "1.0.6"
+dependencies = [
+ "alloy-primitives 0.8.3",
+ "arbitrary",
+ "bytes",
+ "modular-bitfield",
+ "reth-codecs 1.0.6",
+ "serde",
 ]
 
 [[package]]
