@@ -17,11 +17,18 @@ cd $INSTALL_ROOT
 [ -z "$DATA_DIR" ] && DATA_DIR=$INSTALL_ROOT/data
 [ -z "$CHAIN" ] && CHAIN=tevmmainnet
 [ -z "$RETH_CONFIG" ] && RETH_CONFIG=$DATA_DIR/config.toml
-[ -z "$RETH_RPC_ADDRESS" ] && RETH_RPC_ADDRESS=
+[ -z "$RETH_RPC_ADDRESS" ] && RETH_RPC_ADDRESS=127.0.0.1
 [ -z "$RETH_RPC_PORT" ] && RETH_RPC_PORT=8545
+[ -z "$RETH_WS_ADDRESS" ] && RETH_WS_ADDRESS=127.0.0.1
+[ -z "$RETH_WS_PORT" ] && RETH_WS_PORT=8546
+[ -z "$RETH_AUTH_RPC_ADDRESS" ] && RETH_AUTH_RPC_ADDRESS=127.0.0.1
+[ -z "$RETH_AUTH_RPC_PORT" ] && RETH_AUTH_RPC_PORT=8551
+[ -z "$RETH_IPCPATH" ] && RETH_IPCPATH=$INSTALL_ROOT/reth.ipc
+[ -z "$RETH_DISCOVERY_PORT" ] && RETH_DISCOVERY_PORT=30303
 [ -z "$LOG_PATH" ] && LOG_PATH=$DATA_DIR/reth.log
 
 nohup $RETH_BIN_PATH node \
+        --port $RETH_DISCOVERY_PORT \
         --log.stdout.filter $LOG_LEVEL \
         --datadir $DATA_DIR \
         --chain $CHAIN \
@@ -32,6 +39,12 @@ nohup $RETH_BIN_PATH node \
         --http.api all \
         --ws \
         --ws.api all \
+        --ws.addr $RETH_WS_ADDRESS \
+        --ws.port $RETH_WS_PORT \
+        --authrpc.addr $RETH_AUTH_RPC_ADDRESS \
+        --authrpc.port $RETH_AUTH_RPC_PORT \
+        --ipcpath $RETH_IPCPATH \
+        --discovery.port $RETH_DISCOVERY_PORT \
         --telos.telos_endpoint $TELOS_ENDPOINT \
         --telos.signer_account $TELOS_SIGNER_ACCOUNT \
         --telos.signer_permission $TELOS_SIGNER_PERMISSION \
