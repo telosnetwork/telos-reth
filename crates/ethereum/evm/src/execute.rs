@@ -27,10 +27,7 @@ use reth_revm::{
     batch::BlockBatchRecord, db::states::bundle_state::BundleRetention,
     state_change::post_block_balance_increments, Evm, State,
 };
-use revm_primitives::{
-    db::{Database, DatabaseCommit},
-    BlockEnv, CfgEnvWithHandlerCfg, EVMError, EnvWithHandlerCfg, ResultAndState,
-};
+use revm_primitives::{db::{Database, DatabaseCommit}, BlockEnv, CfgEnvWithHandlerCfg, EVMError, EnvWithHandlerCfg, ResultAndState, EvmStorageSlot};
 #[cfg(feature = "telos")]
 use reth_telos_rpc_engine_api::structs::TelosEngineAPIExtraFields;
 #[cfg(feature = "telos")]
@@ -266,16 +263,16 @@ where
             compare_state_diffs(
                 &mut evm,
                 revm_state_diffs,
-                unwrapped_telos_extra_fields.statediffs_account.unwrap_or_default(),
-                unwrapped_telos_extra_fields.statediffs_accountstate.unwrap_or_default(),
-                unwrapped_telos_extra_fields.new_addresses_using_create.unwrap_or_default(),
-                unwrapped_telos_extra_fields.new_addresses_using_openwallet.unwrap_or_default()
+                unwrapped_telos_extra_fields.statediffs_account.clone().unwrap_or_default(),
+                unwrapped_telos_extra_fields.statediffs_accountstate.clone().unwrap_or_default(),
+                unwrapped_telos_extra_fields.new_addresses_using_create.clone().unwrap_or_default(),
+                unwrapped_telos_extra_fields.new_addresses_using_openwallet.clone().unwrap_or_default()
             )
         );
         }
 
         let receipts = if unwrapped_telos_extra_fields.receipts.is_some() {
-            unwrapped_telos_extra_fields.receipts.unwrap().clone()
+            unwrapped_telos_extra_fields.receipts.clone().unwrap()
         } else {
             vec![]
         };
@@ -299,6 +296,36 @@ where
         };
 
         evm.context.evm.journaled_state.checkpoint_revert(pre_exec_state);
+
+        let mut addr_to_accstate: HashMap<Address, HashMap<U256, EvmStorageSlot>> = HashMap::new();
+
+        for sdiff_accstate in unwrapped_telos_extra_fields.clone().statediffs_accountstate.unwrap_or(vec![]) {
+            if !addr_to_accstate.contains_key(&sdiff_accstate.address)  {
+                addr_to_accstate.insert(sdiff_accstate.address, HashMap::new());
+            }
+            let mut acc_storage = addr_to_accstate.get_mut(&sdiff_accstate.address).unwrap();
+            acc_storage.insert(sdiff_accstate.key, EvmStorageSlot { original_value: Default::default(), present_value: sdiff_accstate.value, is_cold: false });
+        }
+
+        let mut state: HashMap<Address, Account> = HashMap::new();
+
+        for sdiff_acc in unwrapped_telos_extra_fields.clone().statediffs_account.unwrap_or(vec![]) {
+            state.insert(
+                sdiff_acc.address,
+                Account {
+                    info: AccountInfo {
+                        balance: sdiff_acc.balance,
+                        nonce: sdiff_acc.nonce,
+                        code_hash: Default::default(),
+                        code: Some(Bytecode::LegacyRaw(sdiff_acc.code)),
+                    },
+                    storage: addr_to_accstate.get(&sdiff_acc.address).unwrap_or(&HashMap::new()).clone(),
+                    status: AccountStatus::Touched|AccountStatus::LoadedAsNotExisting,
+                }
+            );
+        }
+
+        evm.db_mut().commit(state);
 
         Ok(EthExecuteOutput {
             receipts,
@@ -383,7 +410,12 @@ where
         let env = self.evm_env_for_block(&block.header, total_difficulty);
         let output = {
             let evm = self.executor.evm_config.evm_with_env(&mut self.state, env);
-            self.executor.execute_state_transitions(block, evm, #[cfg(feature = "telos")] telos_extra_fields)
+            self.executor.execute_state_transitions(
+                block,
+                evm,
+                #[cfg(feature = "telos")]
+                telos_extra_fields
+            )
         }?;
 
         // 3. apply post execution changes
