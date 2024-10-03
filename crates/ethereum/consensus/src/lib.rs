@@ -17,12 +17,15 @@ use reth_consensus_common::validation::{
     validate_against_parent_timestamp, validate_block_pre_execution, validate_header_base_fee,
     validate_header_extradata, validate_header_gas,
 };
+#[cfg(not(feature = "telos"))]
+use reth_primitives::constants::MINIMUM_GAS_LIMIT;
 use reth_primitives::{
-    constants::MINIMUM_GAS_LIMIT, BlockWithSenders, Header, SealedBlock, SealedHeader,
+    BlockWithSenders, Header, SealedBlock, SealedHeader,
     EMPTY_OMMER_ROOT_HASH,
 };
 use std::{fmt::Debug, sync::Arc, time::SystemTime};
 
+#[cfg(not(feature = "telos"))]
 /// The bound divisor of the gas limit, used in update calculations.
 const GAS_LIMIT_BOUND_DIVISOR: u64 = 1024;
 
@@ -64,6 +67,7 @@ impl<ChainSpec: EthChainSpec + EthereumHardforks> EthBeaconConsensus<ChainSpec> 
                 parent.gas_limit
             };
 
+        #[cfg(not(feature = "telos"))]
         // Check for an increase in gas limit beyond the allowed threshold.
 
         if header.gas_limit > parent_gas_limit {

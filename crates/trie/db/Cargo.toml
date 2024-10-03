@@ -77,3 +77,6 @@ similar-asserts.workspace = true
 metrics = ["reth-metrics", "reth-trie/metrics", "dep:metrics"]
 serde = ["dep:serde"]
 test-utils = ["triehash", "reth-trie-common/test-utils"]
+telos = [
+    "revm/telos",
+]

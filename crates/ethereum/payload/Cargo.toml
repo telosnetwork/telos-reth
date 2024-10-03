@@ -37,3 +37,9 @@ alloy-primitives.workspace = true
 
 # misc
 tracing.workspace = true
+
+[features]
+telos = [
+    "revm/telos",
+    "reth-evm-ethereum/telos",
+]

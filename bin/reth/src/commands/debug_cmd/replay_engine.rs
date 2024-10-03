@@ -170,8 +170,8 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
                         beacon_engine_handle.fork_choice_updated(state, payload_attrs).await?;
                     debug!(target: "reth::cli", ?response, "Received for forkchoice updated");
                 }
-                StoredEngineApiMessage::NewPayload { payload, cancun_fields } => {
-                    let response = beacon_engine_handle.new_payload(payload, cancun_fields).await?;
+                StoredEngineApiMessage::NewPayload { payload, cancun_fields, #[cfg(feature = "telos")] telos_extra_fields } => {
+                    let response = beacon_engine_handle.new_payload(payload, cancun_fields, #[cfg(feature = "telos")] telos_extra_fields).await?;
                     debug!(target: "reth::cli", ?response, "Received for new payload");
                 }
             };

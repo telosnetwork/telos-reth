@@ -1226,7 +1226,7 @@ where
                                     error!(target: "engine::tree", "Failed to send event: {err:?}");
                                 }
                             }
-                            BeaconEngineMessage::NewPayload { payload, cancun_fields, tx } => {
+                            BeaconEngineMessage::NewPayload { payload, cancun_fields, tx, #[cfg(feature = "telos")] telos_extra_fields: _} => {
                                 let output = self.on_new_payload(payload, cancun_fields);
                                 if let Err(err) = tx.send(output.map(|o| o.outcome).map_err(|e| {
                                     reth_beacon_consensus::BeaconOnNewPayloadError::Internal(
@@ -2170,7 +2170,7 @@ where
         let output = self
             .metrics
             .executor
-            .metered((&block, U256::MAX).into(), |input| executor.execute(input))?;
+            .metered((&block, U256::MAX).into(), |input| executor.execute(input, #[cfg(feature = "telos")] None))?;
 
         trace!(target: "engine::tree", elapsed=?exec_time.elapsed(), ?block_number, "Executed block");
         if let Err(err) = self.consensus.validate_block_post_execution(

@@ -21,3 +21,6 @@ reth-consensus.workspace = true
 alloy-primitives.workspace = true
 
 tracing.workspace = true
+
+[features]
+telos = []

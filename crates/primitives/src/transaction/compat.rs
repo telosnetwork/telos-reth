@@ -13,6 +13,9 @@ impl FillTxEnv for TransactionSigned {
         #[cfg(feature = "optimism")]
         let envelope = alloy_eips::eip2718::Encodable2718::encoded_2718(self);
 
+        #[cfg(feature = "telos")] {
+            tx_env.first_new_address = None;
+        }
         tx_env.caller = sender;
         match self.as_ref() {
             Transaction::Legacy(tx) => {
