@@ -50,6 +50,9 @@ itertools.workspace = true
 
 reth-chainspec = { workspace = true, optional = true }
 
+# telos
+reth-telos-rpc-engine-api = { workspace = true, optional = true }
+
 [dev-dependencies]
 # reth
 reth-payload-builder = { workspace = true, features = ["test-utils"] }
@@ -82,4 +85,7 @@ optimism = [
     "reth-provider/optimism",
     "reth-blockchain-tree/optimism",
     "reth-chainspec"
+]
+telos = [
+    "dep:reth-telos-rpc-engine-api",
 ]

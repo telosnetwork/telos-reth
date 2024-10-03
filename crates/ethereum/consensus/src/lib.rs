@@ -142,6 +142,7 @@ impl<ChainSpec: Send + Sync + EthChainSpec + EthereumHardforks + Debug> Consensu
 
         // TODO Check difficulty increment between parent and self
         // Ace age did increment it by some formula that we need to follow.
+        #[cfg(not(feature = "telos"))]
         self.validate_against_parent_gas_limit(header, parent)?;
 
         validate_against_parent_eip1559_base_fee(header, parent, &self.chain_spec)?;

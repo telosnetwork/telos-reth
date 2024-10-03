@@ -37,3 +37,6 @@ optimism = ["reth-primitives/optimism", "revm/optimism"]
 serde = ["dep:serde", "reth-trie/serde", "revm/serde"]
 serde-bincode-compat = ["reth-primitives/serde-bincode-compat", "reth-trie/serde-bincode-compat", "serde_with"]
 std = []
+telos = [
+    "revm/telos",
+]

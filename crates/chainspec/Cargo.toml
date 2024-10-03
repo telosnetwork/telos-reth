@@ -50,6 +50,7 @@ op-alloy-rpc-types.workspace = true
 [features]
 default = ["std"]
 optimism = ["serde", "dep:op-alloy-rpc-types", "reth-optimism-forks"]
+telos = []
 std = [
     "alloy-chains/std",
     "alloy-eips/std",

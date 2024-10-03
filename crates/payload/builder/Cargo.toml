@@ -41,3 +41,6 @@ revm.workspace = true
 
 [features]
 test-utils = ["reth-chain-state"]
+telos = [
+    "revm/telos",
+]

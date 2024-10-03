@@ -30,6 +30,14 @@ use revm_primitives::{
     db::{Database, DatabaseCommit},
     BlockEnv, CfgEnvWithHandlerCfg, EnvWithHandlerCfg, ResultAndState,
 };
+#[cfg(feature = "telos")]
+use reth_telos_rpc_engine_api::structs::TelosEngineAPIExtraFields;
+#[cfg(feature = "telos")]
+use reth_telos_rpc_engine_api::compare::compare_state_diffs;
+#[cfg(feature = "telos")]
+use revm_primitives::{Address, Account, AccountInfo, AccountStatus, Bytecode, HashMap, KECCAK_EMPTY};
+#[cfg(feature = "telos")]
+use alloy_primitives::B256;
 
 /// Provides executors to execute regular ethereum blocks
 #[derive(Debug, Clone)]
@@ -134,6 +142,8 @@ where
         &self,
         block: &BlockWithSenders,
         mut evm: Evm<'_, Ext, &mut State<DB>>,
+        #[cfg(feature = "telos")]
+        telos_extra_fields: Option<TelosEngineAPIExtraFields>,
     ) -> Result<EthExecuteOutput, BlockExecutionError>
     where
         DB: Database,
@@ -143,10 +153,29 @@ where
 
         system_caller.apply_pre_execution_changes(block, &mut evm)?;
 
+        #[cfg(feature = "telos")]
+        let mut tx_index = 0;
+        #[cfg(feature = "telos")]
+        let unwrapped_telos_extra_fields = telos_extra_fields.unwrap_or_default();
+        #[cfg(feature = "telos")]
+        let mut new_addresses_using_create_iter = unwrapped_telos_extra_fields.new_addresses_using_create.as_ref().unwrap().into_iter().peekable();
+
         // execute transactions
         let mut cumulative_gas_used = 0;
         let mut receipts = Vec::with_capacity(block.body.transactions.len());
         for (sender, transaction) in block.transactions_with_sender() {
+            #[cfg(feature = "telos")]
+            while new_addresses_using_create_iter.peek().is_some() && new_addresses_using_create_iter.peek().unwrap().0 == tx_index {
+                let address = new_addresses_using_create_iter.peek().unwrap().1;
+                let mut state: HashMap<Address, Account> = HashMap::default();
+                evm.db_mut().insert_not_existing(Address::from_word(B256::from(address)));
+                state.insert(Address::from_word(B256::from(address)),Account{info: AccountInfo{balance: U256::ZERO, nonce: 1, code: Some(Bytecode::default()), code_hash: KECCAK_EMPTY}, storage: HashMap::default(), status: AccountStatus::Touched|AccountStatus::LoadedAsNotExisting});
+                evm.db_mut().commit(state);
+                new_addresses_using_create_iter.next();
+            }
+            #[cfg(feature = "telos")] {
+                tx_index += 1;
+            }
             // The sum of the transaction’s gas limit, Tg, and the gas utilized in this block prior,
             // must be no greater than the block’s gasLimit.
             let block_available_gas = block.header.gas_limit - cumulative_gas_used;
@@ -188,6 +217,33 @@ where
                     ..Default::default()
                 },
             );
+        }
+
+        #[cfg(feature = "telos")]
+        while new_addresses_using_create_iter.peek().is_some() {
+            let address = new_addresses_using_create_iter.peek().unwrap().1;
+            let mut state: HashMap<Address, Account> = HashMap::default();
+            evm.db_mut().insert_not_existing(Address::from_word(B256::from(address)));
+            state.insert(Address::from_word(B256::from(address)),Account{info: AccountInfo{balance: U256::ZERO, nonce: 1, code: Some(Bytecode::default()), code_hash: KECCAK_EMPTY}, storage: HashMap::default(), status: AccountStatus::Touched|AccountStatus::LoadedAsNotExisting});
+            evm.db_mut().commit(state);
+            new_addresses_using_create_iter.next();
+        }
+
+        #[cfg(feature = "telos")] {
+        // Perform state diff comparision
+        let revm_state_diffs = evm.db_mut().transition_state.clone().unwrap_or_default().transitions;
+        let block_num = block.block.header.number;
+        println!(
+            "Compare: block {block_num} {}",
+            compare_state_diffs(
+                &mut evm,
+                revm_state_diffs,
+                unwrapped_telos_extra_fields.statediffs_account.unwrap_or_default(),
+                unwrapped_telos_extra_fields.statediffs_accountstate.unwrap_or_default(),
+                unwrapped_telos_extra_fields.new_addresses_using_create.unwrap_or_default(),
+                unwrapped_telos_extra_fields.new_addresses_using_openwallet.unwrap_or_default()
+            )
+        );
         }
 
         let requests = if self.chain_spec.is_prague_active_at_timestamp(block.timestamp) {
@@ -270,6 +326,8 @@ where
         &mut self,
         block: &BlockWithSenders,
         total_difficulty: U256,
+        #[cfg(feature = "telos")]
+        telos_extra_fields: Option<TelosEngineAPIExtraFields>,
     ) -> Result<EthExecuteOutput, BlockExecutionError> {
         // 1. prepare state on new block
         self.on_new_block(&block.header);
@@ -278,7 +336,7 @@ where
         let env = self.evm_env_for_block(&block.header, total_difficulty);
         let output = {
             let evm = self.executor.evm_config.evm_with_env(&mut self.state, env);
-            self.executor.execute_state_transitions(block, evm)
+            self.executor.execute_state_transitions(block, evm, #[cfg(feature = "telos")] telos_extra_fields)
         }?;
 
         // 3. apply post execution changes
@@ -340,10 +398,10 @@ where
     /// Returns the receipts of the transactions in the block.
     ///
     /// Returns an error if the block could not be executed or failed verification.
-    fn execute(mut self, input: Self::Input<'_>) -> Result<Self::Output, Self::Error> {
+    fn execute(mut self, input: Self::Input<'_>, #[cfg(feature = "telos")] telos_extra_fields: Option<TelosEngineAPIExtraFields>) -> Result<Self::Output, Self::Error> {
         let BlockExecutionInput { block, total_difficulty } = input;
         let EthExecuteOutput { receipts, requests, gas_used } =
-            self.execute_without_verification(block, total_difficulty)?;
+            self.execute_without_verification(block, total_difficulty, #[cfg(feature = "telos")] telos_extra_fields)?;
 
         // NOTE: we need to merge keep the reverts for the bundle retention
         self.state.merge_transitions(BundleRetention::Reverts);
@@ -361,7 +419,7 @@ where
     {
         let BlockExecutionInput { block, total_difficulty } = input;
         let EthExecuteOutput { receipts, requests, gas_used } =
-            self.execute_without_verification(block, total_difficulty)?;
+            self.execute_without_verification(block, total_difficulty, #[cfg(feature = "telos")] None)?;
 
         // NOTE: we need to merge keep the reverts for the bundle retention
         self.state.merge_transitions(BundleRetention::Reverts);
@@ -407,7 +465,7 @@ where
         }
 
         let EthExecuteOutput { receipts, requests, gas_used: _ } =
-            self.executor.execute_without_verification(block, total_difficulty)?;
+            self.executor.execute_without_verification(block, total_difficulty, #[cfg(feature = "telos")] None)?;
 
         validate_block_post_execution(block, self.executor.chain_spec(), &receipts, &requests)?;
 

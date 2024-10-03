@@ -38,8 +38,10 @@ use reth_db_api::{
 use reth_evm::ConfigureEvmEnv;
 use reth_execution_types::{Chain, ExecutionOutcome};
 use reth_network_p2p::headers::downloader::SyncTarget;
+#[cfg(not(feature = "telos"))]
+use reth_primitives::GotExpected;
 use reth_primitives::{
-    Account, Block, BlockBody, BlockWithSenders, Bytecode, GotExpected, Header, Receipt, Requests,
+    Account, Block, BlockBody, BlockWithSenders, Bytecode, Header, Receipt, Requests,
     SealedBlock, SealedBlockWithSenders, SealedHeader, StaticFileSegment, StorageEntry,
     TransactionMeta, TransactionSigned, TransactionSignedEcRecovered, TransactionSignedNoHash,
     Withdrawal, Withdrawals,
@@ -47,7 +49,9 @@ use reth_primitives::{
 use reth_prune_types::{PruneCheckpoint, PruneModes, PruneSegment};
 use reth_stages_types::{StageCheckpoint, StageId};
 use reth_storage_api::TryIntoHistoricalStateProvider;
-use reth_storage_errors::provider::{ProviderResult, RootMismatch};
+#[cfg(not(feature = "telos"))]
+use reth_storage_errors::provider::RootMismatch;
+use reth_storage_errors::provider::ProviderResult;
 use reth_trie::{
     prefix_set::{PrefixSet, PrefixSetMut, TriePrefixSets},
     updates::{StorageTrieUpdates, TrieUpdates},
@@ -2931,8 +2935,14 @@ impl<TX: DbTxMut + DbTx, Spec: Send + Sync> HashingWriter for DatabaseProvider<T
     fn insert_hashes(
         &self,
         range: RangeInclusive<BlockNumber>,
+        #[cfg(not(feature = "telos"))]
         end_block_hash: B256,
+        #[cfg(feature = "telos")]
+        _end_block_hash: B256,
+        #[cfg(not(feature = "telos"))]
         expected_state_root: B256,
+        #[cfg(feature = "telos")]
+        _expected_state_root: B256,
     ) -> ProviderResult<()> {
         // Initialize prefix sets.
         let mut account_prefix_set = PrefixSetMut::default();
@@ -2984,10 +2994,17 @@ impl<TX: DbTxMut + DbTx, Spec: Send + Sync> HashingWriter for DatabaseProvider<T
                     .collect(),
                 destroyed_accounts,
             };
+            #[cfg(feature = "telos")]
+            let (_state_root, trie_updates) = StateRoot::from_tx(&self.tx)
+                .with_prefix_sets(prefix_sets)
+                .root_with_updates()
+                .map_err(Into::<reth_db::DatabaseError>::into)?;
+            #[cfg(not(feature = "telos"))]
             let (state_root, trie_updates) = StateRoot::from_tx(&self.tx)
                 .with_prefix_sets(prefix_sets)
                 .root_with_updates()
                 .map_err(Into::<reth_db::DatabaseError>::into)?;
+            #[cfg(not(feature = "telos"))]
             if state_root != expected_state_root {
                 return Err(ProviderError::StateRootMismatch(Box::new(RootMismatch {
                     root: GotExpected { got: state_root, expected: expected_state_root },
@@ -3191,19 +3208,26 @@ impl<TX: DbTxMut + DbTx + 'static, Spec: Send + Sync + EthereumHardforks + 'stat
             storage_prefix_sets,
             destroyed_accounts,
         };
+        #[cfg(feature = "telos")]
+        let (_new_state_root, trie_updates) = StateRoot::from_tx(&self.tx)
+            .with_prefix_sets(prefix_sets)
+            .root_with_updates()
+            .map_err(Into::<reth_db::DatabaseError>::into)?;
+        #[cfg(not(feature = "telos"))]
         let (new_state_root, trie_updates) = StateRoot::from_tx(&self.tx)
             .with_prefix_sets(prefix_sets)
             .root_with_updates()
             .map_err(Into::<reth_db::DatabaseError>::into)?;
-
+        #[cfg(not(feature = "telos"))]
         let parent_number = range.start().saturating_sub(1);
+        #[cfg(not(feature = "telos"))]
         let parent_state_root = self
             .header_by_number(parent_number)?
             .ok_or_else(|| ProviderError::HeaderNotFound(parent_number.into()))?
             .state_root;
-
         // state root should be always correct as we are reverting state.
         // but for sake of double verification we will check it again.
+        #[cfg(not(feature = "telos"))]
         if new_state_root != parent_state_root {
             let parent_hash = self
                 .block_hash(parent_number)?
@@ -3279,19 +3303,26 @@ impl<TX: DbTxMut + DbTx + 'static, Spec: Send + Sync + EthereumHardforks + 'stat
             storage_prefix_sets,
             destroyed_accounts,
         };
+        #[cfg(feature = "telos")]
+        let (_new_state_root, trie_updates) = StateRoot::from_tx(&self.tx)
+            .with_prefix_sets(prefix_sets)
+            .root_with_updates()
+            .map_err(Into::<reth_db::DatabaseError>::into)?;
+        #[cfg(not(feature = "telos"))]
         let (new_state_root, trie_updates) = StateRoot::from_tx(&self.tx)
             .with_prefix_sets(prefix_sets)
             .root_with_updates()
             .map_err(Into::<reth_db::DatabaseError>::into)?;
-
+        #[cfg(not(feature = "telos"))]
         let parent_number = range.start().saturating_sub(1);
+        #[cfg(not(feature = "telos"))]
         let parent_state_root = self
             .header_by_number(parent_number)?
             .ok_or_else(|| ProviderError::HeaderNotFound(parent_number.into()))?
             .state_root;
-
         // state root should be always correct as we are reverting state.
         // but for sake of double verification we will check it again.
+        #[cfg(not(feature = "telos"))]
         if new_state_root != parent_state_root {
             let parent_hash = self
                 .block_hash(parent_number)?
