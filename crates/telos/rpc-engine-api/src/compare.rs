@@ -8,6 +8,7 @@ use revm::primitives::{Account, AccountInfo, AccountStatus, Bytecode};
 use reth_storage_errors::provider::ProviderError;
 use crate::structs::{TelosAccountStateTableRow, TelosAccountTableRow};
 use tracing::info;
+use sha2::{Sha256, Digest};
 
 /// This function compares the state diffs between revm and Telos EVM contract
 pub fn compare_state_diffs<Ext, DB>(
@@ -130,7 +131,21 @@ where
                             panic!("A modified `account` table row was found on both revm state and revm state diffs, but seems to be destroyed on just one side, address: {:?}",row.address);
                         }
                     } else {
-                        panic!("A modified `account` table row was found on revm state, but contains no information, address: {:?}",row.address);
+                        if panic_mode {
+                            panic!("A modified `account` table row was found on revm state, but contains no information, address: {:?}", row.address);
+                        }
+                        let mut mod_state = HashMap::new();
+                        mod_state.insert(row.address, Account {
+                            info: AccountInfo {
+                                balance: row.balance,
+                                nonce: row.nonce,
+                                code_hash: B256::from(Sha256::digest(row.code.as_ref()).as_ref()),
+                                code: Some(Bytecode::LegacyRaw(row.code.clone())),
+                            },
+                            storage: HashMap::new(),
+                            status: AccountStatus::Touched | AccountStatus::LoadedAsNotExisting,
+                        });
+                        revm_db.commit(mod_state);
                     }
                 }
             }
