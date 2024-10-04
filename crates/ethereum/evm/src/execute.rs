@@ -23,10 +23,7 @@ use reth_primitives::{
     BlockNumber, BlockWithSenders, EthereumHardfork, Header, Receipt, Request, U256,
 };
 use reth_prune_types::PruneModes;
-use reth_revm::{
-    batch::BlockBatchRecord, db::states::bundle_state::BundleRetention,
-    state_change::post_block_balance_increments, Evm, State,
-};
+use reth_revm::{batch::BlockBatchRecord, db::states::bundle_state::BundleRetention, state_change::post_block_balance_increments, Evm, State, JournalCheckpoint};
 use revm_primitives::{db::{Database, DatabaseCommit}, BlockEnv, CfgEnvWithHandlerCfg, EVMError, EnvWithHandlerCfg, ResultAndState, EvmStorageSlot};
 #[cfg(feature = "telos")]
 use reth_telos_rpc_engine_api::structs::TelosEngineAPIExtraFields;
@@ -179,9 +176,6 @@ where
         #[cfg(feature = "telos")]
         let mut new_addresses_using_create_iter = unwrapped_telos_extra_fields.new_addresses_using_create.as_ref().unwrap().into_iter().peekable();
 
-        #[cfg(feature = "telos")]
-        let pre_exec_state = evm.context.evm.journaled_state.checkpoint();
-
         // execute transactions
         let mut cumulative_gas_used = 0;
         // let mut receipts = Vec::with_capacity(block.body.len());
@@ -257,21 +251,22 @@ where
             new_addresses_using_create_iter.next();
         }
 
-        #[cfg(feature = "telos")] {
-        // Perform state diff comparision
-        let revm_state_diffs = evm.db_mut().transition_state.clone().unwrap_or_default().transitions;
-        let block_num = block.block.header.number;
-        println!(
-            "Compare: block {block_num} {}",
-            compare_state_diffs(
-                &mut evm,
-                revm_state_diffs,
-                unwrapped_telos_extra_fields.statediffs_account.clone().unwrap_or_default(),
-                unwrapped_telos_extra_fields.statediffs_accountstate.clone().unwrap_or_default(),
-                unwrapped_telos_extra_fields.new_addresses_using_create.clone().unwrap_or_default(),
-                unwrapped_telos_extra_fields.new_addresses_using_openwallet.clone().unwrap_or_default()
-            )
-        );
+        #[cfg(feature = "telos")]
+        {
+            // Perform state diff comparision
+            let revm_state_diffs = evm.db_mut().transition_state.clone().unwrap_or_default().transitions;
+            let block_num = block.block.header.number;
+            println!(
+                "Compare: block {block_num} {}",
+                compare_state_diffs(
+                    &mut evm,
+                    revm_state_diffs,
+                    unwrapped_telos_extra_fields.statediffs_account.clone().unwrap_or_default(),
+                    unwrapped_telos_extra_fields.statediffs_accountstate.clone().unwrap_or_default(),
+                    unwrapped_telos_extra_fields.new_addresses_using_create.clone().unwrap_or_default(),
+                    unwrapped_telos_extra_fields.new_addresses_using_openwallet.clone().unwrap_or_default()
+                )
+            );
         }
 
         #[cfg(feature = "telos")]
@@ -299,41 +294,38 @@ where
             vec![]
         };
 
-        #[cfg(feature = "telos")]
-        evm.context.evm.journaled_state.checkpoint_revert(pre_exec_state);
+        // #[cfg(feature = "telos")]
+        // {
+        //     let mut addr_to_accstate: HashMap<Address, HashMap<U256, EvmStorageSlot>> = HashMap::new();
 
-        #[cfg(feature = "telos")]
-        {
-            let mut addr_to_accstate: HashMap<Address, HashMap<U256, EvmStorageSlot>> = HashMap::new();
+        //     for sdiff_accstate in unwrapped_telos_extra_fields.clone().statediffs_accountstate.unwrap_or(vec![]) {
+        //         if !addr_to_accstate.contains_key(&sdiff_accstate.address) {
+        //             addr_to_accstate.insert(sdiff_accstate.address, HashMap::new());
+        //         }
+        //         let mut acc_storage = addr_to_accstate.get_mut(&sdiff_accstate.address).unwrap();
+        //         acc_storage.insert(sdiff_accstate.key, EvmStorageSlot { original_value: Default::default(), present_value: sdiff_accstate.value, is_cold: false });
+        //     }
 
-            for sdiff_accstate in unwrapped_telos_extra_fields.clone().statediffs_accountstate.unwrap_or(vec![]) {
-                if !addr_to_accstate.contains_key(&sdiff_accstate.address) {
-                    addr_to_accstate.insert(sdiff_accstate.address, HashMap::new());
-                }
-                let mut acc_storage = addr_to_accstate.get_mut(&sdiff_accstate.address).unwrap();
-                acc_storage.insert(sdiff_accstate.key, EvmStorageSlot { original_value: Default::default(), present_value: sdiff_accstate.value, is_cold: false });
-            }
+        //     let mut state: HashMap<Address, Account> = HashMap::new();
 
-            let mut state: HashMap<Address, Account> = HashMap::new();
+        //     for sdiff_acc in unwrapped_telos_extra_fields.clone().statediffs_account.unwrap_or(vec![]) {
+        //         state.insert(
+        //             sdiff_acc.address,
+        //             Account {
+        //                 info: AccountInfo {
+        //                     balance: sdiff_acc.balance,
+        //                     nonce: sdiff_acc.nonce,
+        //                     code_hash: B256::from(Sha256::digest(sdiff_acc.code.as_ref()).as_ref()),
+        //                     code: Some(Bytecode::LegacyRaw(sdiff_acc.code)),
+        //                 },
+        //                 storage: addr_to_accstate.get(&sdiff_acc.address).unwrap_or(&HashMap::new()).clone(),
+        //                 status: AccountStatus::Touched | AccountStatus::LoadedAsNotExisting,
+        //             }
+        //         );
+        //     }
 
-            for sdiff_acc in unwrapped_telos_extra_fields.clone().statediffs_account.unwrap_or(vec![]) {
-                state.insert(
-                    sdiff_acc.address,
-                    Account {
-                        info: AccountInfo {
-                            balance: sdiff_acc.balance,
-                            nonce: sdiff_acc.nonce,
-                            code_hash: B256::from(Sha256::digest(sdiff_acc.code.as_ref()).as_ref()),
-                            code: Some(Bytecode::LegacyRaw(sdiff_acc.code)),
-                        },
-                        storage: addr_to_accstate.get(&sdiff_acc.address).unwrap_or(&HashMap::new()).clone(),
-                        status: AccountStatus::Touched | AccountStatus::LoadedAsNotExisting,
-                    }
-                );
-            }
-
-            evm.db_mut().commit(state);
-        }
+        //     evm.db_mut().commit(state);
+        // }
 
         Ok(EthExecuteOutput {
             receipts,
