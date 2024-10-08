@@ -155,6 +155,14 @@ where
         let at = block_id.unwrap_or(BlockId::pending());
         let (cfg, block_env, at) = self.inner.eth_api.evm_env_at(at).await?;
 
+        #[cfg(feature = "telos")]
+        let telos_tx_env = self.provider()
+                            .block(BlockHashOrNumber::Hash(at.as_block_hash().unwrap()))
+                            .unwrap().unwrap() // TODO: Fix this
+                            .header
+                            .telos_block_extension
+                            .tx_env_at(0);
+
         let gas_limit = self.inner.eth_api.call_gas_limit();
         let this = self.clone();
         // execute all transactions on top of each other and record the traces
@@ -173,6 +181,8 @@ where
                         gas_limit,
                         &mut db,
                         Default::default(),
+                        #[cfg(feature = "telos")]
+                        telos_tx_env.clone(),
                     )?;
                     let config = TracingInspectorConfig::from_parity_config(&trace_types);
                     let mut inspector = TracingInspector::new(config);

@@ -514,13 +514,13 @@ where
                 let mut all_bundles = Vec::with_capacity(bundles.len());
                 let mut db = CacheDB::new(StateProviderDatabase::new(state));
 
+                #[cfg(feature = "telos")]
+                let mut tx_index = 0;
+
                 if replay_block_txs {
                     // only need to replay the transactions in the block if not all transactions are
                     // to be replayed
                     let transactions = block.into_transactions_ecrecovered().take(num_txs);
-
-                    #[cfg(feature = "telos")]
-                    let mut tx_index = 0;
 
                     // Execute all transactions until index
                     for tx in transactions {
@@ -562,6 +562,8 @@ where
                             gas_limit,
                             &mut db,
                             overrides,
+                            #[cfg(feature = "telos")]
+                            telos_block_extension.tx_env_at(tx_index),
                         )?;
 
                         let (trace, state) =
@@ -573,6 +575,10 @@ where
                             db.commit(state);
                         }
                         results.push(trace);
+                        #[cfg(feature = "telos")]
+                        {
+                            tx_index += 1;
+                        }
                     }
                     // Increment block_env number and timestamp for the next bundle
                     block_env.number += U256::from(1);
@@ -650,6 +656,10 @@ where
 
                     let (res, _) = this.inner.eth_api.transact(&mut db, env)?;
                     db.commit(res.state);
+                    #[cfg(feature = "telos")]
+                    {
+                        tx_index += 1;
+                    }
                 }
 
                 // Merge all state transitions

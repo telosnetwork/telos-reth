@@ -34,8 +34,11 @@ use reth_rpc_types::{
 use revm::{Database, DatabaseCommit};
 use revm_inspectors::access_list::AccessListInspector;
 use tracing::trace;
-use reth_telos_primitives_traits::TelosBlockExtension;
+use reth_telos_primitives_traits::{TelosBlockExtension, TelosTxEnv};
 use super::{LoadBlock, LoadPendingBlock, LoadState, LoadTransaction, SpawnBlocking, Trace};
+#[cfg(feature = "telos")]
+use reth_provider::BlockIdReader;
+
 
 /// Execution related functions for the [`EthApiServer`](crate::EthApiServer) trait in
 /// the `eth_` namespace.
@@ -131,13 +134,14 @@ pub trait EthCall: Call + LoadPendingBlock {
                 let mut results = Vec::with_capacity(transactions.len());
                 let mut db = CacheDB::new(StateProviderDatabase::new(state));
 
+                #[cfg(feature = "telos")]
+                let telos_extension = block.header.telos_block_extension.clone();
+                #[cfg(feature = "telos")]
+                let mut tx_index = 0;
+
                 if replay_block_txs {
                     // only need to replay the transactions in the block if not all transactions are
                     // to be replayed
-                    #[cfg(feature = "telos")]
-                    let mut tx_index = 0;
-                    #[cfg(feature = "telos")]
-                    let telos_extension = block.header.telos_block_extension.clone();
                     let transactions = block.into_transactions_ecrecovered().take(num_txs);
                     for tx in transactions {
                         let env = EnvWithHandlerCfg::new_with_cfg_env(
@@ -169,6 +173,8 @@ pub trait EthCall: Call + LoadPendingBlock {
                             gas_limit,
                             &mut db,
                             overrides,
+                            #[cfg(feature = "telos")]
+                            telos_extension.tx_env_at(tx_index),
                         )
                         .map(Into::into)?;
                     let (res, _) = this.transact(&mut db, env)?;
@@ -189,6 +195,9 @@ pub trait EthCall: Call + LoadPendingBlock {
                         // need to apply the state changes of this call before executing the next
                         // call
                         db.commit(res.state);
+                    }
+                    #[cfg(feature = "telos")] {
+                        tx_index += 1;
                     }
                 }
 
@@ -212,8 +221,11 @@ pub trait EthCall: Call + LoadPendingBlock {
             let block_id = block_number.unwrap_or_default();
             let (cfg, block, at) = self.evm_env_at(block_id).await?;
 
+            #[cfg(feature = "telos")]
+            let telos_tx_env = self.telos_tx_env_at(at).await?;
+
             self.spawn_blocking_io(move |this| {
-                this.create_access_list_with(cfg, block, at, request)
+                this.create_access_list_with(cfg, block, at, request, #[cfg(feature = "telos")] telos_tx_env)
             })
             .await
         }
@@ -227,13 +239,15 @@ pub trait EthCall: Call + LoadPendingBlock {
         block: BlockEnv,
         at: BlockId,
         mut request: TransactionRequest,
+        #[cfg(feature = "telos")]
+        telos_tx_env: TelosTxEnv,
     ) -> Result<AccessListResult, Self::Error>
     where
         Self: Trace,
     {
         let state = self.state_at_block_id(at)?;
 
-        let mut env = self.build_call_evm_env(cfg, block, request.clone())?;
+        let mut env = self.build_call_evm_env(cfg, block, request.clone(), #[cfg(feature = "telos")] telos_tx_env)?;
 
         // we want to disable this in eth_createAccessList, since this is common practice used by
         // other node impls and providers <https://github.com/foundry-rs/foundry/issues/4388>
@@ -341,6 +355,30 @@ pub trait Call: LoadState + SpawnBlocking {
         Ok((res, env))
     }
 
+    #[cfg(feature = "telos")]
+    /// Fetch a TelosTxEnv for a given block
+    fn telos_tx_env_at(&self, at: BlockId) ->  impl Future<Output = Result<TelosTxEnv, Self::Error>> + Send
+    where
+        Self: LoadPendingBlock,
+    {
+        async move {
+            let block_hash = LoadPendingBlock::provider(self)
+                .block_hash_for_id(at)
+                .map_err(Self::Error::from_eth_err)?
+                .ok_or_else(|| EthApiError::UnknownBlockNumber)?;
+            let block_at_result = self.cache().get_block(block_hash).await.map_err(Self::Error::from_eth_err)?;
+            let block_at = block_at_result.ok_or_else(|| {
+                EthApiError::UnknownBlockNumber
+            })?;
+            let parent_block_result = self.cache().get_block(block_at.parent_hash).await;
+            let parent_block = parent_block_result.unwrap_or(None).ok_or_else(
+                || EthApiError::UnknownBlockNumber,
+            )?;
+
+            Ok(parent_block.header.telos_block_extension.tx_env_at(block_at.body.len() as u64))
+        }
+    }
+
     /// Executes the call request at the given [`BlockId`].
     fn transact_call_at(
         &self,
@@ -392,6 +430,9 @@ pub trait Call: LoadState + SpawnBlocking {
     {
         async move {
             let (cfg, block_env, at) = self.evm_env_at(at).await?;
+            #[cfg(feature = "telos")]
+            let telos_tx_env = self.telos_tx_env_at(at).await?;
+
             let this = self.clone();
             self.spawn_tracing(move |_| {
                 let state = this.state_at_block_id(at)?;
@@ -405,6 +446,8 @@ pub trait Call: LoadState + SpawnBlocking {
                     this.call_gas_limit(),
                     &mut db,
                     overrides,
+                    #[cfg(feature = "telos")]
+                    telos_tx_env,
                 )?;
 
                 f(StateCacheDbRefMutWrapper(&mut db), env)
@@ -540,9 +583,12 @@ pub trait Call: LoadState + SpawnBlocking {
         async move {
             let (cfg, block_env, at) = self.evm_env_at(at).await?;
 
+            #[cfg(feature = "telos")]
+            let telos_tx_env = self.telos_tx_env_at(at).await?;
+
             self.spawn_blocking_io(move |this| {
                 let state = this.state_at_block_id(at)?;
-                this.estimate_gas_with(cfg, block_env, request, state, state_override)
+                this.estimate_gas_with(cfg, block_env, request, state, state_override, #[cfg(feature = "telos")] telos_tx_env)
             })
             .await
         }
@@ -566,6 +612,8 @@ pub trait Call: LoadState + SpawnBlocking {
         mut request: TransactionRequest,
         state: S,
         state_override: Option<StateOverride>,
+        #[cfg(feature = "telos")]
+        telos_tx_env: TelosTxEnv,
     ) -> Result<U256, Self::Error>
     where
         S: StateProvider,
@@ -594,7 +642,7 @@ pub trait Call: LoadState + SpawnBlocking {
             .unwrap_or(block_env_gas_limit);
 
         // Configure the evm env
-        let mut env = self.build_call_evm_env(cfg, block, request)?;
+        let mut env = self.build_call_evm_env(cfg, block, request, #[cfg(feature = "telos")] telos_tx_env)?;
         let mut db = CacheDB::new(StateProviderDatabase::new(state));
 
         // Apply any state overrides if specified.
@@ -855,6 +903,8 @@ pub trait Call: LoadState + SpawnBlocking {
         &self,
         block_env: &BlockEnv,
         request: TransactionRequest,
+        #[cfg(feature = "telos")]
+        telos_tx_env: TelosTxEnv
     ) -> Result<TxEnv, Self::Error> {
         // Ensure that if versioned hashes are set, they're not empty
         if request.blob_versioned_hashes.as_ref().map_or(false, |hashes| hashes.is_empty()) {
@@ -898,6 +948,12 @@ pub trait Call: LoadState + SpawnBlocking {
                 .try_into()
                 .map_err(|_| RpcInvalidTransactionError::GasUintOverflow)
                 .map_err(Self::Error::from_eth_err)?,
+            #[cfg(feature = "telos")]
+            first_new_address: None,
+            #[cfg(feature = "telos")]
+            revision_number: telos_tx_env.revision,
+            #[cfg(feature = "telos")]
+            fixed_gas_price: telos_tx_env.gas_price,
             nonce,
             caller: from.unwrap_or_default(),
             gas_price,
@@ -930,8 +986,10 @@ pub trait Call: LoadState + SpawnBlocking {
         cfg: CfgEnvWithHandlerCfg,
         block: BlockEnv,
         request: TransactionRequest,
+        #[cfg(feature = "telos")]
+        telos_tx_env: TelosTxEnv
     ) -> Result<EnvWithHandlerCfg, Self::Error> {
-        let tx = self.create_txn_env(&block, request)?;
+        let tx = self.create_txn_env(&block, request, #[cfg(feature = "telos")] telos_tx_env)?;
         Ok(EnvWithHandlerCfg::new_with_cfg_env(cfg, block, tx))
     }
 
@@ -957,6 +1015,8 @@ pub trait Call: LoadState + SpawnBlocking {
         gas_limit: u64,
         db: &mut CacheDB<DB>,
         overrides: EvmOverrides,
+        #[cfg(feature = "telos")]
+        telos_tx_env: TelosTxEnv,
     ) -> Result<EnvWithHandlerCfg, Self::Error>
     where
         DB: DatabaseRef,
@@ -990,7 +1050,7 @@ pub trait Call: LoadState + SpawnBlocking {
         }
 
         let request_gas = request.gas;
-        let mut env = self.build_call_evm_env(cfg, block, request)?;
+        let mut env = self.build_call_evm_env(cfg, block, request, #[cfg(feature = "telos")] telos_tx_env)?;
 
         // apply state overrides
         if let Some(state_overrides) = overrides.state {
