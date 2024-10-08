@@ -115,6 +115,7 @@ members = [
     "crates/storage/storage-api/",
     "crates/tasks/",
     "crates/telos/node",
+    "crates/telos/primitives-traits",
     "crates/telos/rpc",
     "crates/tokio-util/",
     "crates/tracing/",
@@ -568,5 +569,6 @@ test-fuzz = "5"
 # telos
 reth-node-telos = { path = "crates/telos/node" }
 reth-telos-rpc = { path = "crates/telos/rpc" }
+reth-telos-primitives-traits = { path = "crates/telos/primitives-traits" }
 reth-telos-rpc-engine-api = { path = "crates/telos/rpc-engine-api" }
 antelope-client = { git = "https://github.com/telosnetwork/antelope-rs", branch = "finish_table_rows_params" }
