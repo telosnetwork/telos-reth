@@ -23,14 +23,8 @@ use reth_primitives::{
     BlockNumber, BlockWithSenders, EthereumHardfork, Header, Receipt, Request, U256,
 };
 use reth_prune_types::PruneModes;
-use reth_revm::{
-    batch::BlockBatchRecord, db::states::bundle_state::BundleRetention,
-    state_change::post_block_balance_increments, Evm, State,
-};
-use revm_primitives::{
-    db::{Database, DatabaseCommit},
-    BlockEnv, CfgEnvWithHandlerCfg, EVMError, EnvWithHandlerCfg, ResultAndState,
-};
+use reth_revm::{batch::BlockBatchRecord, db::states::bundle_state::BundleRetention, state_change::post_block_balance_increments, Evm, State, JournalCheckpoint};
+use revm_primitives::{db::{Database, DatabaseCommit}, BlockEnv, CfgEnvWithHandlerCfg, EVMError, EnvWithHandlerCfg, ResultAndState, EvmStorageSlot};
 #[cfg(feature = "telos")]
 use reth_telos_rpc_engine_api::structs::TelosEngineAPIExtraFields;
 #[cfg(feature = "telos")]
@@ -39,6 +33,8 @@ use reth_telos_rpc_engine_api::compare::compare_state_diffs;
 use revm_primitives::{Address, Account, AccountInfo, AccountStatus, Bytecode, HashMap, KECCAK_EMPTY};
 #[cfg(feature = "telos")]
 use reth_primitives::B256;
+#[cfg(feature = "telos")]
+use sha2::{Sha256, Digest};
 
 #[cfg(not(feature = "std"))]
 use alloc::{boxed::Box, sync::Arc, vec, vec::Vec};
@@ -182,7 +178,7 @@ where
 
         // execute transactions
         let mut cumulative_gas_used = 0;
-        let mut receipts = Vec::with_capacity(block.body.len());
+        // let mut receipts = Vec::with_capacity(block.body.len());
         for (sender, transaction) in block.transactions_with_sender() {
             #[cfg(feature = "telos")]
             while new_addresses_using_create_iter.peek().is_some() && new_addresses_using_create_iter.peek().unwrap().0 == tx_index {
@@ -229,20 +225,20 @@ where
             // append gas used
             cumulative_gas_used += result.gas_used();
 
-            // Push transaction changeset and calculate header bloom filter for receipt.
-            receipts.push(
-                #[allow(clippy::needless_update)] // side-effect of optimism fields
-                Receipt {
-                    tx_type: transaction.tx_type(),
-                    // Success flag was added in `EIP-658: Embedding transaction status code in
-                    // receipts`.
-                    success: result.is_success(),
-                    cumulative_gas_used,
-                    // convert to reth log
-                    logs: result.into_logs(),
-                    ..Default::default()
-                },
-            );
+            // // Push transaction changeset and calculate header bloom filter for receipt.
+            // receipts.push(
+            //     #[allow(clippy::needless_update)] // side-effect of optimism fields
+            //     Receipt {
+            //         tx_type: transaction.tx_type(),
+            //         // Success flag was added in `EIP-658: Embedding transaction status code in
+            //         // receipts`.
+            //         success: result.is_success(),
+            //         cumulative_gas_used,
+            //         // convert to reth log
+            //         logs: result.into_logs(),
+            //         ..Default::default()
+            //     },
+            // );
         }
 
         #[cfg(feature = "telos")]
@@ -255,22 +251,30 @@ where
             new_addresses_using_create_iter.next();
         }
 
-        #[cfg(feature = "telos")] {
-        // Perform state diff comparision
-        let revm_state_diffs = evm.db_mut().transition_state.clone().unwrap_or_default().transitions;
-        let block_num = block.block.header.number;
-        println!(
-            "Compare: block {block_num} {}",
-            compare_state_diffs(
-                &mut evm,
-                revm_state_diffs,
-                unwrapped_telos_extra_fields.statediffs_account.unwrap_or_default(),
-                unwrapped_telos_extra_fields.statediffs_accountstate.unwrap_or_default(),
-                unwrapped_telos_extra_fields.new_addresses_using_create.unwrap_or_default(),
-                unwrapped_telos_extra_fields.new_addresses_using_openwallet.unwrap_or_default()
-            )
-        );
+        #[cfg(feature = "telos")]
+        {
+            // Perform state diff comparision
+            let revm_state_diffs = evm.db_mut().transition_state.clone().unwrap_or_default().transitions;
+            let block_num = block.block.header.number;
+            println!(
+                "Compare: block {block_num} {}",
+                compare_state_diffs(
+                    &mut evm,
+                    revm_state_diffs,
+                    unwrapped_telos_extra_fields.statediffs_account.clone().unwrap_or_default(),
+                    unwrapped_telos_extra_fields.statediffs_accountstate.clone().unwrap_or_default(),
+                    unwrapped_telos_extra_fields.new_addresses_using_create.clone().unwrap_or_default(),
+                    unwrapped_telos_extra_fields.new_addresses_using_openwallet.clone().unwrap_or_default()
+                )
+            );
         }
+
+        #[cfg(feature = "telos")]
+        let receipts = if unwrapped_telos_extra_fields.receipts.is_some() {
+            unwrapped_telos_extra_fields.receipts.clone().unwrap()
+        } else {
+            vec![]
+        };
 
         let requests = if self.chain_spec.is_prague_active_at_timestamp(block.timestamp) {
             // Collect all EIP-6110 deposits
@@ -290,7 +294,44 @@ where
             vec![]
         };
 
-        Ok(EthExecuteOutput { receipts, requests, gas_used: cumulative_gas_used })
+        // #[cfg(feature = "telos")]
+        // {
+        //     let mut addr_to_accstate: HashMap<Address, HashMap<U256, EvmStorageSlot>> = HashMap::new();
+
+        //     for sdiff_accstate in unwrapped_telos_extra_fields.clone().statediffs_accountstate.unwrap_or(vec![]) {
+        //         if !addr_to_accstate.contains_key(&sdiff_accstate.address) {
+        //             addr_to_accstate.insert(sdiff_accstate.address, HashMap::new());
+        //         }
+        //         let mut acc_storage = addr_to_accstate.get_mut(&sdiff_accstate.address).unwrap();
+        //         acc_storage.insert(sdiff_accstate.key, EvmStorageSlot { original_value: Default::default(), present_value: sdiff_accstate.value, is_cold: false });
+        //     }
+
+        //     let mut state: HashMap<Address, Account> = HashMap::new();
+
+        //     for sdiff_acc in unwrapped_telos_extra_fields.clone().statediffs_account.unwrap_or(vec![]) {
+        //         state.insert(
+        //             sdiff_acc.address,
+        //             Account {
+        //                 info: AccountInfo {
+        //                     balance: sdiff_acc.balance,
+        //                     nonce: sdiff_acc.nonce,
+        //                     code_hash: B256::from(Sha256::digest(sdiff_acc.code.as_ref()).as_ref()),
+        //                     code: Some(Bytecode::LegacyRaw(sdiff_acc.code)),
+        //                 },
+        //                 storage: addr_to_accstate.get(&sdiff_acc.address).unwrap_or(&HashMap::new()).clone(),
+        //                 status: AccountStatus::Touched | AccountStatus::LoadedAsNotExisting,
+        //             }
+        //         );
+        //     }
+
+        //     evm.db_mut().commit(state);
+        // }
+
+        Ok(EthExecuteOutput {
+            receipts,
+            requests,
+            gas_used: cumulative_gas_used
+        })
     }
 }
 
@@ -369,7 +410,12 @@ where
         let env = self.evm_env_for_block(&block.header, total_difficulty);
         let output = {
             let evm = self.executor.evm_config.evm_with_env(&mut self.state, env);
-            self.executor.execute_state_transitions(block, evm, #[cfg(feature = "telos")] telos_extra_fields)
+            self.executor.execute_state_transitions(
+                block,
+                evm,
+                #[cfg(feature = "telos")]
+                telos_extra_fields
+            )
         }?;
 
         // 3. apply post execution changes

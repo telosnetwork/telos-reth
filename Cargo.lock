@@ -8123,6 +8123,7 @@ dependencies = [
  "revm-primitives",
  "secp256k1",
  "serde_json",
+ "sha2 0.10.8",
 ]
 
 [[package]]
@@ -8802,6 +8803,7 @@ dependencies = [
  "reth-rpc",
  "reth-stages",
  "reth-telos-rpc",
+ "reth-telos-rpc-engine-api 1.0.6",
  "reth-tracing",
  "reth-transaction-pool",
  "serde",
@@ -9795,6 +9797,7 @@ dependencies = [
  "reth-storage-errors 1.0.6",
  "revm",
  "serde",
+ "sha2 0.10.8",
  "tracing",
 ]
 
