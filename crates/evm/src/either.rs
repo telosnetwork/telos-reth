@@ -80,13 +80,15 @@ where
         self,
         input: Self::Input<'_>,
         witness: F,
+        #[cfg(feature = "telos")]
+        telos_extra_fields: Option<TelosEngineAPIExtraFields>,
     ) -> Result<Self::Output, Self::Error>
     where
         F: FnMut(&State<DB>),
     {
         match self {
-            Self::Left(a) => a.execute_with_state_witness(input, witness),
-            Self::Right(b) => b.execute_with_state_witness(input, witness),
+            Self::Left(a) => a.execute_with_state_witness(input, witness, #[cfg(feature = "telos")] telos_extra_fields),
+            Self::Right(b) => b.execute_with_state_witness(input, witness, #[cfg(feature = "telos")] telos_extra_fields),
         }
     }
 }

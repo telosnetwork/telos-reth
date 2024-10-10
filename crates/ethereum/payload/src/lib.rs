@@ -230,7 +230,6 @@ where
         let env = EnvWithHandlerCfg::new_with_cfg_env(
             initialized_cfg.clone(),
             initialized_block_env.clone(),
-            evm_config.tx_env(&tx),
             // Telos will never build payloads here, so using Default below is OK
             evm_config.tx_env(&tx, #[cfg(feature = "telos")] TelosTxEnv::default()),
         );

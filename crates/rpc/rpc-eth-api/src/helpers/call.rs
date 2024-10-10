@@ -96,6 +96,9 @@ pub trait EthCall: Call + LoadPendingBlock {
 
             let base_block = self.block(block).await?.ok_or(EthApiError::HeaderNotFound(block))?;
             let mut parent_hash = base_block.header.hash();
+
+            #[cfg(feature = "telos")]
+            let telos_tx_env = base_block.telos_block_extension.tx_env_at(0);
             let total_difficulty = LoadPendingBlock::provider(self)
                 .header_td_by_number(block_env.number.to())
                 .map_err(Self::Error::from_eth_err)?
@@ -168,7 +171,7 @@ pub trait EthCall: Call + LoadPendingBlock {
                     let mut results = Vec::with_capacity(calls.len());
 
                     while let Some(tx) = calls.next() {
-                        let env = this.build_call_evm_env(cfg.clone(), block_env.clone(), tx)?;
+                        let env = this.build_call_evm_env(cfg.clone(), block_env.clone(), tx, #[cfg(feature = "telos")] telos_tx_env.clone())?;
 
                         let (res, env) = {
                             if trace_transfers {
@@ -534,17 +537,17 @@ pub trait Call: LoadState + SpawnBlocking {
             let block_hash = LoadPendingBlock::provider(self)
                 .block_hash_for_id(at)
                 .map_err(Self::Error::from_eth_err)?
-                .ok_or_else(|| EthApiError::UnknownBlockNumber)?;
+                .ok_or_else(|| EthApiError::UnknownBlockOrTxIndex)?;
             let block_at_result = self.cache().get_block(block_hash).await.map_err(Self::Error::from_eth_err)?;
             let block_at = block_at_result.ok_or_else(|| {
-                EthApiError::UnknownBlockNumber
+                EthApiError::UnknownBlockOrTxIndex
             })?;
             let parent_block_result = self.cache().get_block(block_at.parent_hash).await;
             let parent_block = parent_block_result.unwrap_or(None).ok_or_else(
-                || EthApiError::UnknownBlockNumber,
+                || EthApiError::UnknownBlockOrTxIndex,
             )?;
 
-            Ok(parent_block.header.telos_block_extension.tx_env_at(block_at.body.len() as u64))
+            Ok(parent_block.header.telos_block_extension.tx_env_at(block_at.body.transactions.len() as u64))
         }
     }
 
@@ -1215,20 +1218,13 @@ pub trait Call: LoadState + SpawnBlocking {
         // set nonce to None so that the correct nonce is chosen by the EVM
         request.nonce = None;
 
-        if let Some(block_overrides) = overrides.block {
-            apply_block_overrides(*block_overrides, db, &mut block);
-        }
-
-        let request_gas = request.gas;
-        let mut env = self.build_call_evm_env(cfg, block, request, #[cfg(feature = "telos")] telos_tx_env)?;
-
         // apply state overrides
         if let Some(state_overrides) = overrides.state {
             apply_state_overrides(state_overrides, db)?;
         }
 
         let request_gas = request.gas;
-        let mut env = self.build_call_evm_env(cfg, block, request)?;
+        let mut env = self.build_call_evm_env(cfg, block, request, #[cfg(feature = "telos")] telos_tx_env)?;
 
         if request_gas.is_none() {
             // No gas limit was provided in the request, so we need to cap the transaction gas limit

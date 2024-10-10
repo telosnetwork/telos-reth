@@ -68,7 +68,7 @@ arbitrary = [
     "dep:proptest-arbitrary-interop",
     "reth-telos-primitives-traits/arbitrary",
 ]
-serde-bincode-compat = ["serde_with", "alloy-consensus/serde-bincode-compat"]
+serde-bincode-compat = ["serde_with", "alloy-consensus/serde-bincode-compat", "reth-telos-primitives-traits/serde-bincode-compat"]
 telos = [
     "dep:reth-telos-primitives-traits",
 ]

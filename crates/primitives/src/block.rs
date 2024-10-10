@@ -703,7 +703,10 @@ impl<'a> arbitrary::Arbitrary<'a> for BlockBody {
 #[cfg(feature = "serde-bincode-compat")]
 pub(super) mod serde_bincode_compat {
     use alloc::{borrow::Cow, vec::Vec};
+    #[cfg(not(feature = "telos"))]
     use alloy_consensus::serde_bincode_compat::Header;
+    #[cfg(feature = "telos")]
+    use reth_telos_primitives_traits::serde_bincode_compat::TelosHeader as Header;
     use alloy_primitives::Address;
     use reth_primitives_traits::{serde_bincode_compat::SealedHeader, Requests, Withdrawals};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};

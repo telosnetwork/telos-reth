@@ -1,7 +1,7 @@
 /// Telos custom header, borrowed from alloy_consensus with the TelosBlockExtension field added
 
 
-use alloy_consensus::{Header, EMPTY_OMMER_ROOT_HASH, EMPTY_ROOT_HASH};
+use alloy_consensus::{EMPTY_OMMER_ROOT_HASH, EMPTY_ROOT_HASH};
 use alloy_eips::{
     eip1559::{calc_next_block_base_fee, BaseFeeParams},
     eip4844::{calc_blob_gasprice, calc_excess_blob_gas},
@@ -15,6 +15,7 @@ use alloy_rlp::{
     length_of_length, Buf, BufMut, Decodable, Encodable, EMPTY_LIST_CODE, EMPTY_STRING_CODE,
 };
 use core::mem;
+use reth_codecs::Compact;
 use crate::TelosBlockExtension;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -172,6 +173,51 @@ impl Sealable for TelosHeader {
 }
 
 impl TelosHeader {
+    /// Creates a clone of the header, adding Telos block extension fields
+    pub fn clone_with_telos(&self,
+                            parent_telos_extension: TelosBlockExtension,
+                            gas_price_change: Option<(u64, U256)>,
+                            revision_change: Option<(u64, u64)>) -> Self {
+        let gas_price_change = if let Some(gas_price_change) = gas_price_change {
+            Some(gas_price_change)
+        } else {
+            None
+        };
+
+        let revision_change = if let Some(revision_change) = revision_change {
+            Some(revision_change)
+        } else {
+            None
+        };
+
+        Self {
+            parent_hash: self.parent_hash,
+            ommers_hash: self.ommers_hash,
+            beneficiary: self.beneficiary,
+            state_root: self.state_root,
+            transactions_root: self.transactions_root,
+            receipts_root: self.receipts_root,
+            logs_bloom: self.logs_bloom,
+            difficulty: self.difficulty,
+            number: self.number,
+            gas_limit: self.gas_limit,
+            gas_used: self.gas_used,
+            timestamp: self.timestamp,
+            extra_data: self.extra_data.clone(),
+            mix_hash: self.mix_hash,
+            nonce: self.nonce,
+            base_fee_per_gas: self.base_fee_per_gas,
+            withdrawals_root: self.withdrawals_root,
+            blob_gas_used: self.blob_gas_used,
+            excess_blob_gas: self.excess_blob_gas,
+            parent_beacon_block_root: self.parent_beacon_block_root,
+            requests_root: self.requests_root,
+            telos_block_extension: TelosBlockExtension::from_parent_and_changes(
+                &parent_telos_extension, gas_price_change, revision_change
+            ),
+        }
+    }
+
     /// Heavy function that will calculate hash of data and will *not* save the change to metadata.
     ///
     /// Use [`TelosHeader::seal_slow`] and unlock if you need the hash to be persistent.
@@ -771,4 +817,130 @@ pub(super) mod serde_bincode_compat {
         }
     }
 
+}
+
+/// Block header
+///
+/// This is a helper type to use derive on it instead of manually managing `bitfield`.
+///
+/// By deriving `Compact` here, any future changes or enhancements to the `Compact` derive
+/// will automatically apply to this type.
+///
+/// Notice: Make sure this struct is 1:1 with [`alloy_consensus::Header`]
+#[cfg_attr(test, derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Compact)]
+pub(crate) struct HeaderCompact {
+    parent_hash: B256,
+    ommers_hash: B256,
+    beneficiary: Address,
+    state_root: B256,
+    transactions_root: B256,
+    receipts_root: B256,
+    withdrawals_root: Option<B256>,
+    logs_bloom: Bloom,
+    difficulty: U256,
+    number: BlockNumber,
+    gas_limit: u64,
+    gas_used: u64,
+    timestamp: u64,
+    mix_hash: B256,
+    nonce: u64,
+    base_fee_per_gas: Option<u64>,
+    blob_gas_used: Option<u64>,
+    excess_blob_gas: Option<u64>,
+    parent_beacon_block_root: Option<B256>,
+    extra_fields: Option<TelosHeaderExt>,
+    extra_data: Bytes,
+}
+
+/// [`Header`] extension struct.
+///
+/// All new fields should be added here in the form of a `Option<T>`, since `Option<HeaderExt>` is
+/// used as a field of [`Header`] for backwards compatibility.
+///
+/// More information: <https://github.com/paradigmxyz/reth/issues/7820> & [`reth_codecs_derive::Compact`].
+#[cfg_attr(test, derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Compact)]
+pub(crate) struct TelosHeaderExt {
+    requests_root: Option<B256>,
+    telos_block_extension: Option<TelosBlockExtension>,
+}
+
+impl TelosHeaderExt {
+    /// Converts into [`Some`] if any of the field exists. Otherwise, returns [`None`].
+    ///
+    /// Required since [`Header`] uses `Option<HeaderExt>` as a field.
+    const fn into_option(self) -> Option<Self> {
+        if self.requests_root.is_some() || self.telos_block_extension.is_some() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+}
+
+impl Compact for TelosHeader {
+    fn to_compact<B>(&self, buf: &mut B) -> usize
+    where
+        B: bytes::BufMut + AsMut<[u8]>,
+    {
+        let extra_fields = TelosHeaderExt {
+            requests_root: self.requests_root,
+            telos_block_extension: Some(self.telos_block_extension.clone()),
+        };
+
+        let header = HeaderCompact {
+            parent_hash: self.parent_hash,
+            ommers_hash: self.ommers_hash,
+            beneficiary: self.beneficiary,
+            state_root: self.state_root,
+            transactions_root: self.transactions_root,
+            receipts_root: self.receipts_root,
+            withdrawals_root: self.withdrawals_root,
+            logs_bloom: self.logs_bloom,
+            difficulty: self.difficulty,
+            number: self.number,
+            gas_limit: self.gas_limit,
+            gas_used: self.gas_used,
+            timestamp: self.timestamp,
+            mix_hash: self.mix_hash,
+            nonce: self.nonce.into(),
+            base_fee_per_gas: self.base_fee_per_gas,
+            blob_gas_used: self.blob_gas_used,
+            excess_blob_gas: self.excess_blob_gas,
+            parent_beacon_block_root: self.parent_beacon_block_root,
+            extra_fields: extra_fields.into_option(),
+            extra_data: self.extra_data.clone(),
+        };
+        header.to_compact(buf)
+    }
+
+    fn from_compact(buf: &[u8], len: usize) -> (Self, &[u8]) {
+        let (header, _) = HeaderCompact::from_compact(buf, len);
+        let alloy_header = Self {
+            parent_hash: header.parent_hash,
+            ommers_hash: header.ommers_hash,
+            beneficiary: header.beneficiary,
+            state_root: header.state_root,
+            transactions_root: header.transactions_root,
+            receipts_root: header.receipts_root,
+            withdrawals_root: header.withdrawals_root,
+            logs_bloom: header.logs_bloom,
+            difficulty: header.difficulty,
+            number: header.number,
+            gas_limit: header.gas_limit,
+            gas_used: header.gas_used,
+            timestamp: header.timestamp,
+            mix_hash: header.mix_hash,
+            nonce: header.nonce.into(),
+            base_fee_per_gas: header.base_fee_per_gas,
+            blob_gas_used: header.blob_gas_used,
+            excess_blob_gas: header.excess_blob_gas,
+            parent_beacon_block_root: header.parent_beacon_block_root,
+            requests_root: header.extra_fields.clone().and_then(|h| h.requests_root),
+            telos_block_extension: header.extra_fields.clone().and_then(|h| h.telos_block_extension).unwrap_or_default(),
+            extra_data: header.extra_data,
+        };
+        (alloy_header, buf)
+    }
 }

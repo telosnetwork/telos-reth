@@ -54,6 +54,8 @@ impl<DB> Executor<DB> for NoopBlockExecutorProvider {
         self,
         _: Self::Input<'_>,
         _: F,
+        #[cfg(feature = "telos")]
+        _: Option<TelosEngineAPIExtraFields>,
     ) -> Result<Self::Output, Self::Error>
     where
         F: FnMut(&State<DB>),

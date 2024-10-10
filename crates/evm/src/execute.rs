@@ -42,6 +42,8 @@ pub trait Executor<DB> {
         self,
         input: Self::Input<'_>,
         witness: F,
+        #[cfg(feature = "telos")]
+        telos_extra_fields: Option<TelosEngineAPIExtraFields>,
     ) -> Result<Self::Output, Self::Error>
     where
         F: FnMut(&State<DB>);

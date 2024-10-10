@@ -24,12 +24,7 @@ use reth_primitives::{
     EthereumHardfork, Hardforks, Receipt, SealedBlock, SealedBlockWithSenders,
     SealedHeader, StaticFileSegment,
 };
-use reth_provider::{
-    providers::ProviderNodeTypes, BlockExecutionWriter, BlockNumReader, BlockWriter,
-    CanonStateNotification, CanonStateNotificationSender, CanonStateNotifications,
-    ChainSpecProvider, ChainSplit, ChainSplitTarget, DisplayBlocksChain, HeaderProvider,
-    ProviderError, StaticFileProviderFactory,
-};
+use reth_provider::{providers::ProviderNodeTypes, BlockExecutionWriter, BlockNumReader, BlockReader, BlockWriter, CanonStateNotification, CanonStateNotificationSender, CanonStateNotifications, ChainSpecProvider, ChainSplit, ChainSplitTarget, DisplayBlocksChain, HeaderProvider, ProviderError, StaticFileProviderFactory};
 use reth_stages_api::{MetricEvent, MetricEventsSender};
 #[cfg(not(feature = "telos"))]
 use reth_storage_errors::provider::RootMismatch;
@@ -840,9 +835,6 @@ where
                     revision_number_change,
                 ), block.block.header.hash()),
                 body: block.block.body.clone(),
-                ommers: block.block.ommers.clone(),
-                withdrawals: block.block.withdrawals.clone(),
-                requests: block.block.requests.clone(),
             },
             senders: block.senders,
         };

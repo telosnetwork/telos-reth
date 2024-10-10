@@ -650,9 +650,6 @@ where
             .await?
             .ok_or(EthApiError::HeaderNotFound(block_id.into()))?;
 
-        #[cfg(feature = "telos")]
-        let telos_block_extension = block.header.telos_block_extension.clone();
-
         self.inner
             .eth_api
             .spawn_with_state_at_block(block.parent_hash.into(), move |state_provider| {
@@ -708,6 +705,8 @@ where
                                 }
                             }
                         },
+                        #[cfg(feature = "telos")]
+                        Default::default(),
                     )
                     .map_err(|err| EthApiError::Internal(err.into()))?;
 

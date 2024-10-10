@@ -152,7 +152,7 @@ where
             let parent = LoadPendingBlock::provider(&self.inner.eth_api)
                 .header_by_number(parent_block)
                 .map_err(Eth::Error::from_eth_err)?
-                .ok_or_else(|| EthApiError::UnknownBlockNumber)?;
+                .ok_or_else(|| EthApiError::UnknownBlockOrTxIndex)?;
             telos_block_extension = parent.telos_block_extension.to_child();
         }
 

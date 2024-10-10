@@ -4,9 +4,6 @@ pub use sealed::SealedHeader;
 mod error;
 pub use error::HeaderError;
 
-#[cfg(feature = "telos")]
-use reth_telos_primitives_traits::{GasPrice, Revision, TelosBlockExtension};
-
 #[cfg(any(test, feature = "test-utils", feature = "arbitrary"))]
 pub mod test_utils;
 
