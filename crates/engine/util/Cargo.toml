@@ -58,9 +58,5 @@ optimism = [
 telos = [
     "revm-primitives/telos",
     "dep:reth-telos-rpc-engine-api",
-]
-telos = [
-    "revm-primitives/telos",
-    "dep:reth-telos-rpc-engine-api",
     "dep:reth-telos-primitives-traits"
 ]

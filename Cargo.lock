@@ -8515,6 +8515,7 @@ dependencies = [
  "reth-stages-api",
  "reth-static-file",
  "reth-tasks",
+ "reth-telos-rpc-engine-api 1.0.8",
  "reth-tracing",
  "reth-trie",
  "reth-trie-parallel",
@@ -8544,6 +8545,7 @@ dependencies = [
  "reth-provider",
  "reth-revm",
  "reth-rpc-types-compat",
+ "reth-telos-primitives-traits",
  "reth-telos-rpc-engine-api 1.0.8",
  "reth-trie",
  "revm-primitives",
@@ -8721,6 +8723,7 @@ dependencies = [
  "reth-primitives 1.0.8",
  "reth-provider",
  "reth-revm",
+ "reth-telos-primitives-traits",
  "reth-transaction-pool",
  "reth-trie",
  "revm",
@@ -8756,6 +8759,7 @@ dependencies = [
  "reth-primitives-traits 1.0.8",
  "reth-prune-types",
  "reth-storage-errors 1.0.8",
+ "reth-telos-primitives-traits",
  "reth-telos-rpc-engine-api 1.0.8",
  "revm",
  "revm-primitives",
@@ -8778,6 +8782,7 @@ dependencies = [
  "reth-primitives 1.0.8",
  "reth-prune-types",
  "reth-revm",
+ "reth-telos-primitives-traits",
  "reth-telos-rpc-engine-api 1.0.8",
  "reth-testing-utils",
  "revm-primitives",
@@ -9409,16 +9414,19 @@ dependencies = [
 name = "reth-node-telos"
 version = "1.0.8"
 dependencies = [
+ "alloy-consensus 0.4.2",
  "alloy-contract",
  "alloy-network 0.4.2",
  "alloy-primitives",
  "alloy-provider 0.4.2",
+ "alloy-rpc-client 0.4.2",
  "alloy-rpc-types 0.4.2",
  "alloy-signer-local",
  "alloy-sol-types",
  "alloy-transport-http 0.4.2",
  "antelope-client 0.2.1 (git+https://github.com/telosnetwork/antelope-rs?branch=finish_table_rows_params)",
  "clap",
+ "derive_more 1.0.0",
  "env_logger 0.11.5",
  "eyre",
  "reqwest 0.12.8",
@@ -9771,6 +9779,7 @@ dependencies = [
  "reth-chainspec",
  "reth-primitives 1.0.8",
  "reth-rpc-types-compat",
+ "reth-telos-rpc-engine-api 1.0.8",
 ]
 
 [[package]]
@@ -9840,6 +9849,7 @@ dependencies = [
  "reth-optimism-chainspec",
  "reth-primitives-traits 1.0.8",
  "reth-static-file-types 1.0.8",
+ "reth-telos-primitives-traits",
  "reth-testing-utils",
  "reth-trie-common 1.0.8",
  "revm-primitives",
@@ -9891,6 +9901,7 @@ dependencies = [
  "proptest-arbitrary-interop",
  "rand 0.8.5",
  "reth-codecs 1.0.8",
+ "reth-telos-primitives-traits",
  "reth-testing-utils",
  "revm-primitives",
  "roaring",
@@ -10069,6 +10080,7 @@ dependencies = [
  "reth-rpc-server-types",
  "reth-rpc-types-compat",
  "reth-tasks",
+ "reth-telos-primitives-traits",
  "reth-testing-utils",
  "reth-transaction-pool",
  "reth-trie",
@@ -10251,6 +10263,8 @@ dependencies = [
  "reth-rpc-server-types",
  "reth-rpc-types-compat",
  "reth-tasks",
+ "reth-telos-primitives-traits",
+ "reth-telos-rpc-engine-api 1.0.8",
  "reth-transaction-pool",
  "reth-trie",
  "revm",
@@ -10365,6 +10379,7 @@ dependencies = [
  "alloy-rpc-types-eth 0.4.2",
  "alloy-serde 0.4.2",
  "reth-primitives 1.0.8",
+ "reth-telos-primitives-traits",
  "reth-trie-common 1.0.8",
  "serde_json",
 ]
@@ -10567,6 +10582,24 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-futures",
+]
+
+[[package]]
+name = "reth-telos-primitives-traits"
+version = "1.0.8"
+dependencies = [
+ "alloy-consensus 0.4.2",
+ "alloy-eips 0.4.2",
+ "alloy-primitives",
+ "alloy-rlp",
+ "alloy-serde 0.4.2",
+ "arbitrary",
+ "bytes",
+ "c-kzg",
+ "modular-bitfield",
+ "reth-codecs 1.0.8",
+ "serde",
+ "serde_with",
 ]
 
 [[package]]

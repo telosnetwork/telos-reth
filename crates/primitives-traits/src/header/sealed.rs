@@ -144,7 +144,10 @@ impl<'a> arbitrary::Arbitrary<'a> for SealedHeader {
 /// Bincode-compatible [`SealedHeader`] serde implementation.
 #[cfg(feature = "serde-bincode-compat")]
 pub(super) mod serde_bincode_compat {
+    #[cfg(not(feature = "telos"))]
     use alloy_consensus::serde_bincode_compat::Header;
+    #[cfg(feature = "telos")]
+    use reth_telos_primitives_traits::serde_bincode_compat::TelosHeader as Header;
     use alloy_primitives::BlockHash;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use serde_with::{DeserializeAs, SerializeAs};

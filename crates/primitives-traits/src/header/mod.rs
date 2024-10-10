@@ -10,7 +10,11 @@ use reth_telos_primitives_traits::{GasPrice, Revision, TelosBlockExtension};
 #[cfg(any(test, feature = "test-utils", feature = "arbitrary"))]
 pub mod test_utils;
 
-pub use alloy_consensus::HeaderTODO: Fix this and figure out where the Header in the database can be modified to add the TelosBlockExtension;
+#[cfg(not(feature = "telos"))]
+pub use alloy_consensus::Header;
+
+#[cfg(feature = "telos")]
+pub use reth_telos_primitives_traits::TelosHeader as Header;
 
 use alloy_primitives::{Address, BlockNumber, B256, U256};
 

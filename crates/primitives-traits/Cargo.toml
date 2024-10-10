@@ -39,7 +39,7 @@ proptest = { workspace = true, optional = true }
 proptest-arbitrary-interop = { workspace = true, optional = true }
 
 # telos
-reth-telos-primitives-traits = { workspace = true, optional = true }
+reth-telos-primitives-traits = { workspace = true, optional = true, features = ["serde"] }
 
 [dev-dependencies]
 reth-testing-utils.workspace = true

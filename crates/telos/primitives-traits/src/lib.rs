@@ -7,9 +7,26 @@
 )]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
+mod header;
+
 use alloy_primitives::U256;
 use serde::{Deserialize, Serialize};
 use reth_codecs::Compact;
+pub use header::TelosHeader;
+
+/// Bincode-compatible serde implementations for consensus types.
+///
+/// `bincode` crate doesn't work well with optionally serializable serde fields, but some of the
+/// consensus types require optional serialization for RPC compatibility. This module makes so that
+/// all fields are serialized.
+///
+/// Read more: <https://github.com/bincode-org/bincode/issues/326>
+#[cfg(all(feature = "serde", feature = "serde-bincode-compat"))]
+pub mod serde_bincode_compat {
+    pub use super::{
+        header::serde_bincode_compat::*,
+    };
+}
 
 /// Telos block extension fields, included in Headers table as part of Header
 #[cfg_attr(any(test, feature = "arbitrary"), derive(arbitrary::Arbitrary))]
