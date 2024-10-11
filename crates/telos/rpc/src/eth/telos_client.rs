@@ -50,7 +50,7 @@ impl TelosClient {
         if telos_client_args.telos_endpoint.is_none() || telos_client_args.signer_account.is_none() || telos_client_args.signer_permission.is_none() || telos_client_args.signer_key.is_none() {
             panic!("Should not construct TelosClient without proper TelosArgs with telos_endpoint and signer args");
         }
-        let api_client = APIClient::<DefaultProvider>::default_provider(telos_client_args.telos_endpoint.unwrap().into()).unwrap();
+        let api_client = APIClient::<DefaultProvider>::default_provider(telos_client_args.telos_endpoint.unwrap().into(), Some(3)).unwrap();
         let inner = TelosClientInner {
             api_client,
             signer_account: name!(&telos_client_args.signer_account.unwrap()),
