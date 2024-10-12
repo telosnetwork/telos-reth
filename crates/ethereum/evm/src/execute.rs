@@ -159,36 +159,36 @@ where
         let unwrapped_telos_extra_fields = telos_extra_fields.unwrap_or_default();
         #[cfg(feature = "telos")]
         let mut new_addresses_using_create_iter = unwrapped_telos_extra_fields.new_addresses_using_create.as_ref().unwrap().into_iter().peekable();
-        #[cfg(feature = "telos")]
-        let parent_telos_ext;
-        #[cfg(feature = "telos")]
-        {
-            let parent_hash = block.block.header.parent_hash;
-            let block_by_hash =
-            if let Some(block_by_hash) = block_by_hash.unwrap() {
-                parent_telos_ext = block_by_hash.header.telos_block_extension;
-            } else {
-                let sidechain_block = self.sidechain_block_by_hash(parent_hash);
-                if let Some(sidechain_block) = sidechain_block {
-                    parent_telos_ext = sidechain_block.header.telos_block_extension.clone();
-                } else {
-                    panic!("Parent block not found");
-                }
-            }
-        }
+        // #[cfg(feature = "telos")]
+        // let parent_telos_ext;
+        // #[cfg(feature = "telos")]
+        // {
+        //     let parent_hash = block.block.header.parent_hash;
+        //     let block_by_hash =
+        //     if let Some(block_by_hash) = block_by_hash.unwrap() {
+        //         parent_telos_ext = block_by_hash.header.telos_block_extension;
+        //     } else {
+        //         let sidechain_block = self.sidechain_block_by_hash(parent_hash);
+        //         if let Some(sidechain_block) = sidechain_block {
+        //             parent_telos_ext = sidechain_block.header.telos_block_extension.clone();
+        //         } else {
+        //             panic!("Parent block not found");
+        //         }
+        //     };
+        // }
 
-        #[cfg(feature = "telos")]
-        let block = BlockWithSenders {
-            block: reth_primitives::Block {
-                header: block.block.header.clone_with_telos(
-                    parent_telos_ext,
-                    unwrapped_telos_extra_fields.gasprice_changes,
-                    unwrapped_telos_extra_fields.revision_changes,
-                ),
-                body: block.block.body.clone(),
-            },
-            senders: block.senders,
-        };
+        // #[cfg(feature = "telos")]
+        // let block = BlockWithSenders {
+        //     block: reth_primitives::Block {
+        //         header: block.block.header.clone_with_telos(
+        //             parent_telos_ext,
+        //             unwrapped_telos_extra_fields.gasprice_changes,
+        //             unwrapped_telos_extra_fields.revision_changes,
+        //         ),
+        //         body: block.block.body.clone(),
+        //     },
+        //     senders: block.senders,
+        // };
 
         // execute transactions
         let mut cumulative_gas_used = 0;
