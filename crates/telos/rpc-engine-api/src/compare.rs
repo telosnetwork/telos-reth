@@ -4,9 +4,9 @@ use alloy_primitives::{Address, B256, U256};
 use revm_primitives::HashMap;
 use revm::db::AccountStatus;
 use revm::{Database, Evm, State, TransitionAccount};
+use tracing::debug;
 use reth_storage_errors::provider::ProviderError;
 use crate::structs::{TelosAccountStateTableRow, TelosAccountTableRow};
-use tracing::info;
 
 /// This function compares the state diffs between revm and Telos EVM contract
 pub fn compare_state_diffs<Ext, DB>(
@@ -27,9 +27,9 @@ where
     {
         let block_number = evm.block().number;
 
-        info!("{block_number} REVM State diffs: {:#?}", revm_state_diffs);
-        info!("{block_number} TEVM State diffs account: {:#?}", statediffs_account);
-        info!("{block_number} TEVM State diffs accountstate: {:#?}", statediffs_accountstate);
+        debug!("{block_number} REVM State diffs: {:#?}", revm_state_diffs);
+        debug!("{block_number} TEVM State diffs account: {:#?}", statediffs_account);
+        debug!("{block_number} TEVM State diffs accountstate: {:#?}", statediffs_accountstate);
     }
 
     let revm_db: &mut &mut State<DB> = evm.db_mut();

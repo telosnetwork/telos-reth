@@ -27,7 +27,7 @@ pub struct TelosArgs {
     #[arg(long = "telos.gas_cache_seconds")]
     pub gas_cache_seconds: Option<u32>,
 
-    /// Enable the engine2 experimental features on reth binary
+    /// Enable the engine2 experimental features on telos-reth binary
     #[arg(long = "engine.experimental", default_value = "false")]
     pub experimental: bool,
 
