@@ -1,6 +1,7 @@
 //! clap [Args](clap::Args) for telos configuration
 
 use reth_telos_rpc::eth::telos_client::TelosClientArgs;
+use crate::{DEFAULT_MAX_EXECUTE_BLOCK_BATCH_SIZE, DEFAULT_MEMORY_BLOCK_BUFFER_TARGET, DEFAULT_PERSISTENCE_THRESHOLD};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, clap::Args)]
 #[clap(next_help_heading = "Telos")]
@@ -25,6 +26,25 @@ pub struct TelosArgs {
     /// Seconds to cache gas price
     #[arg(long = "telos.gas_cache_seconds")]
     pub gas_cache_seconds: Option<u32>,
+
+    /// Enable the engine2 experimental features on reth binary
+    #[arg(long = "engine.experimental", default_value = "false")]
+    pub experimental: bool,
+
+    /// Configure persistence threshold for engine experimental.
+    #[arg(long = "engine.persistence-threshold", requires = "experimental", default_value_t = DEFAULT_PERSISTENCE_THRESHOLD)]
+    pub persistence_threshold: u64,
+
+    /// Configure the target number of blocks to keep in memory.
+    #[arg(long = "engine.memory-block-buffer-target", requires = "experimental", default_value_t = DEFAULT_MEMORY_BLOCK_BUFFER_TARGET)]
+    pub memory_block_buffer_target: u64,
+
+    /// Maximum number of blocks to execute sequentially in a batch.
+    ///
+    /// This is used as a cutoff to prevent long-running sequential block execution when we receive
+    /// a batch of downloaded blocks.
+    #[arg(long = "engine.max-execute-block-batch-size", requires = "experimental", default_value_t = DEFAULT_MAX_EXECUTE_BLOCK_BATCH_SIZE)]
+    pub max_execute_block_batch_size: usize,
 }
 
 impl From<TelosArgs> for TelosClientArgs {
