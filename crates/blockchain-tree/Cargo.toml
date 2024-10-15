@@ -71,4 +71,5 @@ optimism = ["reth-primitives/optimism", "reth-provider/optimism"]
 telos = [
     "reth-blockchain-tree-api/telos",
     "dep:reth-telos-rpc-engine-api",
+    "reth-storage-errors/telos",
 ]

@@ -689,8 +689,8 @@ impl<N: ProviderNodeTypes> StateProviderFactory for BlockchainProvider<N> {
 }
 
 impl<N: ProviderNodeTypes> BlockchainTreeEngine for BlockchainProvider<N> {
-    fn buffer_block(&self, block: SealedBlockWithSenders) -> Result<(), InsertBlockError> {
-        self.tree.buffer_block(block)
+    fn buffer_block(&self, block: SealedBlockWithSenders, #[cfg(feature = "telos")] telos_extra_fields: TelosEngineAPIExtraFields) -> Result<(), InsertBlockError> {
+        self.tree.buffer_block(block, #[cfg(feature = "telos")] telos_extra_fields)
     }
 
     fn insert_block(

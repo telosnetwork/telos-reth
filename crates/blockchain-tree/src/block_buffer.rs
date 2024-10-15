@@ -3,6 +3,7 @@ use alloy_primitives::{BlockHash, BlockNumber};
 use reth_network::cache::LruCache;
 use reth_primitives::SealedBlockWithSenders;
 use std::collections::{btree_map, hash_map, BTreeMap, HashMap, HashSet};
+use reth_telos_rpc_engine_api::structs::TelosEngineAPIExtraFields;
 
 /// Contains the tree of pending blocks that cannot be executed due to missing parent.
 /// It allows to store unconnected blocks for potential future inclusion.
@@ -33,6 +34,9 @@ pub struct BlockBuffer {
     pub(crate) lru: LruCache<BlockHash>,
     /// Various metrics for the block buffer.
     pub(crate) metrics: BlockBufferMetrics,
+    #[cfg(feature = "telos")]
+    /// Extra fields for Telos EVM.
+    pub(crate) telos_extra_fields: HashMap<BlockHash, TelosEngineAPIExtraFields>,
 }
 
 impl BlockBuffer {
@@ -44,6 +48,8 @@ impl BlockBuffer {
             earliest_blocks: Default::default(),
             lru: LruCache::new(limit),
             metrics: Default::default(),
+            #[cfg(feature = "telos")]
+            telos_extra_fields: Default::default(),
         }
     }
 
@@ -66,13 +72,22 @@ impl BlockBuffer {
         Some(current_block)
     }
 
+    #[cfg(feature = "telos")]
+    /// Fetch TelosEngineAPIExtraFields for the given block hash
+    pub fn get_telos_extra_fields(&self, hash: &BlockHash) -> Option<&TelosEngineAPIExtraFields> {
+        self.telos_extra_fields.get(hash)
+    }
+
     /// Insert a correct block inside the buffer.
-    pub fn insert_block(&mut self, block: SealedBlockWithSenders) {
+    pub fn insert_block(&mut self, block: SealedBlockWithSenders, #[cfg(feature = "telos")] telos_extra_fields: TelosEngineAPIExtraFields) {
         let hash = block.hash();
 
         self.parent_to_child.entry(block.parent_hash).or_default().insert(hash);
         self.earliest_blocks.entry(block.number).or_default().insert(hash);
         self.blocks.insert(hash, block);
+
+        #[cfg(feature = "telos")]
+        self.telos_extra_fields.insert(hash, telos_extra_fields);
 
         if let (_, Some(evicted_hash)) = self.lru.insert_and_get_evicted(hash) {
             // evict the block if limit is hit
@@ -155,6 +170,10 @@ impl BlockBuffer {
         self.remove_from_earliest_blocks(block.number, hash);
         self.remove_from_parent(block.parent_hash, hash);
         self.lru.remove(hash);
+
+        #[cfg(feature = "telos")]
+        self.telos_extra_fields.remove(hash);
+
         Some(block)
     }
 
@@ -180,7 +199,7 @@ impl BlockBuffer {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "telos")))]
 mod tests {
     use crate::BlockBuffer;
     use alloy_eips::BlockNumHash;

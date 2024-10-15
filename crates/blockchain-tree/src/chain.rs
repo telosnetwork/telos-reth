@@ -247,6 +247,7 @@ impl AppendableChain {
                 let state_root = provider.state_root(hashed_state)?;
                 (state_root, None)
             };
+            #[cfg(not(feature = "telos"))]
             if block.state_root != state_root {
                 return Err(ConsensusError::BodyStateRootDiff(
                     GotExpected { got: state_root, expected: block.state_root }.into(),

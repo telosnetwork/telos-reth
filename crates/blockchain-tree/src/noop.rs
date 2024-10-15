@@ -36,7 +36,7 @@ impl NoopBlockchainTree {
 }
 
 impl BlockchainTreeEngine for NoopBlockchainTree {
-    fn buffer_block(&self, _block: SealedBlockWithSenders) -> Result<(), InsertBlockError> {
+    fn buffer_block(&self, _block: SealedBlockWithSenders, #[cfg(feature = "telos")] _telos_extra_fields: TelosEngineAPIExtraFields) -> Result<(), InsertBlockError> {
         Ok(())
     }
 

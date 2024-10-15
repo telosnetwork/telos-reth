@@ -41,11 +41,11 @@ where
     N: ProviderNodeTypes,
     E: BlockExecutorProvider,
 {
-    fn buffer_block(&self, block: SealedBlockWithSenders) -> Result<(), InsertBlockError> {
+    fn buffer_block(&self, block: SealedBlockWithSenders, #[cfg(feature = "telos")] telos_extra_fields: TelosEngineAPIExtraFields) -> Result<(), InsertBlockError> {
         let mut tree = self.tree.write();
         // Blockchain tree metrics shouldn't be updated here, see
         // `BlockchainTree::update_chains_metrics` documentation.
-        tree.buffer_block(block)
+        tree.buffer_block(block, #[cfg(feature = "telos")] telos_extra_fields)
     }
 
     fn insert_block(

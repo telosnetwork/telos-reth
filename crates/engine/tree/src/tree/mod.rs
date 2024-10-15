@@ -55,6 +55,7 @@ use std::{
     },
     time::Instant,
 };
+use std::sync::atomic::fence;
 use tokio::sync::{
     mpsc::{UnboundedReceiver, UnboundedSender},
     oneshot,
@@ -747,7 +748,7 @@ where
         let parent_hash = payload.parent_hash();
         let block = match self
             .payload_validator
-            .ensure_well_formed_payload(payload, cancun_fields.into(), telos_extra_fields)
+            .ensure_well_formed_payload(payload, cancun_fields.into(), telos_extra_fields.clone())
         {
             Ok(block) => block,
             Err(error) => {
@@ -785,7 +786,7 @@ where
         let status = if self.backfill_sync_state.is_idle() {
             let mut latest_valid_hash = None;
             let num_hash = block.num_hash();
-            match self.insert_block_without_senders(block) {
+            match self.insert_block_without_senders(block, #[cfg(feature = "telos")] telos_extra_fields.clone()) {
                 Ok(status) => {
                     let status = match status {
                         InsertPayloadOk2::Inserted(BlockStatus2::Valid) => {
@@ -808,7 +809,7 @@ where
                 }
                 Err(error) => self.on_insert_block_error(error)?,
             }
-        } else if let Err(error) = self.buffer_block_without_senders(block) {
+        } else if let Err(error) = self.buffer_block_without_senders(block, #[cfg(feature = "telos")] telos_extra_fields.clone()) {
             self.on_insert_block_error(error)?
         } else {
             PayloadStatus::from_status(PayloadStatusEnum::Syncing)
@@ -1749,7 +1750,16 @@ where
         let block_count = blocks.len();
         for child in blocks {
             let child_num_hash = child.num_hash();
-            match self.insert_block(child) {
+            #[cfg(feature = "telos")]
+            let telos_extra_fields = match self.state.buffer.get_telos_extra_fields(&child_num_hash.hash) {
+                None => {
+                    return Err(InsertBlockFatalError::Provider(ProviderError::TelosExtraFieldsNotInBuffer))
+                }
+                Some(extra_fields) => {
+                    extra_fields
+                }
+            };
+            match self.insert_block(child, #[cfg(feature = "telos")] telos_extra_fields.clone()) {
                 Ok(res) => {
                     debug!(target: "engine::tree", child =?child_num_hash, ?res, "connected buffered block");
                     if self.is_sync_target_head(child_num_hash.hash) &&
@@ -1778,19 +1788,21 @@ where
     fn buffer_block_without_senders(
         &mut self,
         block: SealedBlock,
+        #[cfg(feature = "telos")]
+        telos_extra_fields: TelosEngineAPIExtraFields,
     ) -> Result<(), InsertBlockErrorTwo> {
         match block.try_seal_with_senders() {
-            Ok(block) => self.buffer_block(block),
+            Ok(block) => self.buffer_block(block, #[cfg(feature = "telos")] telos_extra_fields),
             Err(block) => Err(InsertBlockErrorTwo::sender_recovery_error(block)),
         }
     }
 
     /// Pre-validates the block and inserts it into the buffer.
-    fn buffer_block(&mut self, block: SealedBlockWithSenders) -> Result<(), InsertBlockErrorTwo> {
+    fn buffer_block(&mut self, block: SealedBlockWithSenders, #[cfg(feature = "telos")] telos_extra_fields: TelosEngineAPIExtraFields) -> Result<(), InsertBlockErrorTwo> {
         if let Err(err) = self.validate_block(&block) {
             return Err(InsertBlockErrorTwo::consensus_error(err, block.block))
         }
-        self.state.buffer.insert_block(block);
+        self.state.buffer.insert_block(block, telos_extra_fields);
         Ok(())
     }
 
@@ -2058,8 +2070,12 @@ where
             return Ok(None)
         }
 
+        #[cfg(feature = "telos")]
+        // TODO: Maybe enable peer downloads, but must include the extra fields
+        unreachable!("Telos reth should not be downloading from peers, it only should receive blocks from the consensus client via Engine API");
+
         // try to append the block
-        match self.insert_block(block) {
+        match self.insert_block(block, #[cfg(feature = "telos")] TelosEngineAPIExtraFields::default()) {
             Ok(InsertPayloadOk2::Inserted(BlockStatus2::Valid)) => {
                 if self.is_sync_target_head(block_num_hash.hash) {
                     trace!(target: "engine::tree", "appended downloaded sync target block");
@@ -2102,9 +2118,11 @@ where
     fn insert_block_without_senders(
         &mut self,
         block: SealedBlock,
+        #[cfg(feature = "telos")]
+        telos_extra_fields: TelosEngineAPIExtraFields
     ) -> Result<InsertPayloadOk2, InsertBlockErrorTwo> {
         match block.try_seal_with_senders() {
-            Ok(block) => self.insert_block(block),
+            Ok(block) => self.insert_block(block, #[cfg(feature = "telos")] telos_extra_fields),
             Err(block) => Err(InsertBlockErrorTwo::sender_recovery_error(block)),
         }
     }
@@ -2112,14 +2130,18 @@ where
     fn insert_block(
         &mut self,
         block: SealedBlockWithSenders,
+        #[cfg(feature = "telos")]
+        telos_extra_fields: TelosEngineAPIExtraFields
     ) -> Result<InsertPayloadOk2, InsertBlockErrorTwo> {
-        self.insert_block_inner(block.clone())
+        self.insert_block_inner(block.clone(), #[cfg(feature = "telos")] telos_extra_fields)
             .map_err(|kind| InsertBlockErrorTwo::new(block.block, kind))
     }
 
     fn insert_block_inner(
         &mut self,
         block: SealedBlockWithSenders,
+        #[cfg(feature = "telos")]
+        telos_extra_fields: TelosEngineAPIExtraFields
     ) -> Result<InsertPayloadOk2, InsertBlockErrorKindTwo> {
         debug!(target: "engine::tree", block=?block.num_hash(), "Inserting new block into tree");
         if self.block_by_hash(block.hash())?.is_some() {
@@ -2143,7 +2165,7 @@ where
                 .map(|block| block.parent_num_hash())
                 .unwrap_or_else(|| block.parent_num_hash());
 
-            self.state.buffer.insert_block(block);
+            self.state.buffer.insert_block(block, #[cfg(feature = "telos")] telos_extra_fields);
 
             return Ok(InsertPayloadOk2::Inserted(BlockStatus2::Disconnected {
                 head: self.state.tree_state.current_canonical_head,
@@ -2174,7 +2196,7 @@ where
         let output = self
             .metrics
             .executor
-            .metered((&block, U256::MAX).into(), |input| executor.execute(input, #[cfg(feature = "telos")] None))?;
+            .metered((&block, U256::MAX).into(), |input| executor.execute(input, #[cfg(feature = "telos")] Some(telos_extra_fields)))?;
 
         trace!(target: "engine::tree", elapsed=?exec_time.elapsed(), ?block_number, "Executed block");
         if let Err(err) = self.consensus.validate_block_post_execution(
@@ -2223,6 +2245,7 @@ where
             state_provider.state_root_with_updates(hashed_state.clone())?
         };
 
+        #[cfg(not(feature = "telos"))]
         if state_root != block.state_root {
             // call post-block hook
             self.invalid_block_hook.on_invalid_block(

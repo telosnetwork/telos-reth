@@ -26,3 +26,4 @@ derive_more.workspace = true
 [features]
 default = ["std"]
 std = []
+telos = []

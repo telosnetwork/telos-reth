@@ -1225,8 +1225,12 @@ where
     fn try_buffer_payload(
         &mut self,
         block: SealedBlock,
+        #[cfg(feature = "telos")]
+        telos_extra_fields: Option<TelosEngineAPIExtraFields>,
     ) -> Result<PayloadStatus, InsertBlockError> {
-        self.blockchain.buffer_block_without_senders(block)?;
+        #[cfg(feature = "telos")]
+        let telos_extra_fields = telos_extra_fields.expect("Telos extra fields was None");
+        self.blockchain.buffer_block_without_senders(block, telos_extra_fields)?;
         Ok(PayloadStatus::from_status(PayloadStatusEnum::Syncing))
     }
 
@@ -1647,7 +1651,7 @@ where
                     // holds exclusive access to the database
                     self.try_insert_new_payload(block, #[cfg(feature = "telos")] telos_extra_fields)
                 } else {
-                    self.try_buffer_payload(block)
+                    self.try_buffer_payload(block, #[cfg(feature = "telos")] telos_extra_fields)
                 };
 
                 let status = match result {

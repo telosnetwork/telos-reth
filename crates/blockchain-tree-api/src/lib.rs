@@ -47,15 +47,15 @@ pub trait BlockchainTreeEngine: BlockchainTreeViewer + Send + Sync {
     ///
     /// This will recover all senders of the transactions in the block first, and then try to buffer
     /// the block.
-    fn buffer_block_without_senders(&self, block: SealedBlock) -> Result<(), InsertBlockError> {
+    fn buffer_block_without_senders(&self, block: SealedBlock, #[cfg(feature = "telos")] telos_extra_fields: TelosEngineAPIExtraFields) -> Result<(), InsertBlockError> {
         match block.try_seal_with_senders() {
-            Ok(block) => self.buffer_block(block),
+            Ok(block) => self.buffer_block(block, #[cfg(feature = "telos")] telos_extra_fields),
             Err(block) => Err(InsertBlockError::sender_recovery_error(block)),
         }
     }
 
     /// Buffer block with senders
-    fn buffer_block(&self, block: SealedBlockWithSenders) -> Result<(), InsertBlockError>;
+    fn buffer_block(&self, block: SealedBlockWithSenders, #[cfg(feature = "telos")] telos_extra_fields: TelosEngineAPIExtraFields) -> Result<(), InsertBlockError>;
 
     /// Inserts block with senders
     ///

@@ -364,7 +364,7 @@ where
         }
 
         // insert block inside unconnected block buffer. Delaying its execution.
-        self.state.buffered_blocks.insert_block(block.clone());
+        self.state.buffered_blocks.insert_block(block.clone(), #[cfg(feature = "telos")] telos_extra_fields.expect("Telos extra fields is none in try_insert_validated_block"));
 
         let block_hash = block.hash();
         // find the lowest ancestor of the block in the buffer to return as the missing parent
@@ -701,13 +701,13 @@ where
     /// Insert block for future execution.
     ///
     /// Returns an error if the block is invalid.
-    pub fn buffer_block(&mut self, block: SealedBlockWithSenders) -> Result<(), InsertBlockError> {
+    pub fn buffer_block(&mut self, block: SealedBlockWithSenders, #[cfg(feature = "telos")] telos_extra_fields: TelosEngineAPIExtraFields) -> Result<(), InsertBlockError> {
         // validate block consensus rules
         if let Err(err) = self.validate_block(&block) {
             return Err(InsertBlockError::consensus_error(err, block.block));
         }
 
-        self.state.buffered_blocks.insert_block(block);
+        self.state.buffered_blocks.insert_block(block, #[cfg(feature = "telos")] telos_extra_fields);
         Ok(())
     }
 
@@ -986,9 +986,19 @@ where
         let include_blocks = self.state.buffered_blocks.remove_block_with_children(&new_block.hash);
         // then try to reinsert them into the tree
         for block in include_blocks {
+            #[cfg(feature = "telos")]
+            let telos_extra_fields = match self.state.buffered_blocks.get_telos_extra_fields(&new_block.hash) {
+                None => {
+                    continue;
+                }
+                Some(extra_fields) => {
+                    extra_fields
+                }
+            };
+
             // don't fail on error, just ignore the block.
             let _ = self
-                .try_insert_validated_block(block, BlockValidationKind::SkipStateRootValidation, #[cfg(feature = "telos")] None)
+                .try_insert_validated_block(block, BlockValidationKind::SkipStateRootValidation, #[cfg(feature = "telos")] Some(telos_extra_fields.clone()))
                 .map_err(|err| {
                     debug!(target: "blockchain_tree", %err, "Failed to insert buffered block");
                     err

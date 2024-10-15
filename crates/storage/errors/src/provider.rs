@@ -146,6 +146,8 @@ pub enum ProviderError {
     StorageLockError(StorageLockError),
     /// Storage writer error.
     UnifiedStorageWriterError(UnifiedStorageWriterError),
+    /// Telos extra fields missing in buffer for block
+    TelosExtraFieldsNotInBuffer,
 }
 
 impl From<DatabaseError> for ProviderError {
