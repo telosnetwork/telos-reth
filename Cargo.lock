@@ -9417,6 +9417,7 @@ dependencies = [
  "reth-rpc",
  "reth-stages",
  "reth-telos-rpc",
+ "reth-telos-rpc-engine-api 1.0.8",
  "reth-tracing",
  "reth-transaction-pool",
  "serde",
