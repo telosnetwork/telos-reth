@@ -1,4 +1,5 @@
 use std::{fmt, fs};
+use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -14,6 +15,7 @@ use alloy_primitives::{Address, B256, hex, U256, Bytes, map::HashMap};
 use alloy_primitives::hex::FromHex;
 use alloy_rpc_types::engine::ExecutionPayloadV1;
 use reth::primitives::revm_primitives::{Bytecode as RevmBytecode, LegacyAnalyzedBytecode};
+use reth::providers::ProviderError;
 use reth::revm;
 use reth::revm::db::{CacheDB, EmptyDBTyped, StorageWithOriginalValues, states::StorageSlot};
 use reth::revm::{Database, DatabaseCommit, DatabaseRef, Evm, State, TransitionAccount};
@@ -31,8 +33,29 @@ use reth_telos_rpc_engine_api::compare::compare_state_diffs;
 use reth_telos_rpc_engine_api::structs::{TelosAccountTableRow, TelosAccountStateTableRow, TelosEngineAPIExtraFields};
 use revm::primitives::Account;
 
+#[derive(Debug)]
 enum MockDBError {
     GenericError(String)
+}
+
+impl Into<ProviderError> for MockDBError {
+    fn into(self) -> ProviderError {
+        match self {
+            MockDBError::GenericError(msg) => {
+                ProviderError::NippyJar(msg)
+            }
+        }
+    }
+}
+
+impl Display for MockDBError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            MockDBError::GenericError(msg) => {
+                f.write_str(&msg)
+            }
+        }
+    }
 }
 
 fn init_reth() -> eyre::Result<(NodeConfig<ChainSpec>, String)> {
@@ -199,7 +222,7 @@ fn test_db_both_sides_present_but_dif() {
     };
 
 
-    let mut db = CacheDB::new(EmptyDBTyped::new());
+    let mut db = CacheDB::new(EmptyDBTyped::<MockDBError>::new());
     db.insert_account_info(test_addr, revm_acc_info);
 
     let mut state = State::builder().with_database(db).build();
@@ -217,7 +240,7 @@ fn test_db_both_sides_present_but_dif() {
 
     compare_state_diffs(
         &mut evm,
-        HashMap::new(),
+        HashMap::default(),
         statediffs_account.clone(),
         vec![],
         vec![],
@@ -241,15 +264,15 @@ fn test_revm_state_both_sides_present_but_dif() {
         code: None,
     };
 
-    let mut revm_state_diffs = HashMap::new();
+    let mut revm_state_diffs = HashMap::default();
 
-    let mut transition_account = TransitionAccount::new_empty_eip161(HashMap::new());
+    let mut transition_account = TransitionAccount::new_empty_eip161(HashMap::default());
 
     transition_account.info = Some(revm_acc_info);
 
     revm_state_diffs.insert(test_addr, transition_account);
 
-    let mut db = CacheDB::new(EmptyDBTyped::new());
+    let mut db = CacheDB::new(EmptyDBTyped::<MockDBError>::new());
 
     let mut state = State::builder().with_database(db).build();
 
@@ -283,7 +306,7 @@ fn test_revm_state_both_sides_present_but_dif() {
 fn test_tevm_only() {
     let test_addr = Address::from_str("00000000000000000000000000000000deadbeef").unwrap();
 
-    let mut db = CacheDB::new(EmptyDBTyped::new());
+    let mut db = CacheDB::new(EmptyDBTyped::<MockDBError>::new());
 
     let mut state = State::builder().with_database(db).build();
 
@@ -300,7 +323,7 @@ fn test_tevm_only() {
 
     compare_state_diffs(
         &mut evm,
-        HashMap::new(),
+        HashMap::default(),
         statediffs_account.clone(),
         vec![],
         vec![],
@@ -327,9 +350,9 @@ fn test_accstate_diff_from_storage() {
     let value = U256::from(0);
     let custom_value = U256::from(80085);
 
-    let mut db = CacheDB::new(EmptyDBTyped::new());
+    let mut db = CacheDB::new(EmptyDBTyped::<MockDBError>::new());
 
-    let mut storage = HashMap::new();
+    let mut storage = HashMap::default();
     storage.insert(key, value);
 
     let mut state = State::builder().with_database(db).build();
@@ -347,7 +370,7 @@ fn test_accstate_diff_from_storage() {
 
     compare_state_diffs(
         &mut evm,
-        HashMap::new(),
+        HashMap::default(),
         vec![],
         statediffs_accountstate.clone(),
         vec![],
@@ -364,7 +387,7 @@ fn test_accstate_telos_only() {
     let key = U256::from(420);
     let custom_value = U256::from(80085);
 
-    let mut db = CacheDB::new(EmptyDBTyped::new());
+    let mut db = CacheDB::new(EmptyDBTyped::<MockDBError>::new());
 
     let mut state = State::builder().with_database(db).build();
 
@@ -381,7 +404,7 @@ fn test_accstate_telos_only() {
 
     compare_state_diffs(
         &mut evm,
-        HashMap::new(),
+        HashMap::default(),
         vec![],
         statediffs_accountstate.clone(),
         vec![],
