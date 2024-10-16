@@ -211,16 +211,12 @@ fn test_db_both_sides_present_but_dif() {
     let init_nonce = 0;
     let custom_nonce = 69;
 
-    let custom_code = Bytes::from(&hex!("ffff"));
-    let custom_bytecode = RevmBytecode::LegacyRaw(custom_code.clone());
-
     let revm_acc_info = AccountInfo {
         balance: init_balance,
         nonce: init_nonce,
         code_hash: Default::default(),
         code: None,
     };
-
 
     let mut db = CacheDB::new(EmptyDBTyped::<MockDBError>::new());
     db.insert_account_info(test_addr, revm_acc_info);
@@ -234,7 +230,7 @@ fn test_db_both_sides_present_but_dif() {
         address: test_addr,
         account: "eosio".to_string(),
         nonce: custom_nonce,
-        code: custom_code.clone(),
+        code: Default::default(),
         balance: custom_balance,
     }];
 
@@ -245,12 +241,55 @@ fn test_db_both_sides_present_but_dif() {
         vec![],
         vec![],
         vec![],
-        true
+       false
     );
 
     let db_acc = evm.db_mut().basic(test_addr).unwrap().unwrap();
     assert_eq!(db_acc.nonce, statediffs_account[0].nonce);
     assert_eq!(db_acc.balance, statediffs_account[0].balance);
+}
+
+#[test]
+fn test_db_both_sides_only_code() {
+    let test_addr = Address::from_str("00000000000000000000000000000000deadbeef").unwrap();
+
+    let custom_code = Bytes::from(&hex!("ffff"));
+    let custom_bytecode = RevmBytecode::LegacyRaw(custom_code.clone());
+
+    let revm_acc_info = AccountInfo {
+        balance: U256::from(0),
+        nonce: 0,
+        code_hash: Default::default(),
+        code: None,
+    };
+
+    let mut db = CacheDB::new(EmptyDBTyped::<MockDBError>::new());
+    db.insert_account_info(test_addr, revm_acc_info);
+
+    let mut state = State::builder().with_database(db).build();
+
+    let mut evm = Evm::builder().with_db(&mut state).build();
+
+    let statediffs_account = vec![TelosAccountTableRow {
+        removed: false,
+        address: test_addr,
+        account: "eosio".to_string(),
+        nonce: 0,
+        code: custom_code.clone(),
+        balance: U256::from(0),
+    }];
+
+    compare_state_diffs(
+        &mut evm,
+        HashMap::default(),
+        statediffs_account.clone(),
+        vec![],
+        vec![],
+        vec![],
+        false
+    );
+
+    let db_acc = evm.db_mut().basic(test_addr).unwrap().unwrap();
     assert_eq!(db_acc.code, Some(custom_bytecode));
 }
 

@@ -1,10 +1,11 @@
 use std::collections::HashSet;
 use std::fmt::Display;
-use alloy_primitives::{Address, B256, U256};
+use alloy_primitives::{Address, B256, Bytes, U256};
 use revm_primitives::{Account, AccountInfo, Bytecode, HashMap};
 use revm::{Database, Evm, State, TransitionAccount, db::AccountStatus as DBAccountStatus};
 use revm_primitives::db::DatabaseCommit;
 use revm_primitives::state::AccountStatus;
+use sha2::{Digest, Sha256};
 use tracing::{debug, warn};
 use reth_storage_errors::provider::ProviderError;
 use crate::structs::{TelosAccountStateTableRow, TelosAccountTableRow};
@@ -51,8 +52,10 @@ impl StateOverride {
         acc.info.balance = telos_row.balance;
         acc.info.nonce = telos_row.nonce;
         if telos_row.code.len() > 0 {
+            acc.info.code_hash = B256::from_slice(Sha256::digest(telos_row.code.as_ref()).as_slice());
             acc.info.code = Some(Bytecode::LegacyRaw(telos_row.code.clone()));
         } else {
+            acc.info.code_hash = Default::default();
             acc.info.code = None;
         }
     }
@@ -69,10 +72,19 @@ impl StateOverride {
         acc.info.nonce = nonce;
     }
 
-    pub fn override_code<DB: Database> (&mut self, revm_db: &mut &mut State<DB>, address: Address, code: Option<Bytecode>) {
+    pub fn override_code<DB: Database> (&mut self, revm_db: &mut &mut State<DB>, address: Address, maybe_code: Option<Bytes>) {
         self.maybe_init_account(revm_db, address);
         let mut acc = self.accounts.get_mut(&address).unwrap();
-        acc.info.code = code;
+        match maybe_code {
+            None => {
+                acc.info.code_hash = Default::default();
+                acc.info.code = None;
+            }
+            Some(code) => {
+                acc.info.code_hash = B256::from_slice(Sha256::digest(code.as_ref()).as_slice());
+                acc.info.code = Some(Bytecode::LegacyRaw(code));
+            }
+        }
     }
 
     pub fn apply<DB: Database> (&self, revm_db: &mut &mut State<DB>) {
@@ -155,13 +167,18 @@ where
                     state_override.override_nonce(revm_db, row.address, row.nonce);
                 }
                 // Check code size inequality
-                if unwrapped_revm_row.clone().code.is_none() && row.code.len() != 0 || unwrapped_revm_row.clone().code.is_some() && !unwrapped_revm_row.clone().code.unwrap().is_empty() && row.code.len() == 0 {
+                if (unwrapped_revm_row.clone().code.is_none() && row.code.len() != 0) ||
+                    (unwrapped_revm_row.clone().code.is_some() && !unwrapped_revm_row.clone().code.unwrap().original_bytes().len() != row.code.len()) {
                     match revm_db.code_by_hash(unwrapped_revm_row.code_hash) {
                         Ok(code_by_hash) =>
                             if (code_by_hash.is_empty() && row.code.len() != 0) || (!code_by_hash.is_empty() && row.code.len() == 0) {
-                                maybe_panic!(panic_mode, "Difference in code existence, address: {:?} - revm: {:?} - tevm: {:?}",row.address,code_by_hash,row.code)
+                                maybe_panic!(panic_mode, "Difference in code existence, address: {:?} - revm: {:?} - tevm: {:?}",row.address,code_by_hash,row.code);
+                                state_override.override_code(revm_db, row.address, Some(row.code.clone()));
                             },
-                        Err(_) => maybe_panic!(panic_mode, "Difference in code existence, address: {:?} - revm: {:?} - tevm: {:?}",row.address,unwrapped_revm_row.code,row.code),
+                        Err(_) => {
+                            maybe_panic!(panic_mode, "Difference in code existence (Err while searching by code_hash), address: {:?} - revm: {:?} - tevm: {:?}",row.address,unwrapped_revm_row.code,row.code);
+                            state_override.override_code(revm_db, row.address, Some(row.code.clone()));
+                        },
                     }
                 }
                 // // Check code content inequality
