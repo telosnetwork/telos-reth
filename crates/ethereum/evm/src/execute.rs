@@ -38,6 +38,8 @@ use reth_telos_rpc_engine_api::compare::compare_state_diffs;
 use revm_primitives::{Address, Account, AccountInfo, AccountStatus, Bytecode, HashMap, KECCAK_EMPTY};
 #[cfg(feature = "telos")]
 use alloy_primitives::B256;
+#[cfg(feature = "telos")]
+use sha2::{Sha256, Digest};
 
 /// Provides executors to execute regular ethereum blocks
 #[derive(Debug, Clone)]
@@ -66,12 +68,12 @@ impl<EvmConfig> EthExecutorProvider<EvmConfig> {
 }
 
 impl<EvmConfig> EthExecutorProvider<EvmConfig>
-where
-    EvmConfig: ConfigureEvm<Header = Header>,
+    where
+        EvmConfig: ConfigureEvm<Header = Header>,
 {
     fn eth_executor<DB>(&self, db: DB) -> EthBlockExecutor<EvmConfig, DB>
-    where
-        DB: Database<Error: Into<ProviderError>>,
+        where
+            DB: Database<Error: Into<ProviderError>>,
     {
         EthBlockExecutor::new(
             self.chain_spec.clone(),
@@ -82,25 +84,25 @@ where
 }
 
 impl<EvmConfig> BlockExecutorProvider for EthExecutorProvider<EvmConfig>
-where
-    EvmConfig: ConfigureEvm<Header = Header>,
+    where
+        EvmConfig: ConfigureEvm<Header = Header>,
 {
     type Executor<DB: Database<Error: Into<ProviderError> + Display>> =
-        EthBlockExecutor<EvmConfig, DB>;
+    EthBlockExecutor<EvmConfig, DB>;
 
     type BatchExecutor<DB: Database<Error: Into<ProviderError> + Display>> =
-        EthBatchExecutor<EvmConfig, DB>;
+    EthBatchExecutor<EvmConfig, DB>;
 
     fn executor<DB>(&self, db: DB) -> Self::Executor<DB>
-    where
-        DB: Database<Error: Into<ProviderError> + Display>,
+        where
+            DB: Database<Error: Into<ProviderError> + Display>,
     {
         self.eth_executor(db)
     }
 
     fn batch_executor<DB>(&self, db: DB) -> Self::BatchExecutor<DB>
-    where
-        DB: Database<Error: Into<ProviderError> + Display>,
+        where
+            DB: Database<Error: Into<ProviderError> + Display>,
     {
         let executor = self.eth_executor(db);
         EthBatchExecutor { executor, batch_record: BlockBatchRecord::default() }
@@ -125,8 +127,8 @@ struct EthEvmExecutor<EvmConfig> {
 }
 
 impl<EvmConfig> EthEvmExecutor<EvmConfig>
-where
-    EvmConfig: ConfigureEvm<Header = Header>,
+    where
+        EvmConfig: ConfigureEvm<Header = Header>,
 {
     /// Executes the transactions in the block and returns the receipts of the transactions in the
     /// block, the total gas used and the list of EIP-7685 [requests](Request).
@@ -145,20 +147,20 @@ where
         #[cfg(feature = "telos")]
         telos_extra_fields: Option<TelosEngineAPIExtraFields>,
     ) -> Result<EthExecuteOutput, BlockExecutionError>
-    where
-        DB: Database,
-        DB::Error: Into<ProviderError> + Display,
+        where
+            DB: Database,
+            DB::Error: Into<ProviderError> + Display,
     {
         let mut system_caller = SystemCaller::new(&self.evm_config, &self.chain_spec);
 
         system_caller.apply_pre_execution_changes(block, &mut evm)?;
 
         #[cfg(feature = "telos")]
-        let mut tx_index = 0;
+            let mut tx_index = 0;
         #[cfg(feature = "telos")]
-        let unwrapped_telos_extra_fields = telos_extra_fields.unwrap_or_default();
+            let unwrapped_telos_extra_fields = telos_extra_fields.unwrap_or_default();
         #[cfg(feature = "telos")]
-        let mut new_addresses_using_create_iter = unwrapped_telos_extra_fields.new_addresses_using_create.as_ref().unwrap().into_iter().peekable();
+            let mut new_addresses_using_create_iter = unwrapped_telos_extra_fields.new_addresses_using_create.as_ref().unwrap().into_iter().peekable();
         // #[cfg(feature = "telos")]
         // let parent_telos_ext;
         // #[cfg(feature = "telos")]
@@ -192,7 +194,8 @@ where
 
         // execute transactions
         let mut cumulative_gas_used = 0;
-        let mut receipts = Vec::with_capacity(block.body.transactions.len());
+        #[cfg(not(feature = "telos"))]
+            let mut receipts = Vec::with_capacity(block.body.transactions.len());
         for (sender, transaction) in block.transactions_with_sender() {
             #[cfg(feature = "telos")]
             while new_addresses_using_create_iter.peek().is_some() && new_addresses_using_create_iter.peek().unwrap().0 == tx_index {
@@ -214,7 +217,7 @@ where
                     transaction_gas_limit: transaction.gas_limit(),
                     block_available_gas,
                 }
-                .into())
+                    .into())
             }
 
             self.evm_config.fill_tx_env(evm.tx_mut(), transaction, *sender, #[cfg(feature = "telos")] block.header.telos_block_extension.tx_env_at(tx_index));
@@ -233,6 +236,7 @@ where
             // append gas used
             cumulative_gas_used += result.gas_used();
 
+            #[cfg(not(feature = "telos"))]
             // Push transaction changeset and calculate header bloom filter for receipt.
             receipts.push(
                 #[allow(clippy::needless_update)] // side-effect of optimism fields
@@ -259,23 +263,31 @@ where
             new_addresses_using_create_iter.next();
         }
 
-        #[cfg(feature = "telos")] {
-        // Perform state diff comparision
-        let revm_state_diffs = evm.db_mut().transition_state.clone().unwrap_or_default().transitions;
-        let block_num = block.block.header.number;
-        println!(
-            "Compare: block {block_num} {}",
-            compare_state_diffs(
-                &mut evm,
-                revm_state_diffs,
-                unwrapped_telos_extra_fields.statediffs_account.unwrap_or_default(),
-                unwrapped_telos_extra_fields.statediffs_accountstate.unwrap_or_default(),
-                unwrapped_telos_extra_fields.new_addresses_using_create.unwrap_or_default(),
-                unwrapped_telos_extra_fields.new_addresses_using_openwallet.unwrap_or_default(),
-                true
-            )
-        );
+        #[cfg(feature = "telos")]
+        {
+            // Perform state diff comparision
+            let revm_state_diffs = evm.db_mut().transition_state.clone().unwrap_or_default().transitions;
+            let block_num = block.block.header.number;
+            println!(
+                "Compare: block {block_num} {}",
+                compare_state_diffs(
+                    &mut evm,
+                    revm_state_diffs,
+                    unwrapped_telos_extra_fields.statediffs_account.clone().unwrap_or_default(),
+                    unwrapped_telos_extra_fields.statediffs_accountstate.clone().unwrap_or_default(),
+                    unwrapped_telos_extra_fields.new_addresses_using_create.clone().unwrap_or_default(),
+                    unwrapped_telos_extra_fields.new_addresses_using_openwallet.clone().unwrap_or_default(),
+                    false
+                )
+            );
         }
+
+        #[cfg(feature = "telos")]
+            let receipts = if unwrapped_telos_extra_fields.receipts.is_some() {
+            unwrapped_telos_extra_fields.receipts.clone().unwrap()
+        } else {
+            vec![]
+        };
 
         let requests = if self.chain_spec.is_prague_active_at_timestamp(block.timestamp) {
             // Collect all EIP-6110 deposits
@@ -289,7 +301,44 @@ where
             vec![]
         };
 
-        Ok(EthExecuteOutput { receipts, requests, gas_used: cumulative_gas_used })
+        // #[cfg(feature = "telos")]
+        // {
+        //     let mut addr_to_accstate: HashMap<Address, HashMap<U256, EvmStorageSlot>> = HashMap::new();
+
+        //     for sdiff_accstate in unwrapped_telos_extra_fields.clone().statediffs_accountstate.unwrap_or(vec![]) {
+        //         if !addr_to_accstate.contains_key(&sdiff_accstate.address) {
+        //             addr_to_accstate.insert(sdiff_accstate.address, HashMap::new());
+        //         }
+        //         let mut acc_storage = addr_to_accstate.get_mut(&sdiff_accstate.address).unwrap();
+        //         acc_storage.insert(sdiff_accstate.key, EvmStorageSlot { original_value: Default::default(), present_value: sdiff_accstate.value, is_cold: false });
+        //     }
+
+        //     let mut state: HashMap<Address, Account> = HashMap::new();
+
+        //     for sdiff_acc in unwrapped_telos_extra_fields.clone().statediffs_account.unwrap_or(vec![]) {
+        //         state.insert(
+        //             sdiff_acc.address,
+        //             Account {
+        //                 info: AccountInfo {
+        //                     balance: sdiff_acc.balance,
+        //                     nonce: sdiff_acc.nonce,
+        //                     code_hash: B256::from(Sha256::digest(sdiff_acc.code.as_ref()).as_ref()),
+        //                     code: Some(Bytecode::LegacyRaw(sdiff_acc.code)),
+        //                 },
+        //                 storage: addr_to_accstate.get(&sdiff_acc.address).unwrap_or(&HashMap::new()).clone(),
+        //                 status: AccountStatus::Touched | AccountStatus::LoadedAsNotExisting,
+        //             }
+        //         );
+        //     }
+
+        //     evm.db_mut().commit(state);
+        // }
+
+        Ok(EthExecuteOutput {
+            receipts,
+            requests,
+            gas_used: cumulative_gas_used
+        })
     }
 }
 
@@ -325,9 +374,9 @@ impl<EvmConfig, DB> EthBlockExecutor<EvmConfig, DB> {
 }
 
 impl<EvmConfig, DB> EthBlockExecutor<EvmConfig, DB>
-where
-    EvmConfig: ConfigureEvm<Header = Header>,
-    DB: Database<Error: Into<ProviderError> + Display>,
+    where
+        EvmConfig: ConfigureEvm<Header = Header>,
+        DB: Database<Error: Into<ProviderError> + Display>,
 {
     /// Configures a new evm configuration and block environment for the given block.
     ///
@@ -367,7 +416,12 @@ where
         let env = self.evm_env_for_block(&block.header, total_difficulty);
         let output = {
             let evm = self.executor.evm_config.evm_with_env(&mut self.state, env);
-            self.executor.execute_state_transitions(block, evm, #[cfg(feature = "telos")] telos_extra_fields)
+            self.executor.execute_state_transitions(
+                block,
+                evm,
+                #[cfg(feature = "telos")]
+                    telos_extra_fields
+            )
         }?;
 
         // 3. apply post execution changes
@@ -416,9 +470,9 @@ where
 }
 
 impl<EvmConfig, DB> Executor<DB> for EthBlockExecutor<EvmConfig, DB>
-where
-    EvmConfig: ConfigureEvm<Header = Header>,
-    DB: Database<Error: Into<ProviderError> + Display>,
+    where
+        EvmConfig: ConfigureEvm<Header = Header>,
+        DB: Database<Error: Into<ProviderError> + Display>,
 {
     type Input<'a> = BlockExecutionInput<'a, BlockWithSenders>;
     type Output = BlockExecutionOutput<Receipt>;
@@ -447,8 +501,8 @@ where
         #[cfg(feature = "telos")]
         telos_extra_fields: Option<TelosEngineAPIExtraFields>
     ) -> Result<Self::Output, Self::Error>
-    where
-        F: FnMut(&State<DB>),
+        where
+            F: FnMut(&State<DB>),
     {
         let BlockExecutionInput { block, total_difficulty } = input;
         let EthExecuteOutput { receipts, requests, gas_used } =
@@ -482,9 +536,9 @@ impl<EvmConfig, DB> EthBatchExecutor<EvmConfig, DB> {
 }
 
 impl<EvmConfig, DB> BatchExecutor<DB> for EthBatchExecutor<EvmConfig, DB>
-where
-    EvmConfig: ConfigureEvm<Header = Header>,
-    DB: Database<Error: Into<ProviderError> + Display>,
+    where
+        EvmConfig: ConfigureEvm<Header = Header>,
+        DB: Database<Error: Into<ProviderError> + Display>,
 {
     type Input<'a> = BlockExecutionInput<'a, BlockWithSenders>;
     type Output = ExecutionOutcome;
@@ -1338,8 +1392,8 @@ mod tests {
                         header,
                         body: BlockBody { transactions: vec![tx], ..Default::default() },
                     }
-                    .with_recovered_senders()
-                    .unwrap(),
+                        .with_recovered_senders()
+                        .unwrap(),
                     U256::ZERO,
                 )
                     .into(),
