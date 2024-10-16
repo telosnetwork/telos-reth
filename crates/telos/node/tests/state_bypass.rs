@@ -244,7 +244,8 @@ fn test_db_both_sides_present_but_dif() {
         statediffs_account.clone(),
         vec![],
         vec![],
-        vec![]
+        vec![],
+        true
     );
 
     let db_acc = evm.db_mut().basic(test_addr).unwrap().unwrap();
@@ -293,7 +294,8 @@ fn test_revm_state_both_sides_present_but_dif() {
         statediffs_account.clone(),
         vec![],
         vec![],
-        vec![]
+        vec![],
+       false
     );
 
     // let db_acc = evm.db_mut().basic(test_addr).unwrap().unwrap();
@@ -327,7 +329,8 @@ fn test_tevm_only() {
         statediffs_account.clone(),
         vec![],
         vec![],
-        vec![]
+        vec![],
+        true
     );
 
     let db_acc = evm.db_mut().basic(test_addr).unwrap().unwrap();
@@ -374,7 +377,8 @@ fn test_accstate_diff_from_storage() {
         vec![],
         statediffs_accountstate.clone(),
         vec![],
-        vec![]
+        vec![],
+        true
     );
 
     let db_value = evm.db_mut().storage(test_addr, key).unwrap();
@@ -408,6 +412,7 @@ fn test_accstate_telos_only() {
         vec![],
         statediffs_accountstate.clone(),
         vec![],
-        vec![]
+        vec![],
+        true
     );
 }

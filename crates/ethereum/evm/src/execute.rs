@@ -271,7 +271,8 @@ where
                 unwrapped_telos_extra_fields.statediffs_account.unwrap_or_default(),
                 unwrapped_telos_extra_fields.statediffs_accountstate.unwrap_or_default(),
                 unwrapped_telos_extra_fields.new_addresses_using_create.unwrap_or_default(),
-                unwrapped_telos_extra_fields.new_addresses_using_openwallet.unwrap_or_default()
+                unwrapped_telos_extra_fields.new_addresses_using_openwallet.unwrap_or_default(),
+                true
             )
         );
         }
