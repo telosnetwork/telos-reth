@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::fmt::Display;
 use alloy_primitives::{Address, B256, Bytes, U256};
-use revm_primitives::{Account, AccountInfo, Bytecode, HashMap};
+use revm_primitives::{Account, AccountInfo, Bytecode, EvmStorageSlot, HashMap};
 use revm::{Database, Evm, State, TransitionAccount, db::AccountStatus as DBAccountStatus};
 use revm_primitives::db::DatabaseCommit;
 use revm_primitives::state::AccountStatus;
@@ -24,16 +24,10 @@ impl StateOverride {
     fn maybe_init_account<DB: Database> (&mut self, revm_db: &mut &mut State<DB>, address: Address) {
         let maybe_acc = self.accounts.get_mut(&address);
         if maybe_acc.is_none() {
-            let mut status = AccountStatus::LoadedAsNotExisting;
+            let mut status = AccountStatus::LoadedAsNotExisting | AccountStatus::Touched;
             let info = match revm_db.basic(address) {
                 Ok(maybe_info) => {
-                    match maybe_info {
-                        None => AccountInfo::default(),
-                        Some(i) => {
-                            status |= AccountStatus::Touched;
-                            i
-                        }
-                    }
+                    maybe_info.unwrap_or_else(|| AccountInfo::default())
                 },
                 Err(_) => AccountInfo::default()
             };
@@ -85,6 +79,16 @@ impl StateOverride {
                 acc.info.code = Some(Bytecode::LegacyRaw(code));
             }
         }
+    }
+
+    pub fn override_storage<DB: Database> (&mut self, revm_db: &mut &mut State<DB>, address: Address, key: U256, val: U256) {
+        self.maybe_init_account(revm_db, address);
+        let mut acc = self.accounts.get_mut(&address).unwrap();
+        acc.storage.insert(key, EvmStorageSlot {
+            original_value: Default::default(),
+            present_value: val,
+            is_cold: false
+        });
     }
 
     pub fn apply<DB: Database> (&self, revm_db: &mut &mut State<DB>) {
@@ -212,9 +216,11 @@ where
             // The values should match, but if it is removed, then the revm value should be zero
             if !(revm_row == row.value) && !(revm_row != U256::ZERO || row.removed == true) {
                 maybe_panic!(panic_mode, "Difference in value on revm storage, address: {:?}, key: {:?}, revm-value: {:?}, tevm-row: {:?}",row.address,row.key,revm_row,row);
+                state_override.override_storage(revm_db, row.address, row.key, row.value);
             }
         } else {
             maybe_panic!(panic_mode, "Key was not found on revm storage, address: {:?}, key: {:?}",row.address,row.key);
+            state_override.override_storage(revm_db, row.address, row.key, row.value);
         }
     }
 

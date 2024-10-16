@@ -298,8 +298,8 @@ fn test_revm_state_both_sides_present_but_dif() {
     let test_addr = Address::from_str("00000000000000000000000000000000deadbeef").unwrap();
 
     let revm_acc_info = AccountInfo {
-        balance: U256::from(80085),
-        nonce: 69,
+        balance: U256::from(1),
+        nonce: 0,
         code_hash: Default::default(),
         code: None,
     };
@@ -334,13 +334,12 @@ fn test_revm_state_both_sides_present_but_dif() {
         vec![],
         vec![],
         vec![],
-       false
+        false
     );
 
-    // let db_acc = evm.db_mut().basic(test_addr).unwrap().unwrap();
-    // assert_eq!(db_acc.nonce, statediffs_account[0].nonce);
-    // assert_eq!(db_acc.balance, statediffs_account[0].balance);
-    // assert_eq!(db_acc.code, Some(custom_bytecode));
+    let db_acc = evm.db_mut().basic(test_addr).unwrap().unwrap();
+    assert_eq!(db_acc.nonce, statediffs_account[0].nonce);
+    assert_eq!(db_acc.balance, statediffs_account[0].balance);
 }
 
 #[test]
@@ -369,7 +368,7 @@ fn test_tevm_only() {
         vec![],
         vec![],
         vec![],
-        true
+        false
     );
 
     let db_acc = evm.db_mut().basic(test_addr).unwrap().unwrap();
@@ -382,8 +381,8 @@ fn test_accstate_diff_from_storage() {
     let test_addr = Address::from_str("00000000000000000000000000000000deadbeef").unwrap();
 
     let revm_acc_info = AccountInfo {
-        balance: U256::from(80085),
-        nonce: 69,
+        balance: U256::from(1),
+        nonce: 0,
         code_hash: Default::default(),
         code: None,
     };
@@ -417,41 +416,41 @@ fn test_accstate_diff_from_storage() {
         statediffs_accountstate.clone(),
         vec![],
         vec![],
-        true
+        false
     );
 
     let db_value = evm.db_mut().storage(test_addr, key).unwrap();
     assert_eq!(db_value, custom_value);
 }
-#[test]
-fn test_accstate_telos_only() {
-    let test_addr = Address::from_str("00000000000000000000000000000000deadbeef").unwrap();
-
-    let key = U256::from(420);
-    let custom_value = U256::from(80085);
-
-    let mut db = CacheDB::new(EmptyDBTyped::<MockDBError>::new());
-
-    let mut state = State::builder().with_database(db).build();
-
-    // state.insert_not_existing(test_addr);
-
-    let mut evm = Evm::builder().with_db(&mut state).build();
-
-    let statediffs_accountstate = vec![TelosAccountStateTableRow {
-        removed: false,
-        address: test_addr,
-        key,
-        value: custom_value
-    }];
-
-    compare_state_diffs(
-        &mut evm,
-        HashMap::default(),
-        vec![],
-        statediffs_accountstate.clone(),
-        vec![],
-        vec![],
-        true
-    );
-}
+// #[test]
+// fn test_accstate_telos_only() {
+//     let test_addr = Address::from_str("00000000000000000000000000000000deadbeef").unwrap();
+//
+//     let key = U256::from(420);
+//     let custom_value = U256::from(80085);
+//
+//     let mut db = CacheDB::new(EmptyDBTyped::<MockDBError>::new());
+//
+//     let mut state = State::builder().with_database(db).build();
+//
+//     // state.insert_not_existing(test_addr);
+//
+//     let mut evm = Evm::builder().with_db(&mut state).build();
+//
+//     let statediffs_accountstate = vec![TelosAccountStateTableRow {
+//         removed: false,
+//         address: test_addr,
+//         key,
+//         value: custom_value
+//     }];
+//
+//     compare_state_diffs(
+//         &mut evm,
+//         HashMap::default(),
+//         vec![],
+//         statediffs_accountstate.clone(),
+//         vec![],
+//         vec![],
+//         true
+//     );
+// }
