@@ -1,12 +1,94 @@
 use std::collections::HashSet;
 use std::fmt::Display;
 use alloy_primitives::{Address, B256, U256};
-use revm_primitives::HashMap;
-use revm::db::AccountStatus;
-use revm::{Database, Evm, State, TransitionAccount};
-use tracing::debug;
+use revm_primitives::{Account, AccountInfo, Bytecode, HashMap};
+use revm::{Database, Evm, State, TransitionAccount, db::AccountStatus as DBAccountStatus};
+use revm_primitives::db::DatabaseCommit;
+use revm_primitives::state::AccountStatus;
+use tracing::{debug, warn};
 use reth_storage_errors::provider::ProviderError;
 use crate::structs::{TelosAccountStateTableRow, TelosAccountTableRow};
+
+struct StateOverride {
+    accounts: HashMap<Address, Account>
+}
+
+impl StateOverride {
+    pub fn new() -> Self {
+        StateOverride {
+            accounts: HashMap::default()
+        }
+    }
+
+    fn maybe_init_account<DB: Database> (&mut self, revm_db: &mut &mut State<DB>, address: Address) {
+        let maybe_acc = self.accounts.get_mut(&address);
+        if maybe_acc.is_none() {
+            let mut status = AccountStatus::LoadedAsNotExisting;
+            let info = match revm_db.basic(address) {
+                Ok(maybe_info) => {
+                    match maybe_info {
+                        None => AccountInfo::default(),
+                        Some(i) => {
+                            status |= AccountStatus::Touched;
+                            i
+                        }
+                    }
+                },
+                Err(_) => AccountInfo::default()
+            };
+
+            self.accounts.insert(address, Account {
+                info,
+                storage: Default::default(),
+                status,
+            });
+        }
+    }
+
+    pub fn override_account<DB: Database> (&mut self, revm_db: &mut &mut State<DB>, telos_row: &TelosAccountTableRow) {
+        self.maybe_init_account(revm_db, telos_row.address);
+        let mut acc = self.accounts.get_mut(&telos_row.address).unwrap();
+        acc.info.balance = telos_row.balance;
+        acc.info.nonce = telos_row.nonce;
+        if telos_row.code.len() > 0 {
+            acc.info.code = Some(Bytecode::LegacyRaw(telos_row.code.clone()));
+        } else {
+            acc.info.code = None;
+        }
+    }
+
+    pub fn override_balance<DB: Database> (&mut self, revm_db: &mut &mut State<DB>, address: Address, balance: U256) {
+        self.maybe_init_account(revm_db, address);
+        let mut acc = self.accounts.get_mut(&address).unwrap();
+        acc.info.balance = balance;
+    }
+
+    pub fn override_nonce<DB: Database> (&mut self, revm_db: &mut &mut State<DB>, address: Address, nonce: u64) {
+        self.maybe_init_account(revm_db, address);
+        let mut acc = self.accounts.get_mut(&address).unwrap();
+        acc.info.nonce = nonce;
+    }
+
+    pub fn override_code<DB: Database> (&mut self, revm_db: &mut &mut State<DB>, address: Address, code: Option<Bytecode>) {
+        self.maybe_init_account(revm_db, address);
+        let mut acc = self.accounts.get_mut(&address).unwrap();
+        acc.info.code = code;
+    }
+
+    pub fn apply<DB: Database> (&self, revm_db: &mut &mut State<DB>) {
+        revm_db.commit(self.accounts.clone());
+    }
+}
+
+macro_rules! maybe_panic {
+    ($panic_mode:expr, $($arg:tt)*) => {
+        if $panic_mode {
+            panic!($($arg)*);
+        } else {
+            warn!($($arg)*);
+        }
+    };
+}
 
 /// This function compares the state diffs between revm and Telos EVM contract
 pub fn compare_state_diffs<Ext, DB>(
@@ -16,6 +98,7 @@ pub fn compare_state_diffs<Ext, DB>(
     statediffs_accountstate: Vec<TelosAccountStateTableRow>,
     _new_addresses_using_create: Vec<(u64, U256)>,
     new_addresses_using_openwallet: Vec<(u64, U256)>,
+    panic_mode: bool
 ) -> bool
 where
     DB: Database,
@@ -33,6 +116,8 @@ where
     }
 
     let revm_db: &mut &mut State<DB> = evm.db_mut();
+
+    let mut state_override = StateOverride::new();
 
     let mut new_addresses_using_openwallet_hashset = HashSet::new();
     for row in &new_addresses_using_openwallet {
@@ -61,42 +146,47 @@ where
             if let Some(unwrapped_revm_row) = revm_row {
                 // Check balance inequality
                 if unwrapped_revm_row.balance != row.balance {
-                    panic!("Difference in balance, address: {:?} - revm: {:?} - tevm: {:?}",row.address,unwrapped_revm_row.balance,row.balance);
+                    maybe_panic!(panic_mode, "Difference in balance, address: {:?} - revm: {:?} - tevm: {:?}",row.address,unwrapped_revm_row.balance,row.balance);
+                    state_override.override_balance(revm_db, row.address, row.balance);
                 }
                 // Check nonce inequality
                 if unwrapped_revm_row.nonce != row.nonce {
-                    panic!("Difference in nonce, address: {:?} - revm: {:?} - tevm: {:?}",row.address,unwrapped_revm_row.nonce,row.nonce);
+                    maybe_panic!(panic_mode, "Difference in nonce, address: {:?} - revm: {:?} - tevm: {:?}",row.address,unwrapped_revm_row.nonce,row.nonce);
+                    state_override.override_nonce(revm_db, row.address, row.nonce);
                 }
                 // Check code size inequality
                 if unwrapped_revm_row.clone().code.is_none() && row.code.len() != 0 || unwrapped_revm_row.clone().code.is_some() && !unwrapped_revm_row.clone().code.unwrap().is_empty() && row.code.len() == 0 {
                     match revm_db.code_by_hash(unwrapped_revm_row.code_hash) {
                         Ok(code_by_hash) =>
                             if (code_by_hash.is_empty() && row.code.len() != 0) || (!code_by_hash.is_empty() && row.code.len() == 0) {
-                                panic!("Difference in code existence, address: {:?} - revm: {:?} - tevm: {:?}",row.address,code_by_hash,row.code)
+                                maybe_panic!(panic_mode, "Difference in code existence, address: {:?} - revm: {:?} - tevm: {:?}",row.address,code_by_hash,row.code)
                             },
-                        Err(_) => panic!("Difference in code existence, address: {:?} - revm: {:?} - tevm: {:?}",row.address,unwrapped_revm_row.code,row.code),
+                        Err(_) => maybe_panic!(panic_mode, "Difference in code existence, address: {:?} - revm: {:?} - tevm: {:?}",row.address,unwrapped_revm_row.code,row.code),
                     }
                 }
                 // // Check code content inequality
                 // if unwrapped_revm_row.clone().unwrap().code.is_some() && !unwrapped_revm_row.clone().unwrap().code.unwrap().is_empty() && unwrapped_revm_row.clone().unwrap().code.unwrap().bytes() != row.code {
-                //     panic!("Difference in code content, revm: {:?}, tevm: {:?}",unwrapped_revm_row.clone().unwrap().code.unwrap().bytes(),row.code);
+                //     panic!(panic_mode, "Difference in code content, revm: {:?}, tevm: {:?}",unwrapped_revm_row.clone().unwrap().code.unwrap().bytes(),row.code);
                 // }
             } else {
                 // Skip if address is empty on both sides
                 if !(row.balance == U256::ZERO && row.nonce == 0 && row.code.len() == 0) {
                     if let Some(unwrapped_revm_state_diff) = revm_state_diffs.get(&row.address) {
-                        if !(unwrapped_revm_state_diff.status == AccountStatus::Destroyed && row.nonce == 0 && row.balance == U256::ZERO && row.code.len() == 0) {
-                            panic!("A modified `account` table row was found on both revm state and revm state diffs, but seems to be destroyed on just one side, address: {:?}",row.address);
+                        if !(unwrapped_revm_state_diff.status == DBAccountStatus::Destroyed && row.nonce == 0 && row.balance == U256::ZERO && row.code.len() == 0) {
+                            maybe_panic!(panic_mode, "A modified `account` table row was found on both revm state and revm state diffs, but seems to be destroyed on just one side, address: {:?}",row.address);
+                            state_override.override_account(revm_db, &row);
                         }
                     } else {
-                        panic!("A modified `account` table row was found on revm state, but contains no information, address: {:?}",row.address);
+                        maybe_panic!(panic_mode, "A modified `account` table row was found on revm state, but contains no information, address: {:?}",row.address);
+                        state_override.override_account(revm_db, &row);
                     }
                 }
             }
         } else {
             // Skip if address is empty on both sides
             if !(row.balance == U256::ZERO && row.nonce == 0 && row.code.len() == 0) {
-                panic!("A modified `account` table row was not found on revm state, address: {:?}",row.address);
+                maybe_panic!(panic_mode, "A modified `account` table row was not found on revm state, address: {:?}",row.address);
+                state_override.override_account(revm_db, &row);
             }
         }
     }
@@ -104,10 +194,10 @@ where
         if let Ok(revm_row) = revm_db.storage(row.address, row.key) {
             // The values should match, but if it is removed, then the revm value should be zero
             if !(revm_row == row.value) && !(revm_row != U256::ZERO || row.removed == true) {
-                panic!("Difference in value on revm storage, address: {:?}, key: {:?}, revm-value: {:?}, tevm-row: {:?}",row.address,row.key,revm_row,row);
+                maybe_panic!(panic_mode, "Difference in value on revm storage, address: {:?}, key: {:?}, revm-value: {:?}, tevm-row: {:?}",row.address,row.key,revm_row,row);
             }
         } else {
-            panic!("Key was not found on revm storage, address: {:?}, key: {:?}",row.address,row.key);
+            maybe_panic!(panic_mode, "Key was not found on revm storage, address: {:?}, key: {:?}",row.address,row.key);
         }
     }
 
@@ -115,20 +205,22 @@ where
         if let (Some(info),Some(previous_info)) = (account.info.clone(),account.previous_info.clone()) {
             if !(info.balance == previous_info.balance && info.nonce == previous_info.nonce && info.code_hash == previous_info.code_hash) {
                 if statediffs_account_hashmap.get(address).is_none() {
-                    panic!("A modified address was not found on tevm state diffs, address: {:?}",address); 
+                    maybe_panic!(panic_mode, "A modified address was not found on tevm state diffs, address: {:?}",address);
                 }
             }
         } else {
             if statediffs_account_hashmap.get(address).is_none() {
-                panic!("A modified address was not found on tevm state diffs, address: {:?}",address); 
+                maybe_panic!(panic_mode, "A modified address was not found on tevm state diffs, address: {:?}",address);
             }
         }
         for (key,_) in account.storage.clone() {
             if statediffs_accountstate_hashmap.get(&(*address,key)).is_none() {
-                panic!("A modified storage slot was not found on tevm state diffs, address: {:?}",address); 
+                maybe_panic!(panic_mode, "A modified storage slot was not found on tevm state diffs, address: {:?}",address);
             }
         }
     }
-    
+
+    state_override.apply(revm_db);
+
     return true
 }
