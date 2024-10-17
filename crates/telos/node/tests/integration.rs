@@ -1,5 +1,10 @@
+use alloy_network::eip2718::Eip2718Error;
+use alloy_network::{AnyTxType, Network};
 use alloy_provider::{Provider, ProviderBuilder};
 use antelope::api::client::{APIClient, DefaultProvider};
+use derive_more::Display;
+use reqwest::Url;
+use reth::rpc::types::{AnyTransactionReceipt, Header, Transaction, TransactionRequest};
 use reth::{
     args::RpcServerArgs,
     builder::{NodeBuilder, NodeConfig},
@@ -13,9 +18,6 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
-use alloy_network::{AnyTxType, Network};
-use alloy_network::eip2718::Eip2718Error;
-use reqwest::Url;
 use telos_consensus_client::client::ConsensusClient;
 use telos_consensus_client::config::{AppConfig, CliArgs};
 use telos_translator_rs::{block::TelosEVMBlock, types::translator_types::ChainId};
@@ -24,8 +26,6 @@ use telos_translator_rs::translator::Translator;
 use testcontainers::core::ContainerPort::Tcp;
 use testcontainers::{runners::AsyncRunner, ContainerAsync, GenericImage};
 use tokio::sync::mpsc;
-use reth::rpc::types::{AnyTransactionReceipt, Header, Transaction, TransactionRequest, WithOtherFields};
-use derive_more::Display;
 
 pub mod live_test_runner;
 
@@ -57,7 +57,7 @@ async fn start_ship() -> ContainerAsync<GenericImage> {
     let port_8888 = container.get_host_port_ipv4(8888).await.unwrap();
 
     let api_base_url = format!("http://localhost:{port_8888}");
-    let api_client = APIClient::<DefaultProvider>::default_provider(api_base_url).unwrap();
+    let api_client = APIClient::<DefaultProvider>::default_provider(api_base_url, Some(1)).unwrap();
 
     let mut last_block = 0;
 
@@ -94,7 +94,7 @@ fn init_reth() -> eyre::Result<(NodeConfig<ChainSpec>, String)> {
     );
 
     let mut rpc_config = RpcServerArgs::default().with_unused_ports().with_http();
-    rpc_config.auth_jwtsecret = Some(PathBuf::from("crates/telos/node/tests/assets/jwt.hex"));
+    rpc_config.auth_jwtsecret = Some(PathBuf::from("tests/assets/jwt.hex"));
 
     // Node setup
     let node_config = NodeConfig::test().with_chain(chain_spec).with_rpc(rpc_config.clone());
@@ -159,6 +159,10 @@ async fn testing_chain_sync() {
         signer_permission: Some("active".to_string()),
         signer_key: Some("5Jr65kdYmn33C3UabzhmWDm2PuqbRfPuDStts3ZFNSBLM7TqaiL".to_string()),
         gas_cache_seconds: None,
+        experimental: false,
+        persistence_threshold: 0,
+        memory_block_buffer_target: 1,
+        max_execute_block_batch_size: 100,
     };
 
     let node_handle = NodeBuilder::new(node_config.clone())
