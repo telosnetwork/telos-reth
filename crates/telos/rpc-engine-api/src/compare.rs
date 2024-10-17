@@ -213,12 +213,17 @@ where
     }
     for row in &statediffs_accountstate {
         if let None = revm_db.cache.accounts.get_mut(&row.address) {
-            let _ = revm_db.load_cache_account(row.address);
+            let cached_account = revm_db.load_cache_account(row.address);
+            if let Some(cached_account) = cached_account {
+                if cached_account.is_none() {
+                    panic!("An account state modification was made for an account that is not in revm storage, address: {:?}", row.address);
+                }
+            }
         }
         if let Ok(revm_row) = revm_db.storage(row.address, row.key) {
             // The values should match, but if it is removed, then the revm value should be zero
             if !(revm_row == row.value) && !(revm_row != U256::ZERO || row.removed == true) {
-                maybe_panic!(panic_mode, "Difference in value on revm storage, address: {:?}, key: {:?}, revm-value: {:?}, tevm-row: {:?}",row.address,row.key,revm_row,row);
+                maybe_panic!(panic_mode, "Difference in value on revm storage, address: {:?}, key: {:?}, revm-value: {:?}, tevm-row: {:?}", row.address, row.key, revm_row, row);
                 state_override.override_storage(revm_db, row.address, row.key, row.value);
             }
         } else {
@@ -231,17 +236,17 @@ where
         if let (Some(info),Some(previous_info)) = (account.info.clone(),account.previous_info.clone()) {
             if !(info.balance == previous_info.balance && info.nonce == previous_info.nonce && info.code_hash == previous_info.code_hash) {
                 if statediffs_account_hashmap.get(address).is_none() {
-                    maybe_panic!(panic_mode, "A modified address was not found on tevm state diffs, address: {:?}",address);
+                    panic!("A modified address was not found on tevm state diffs, address: {:?}",address);
                 }
             }
         } else {
             if statediffs_account_hashmap.get(address).is_none() {
-                maybe_panic!(panic_mode, "A modified address was not found on tevm state diffs, address: {:?}",address);
+                panic!("A modified address was not found on tevm state diffs, address: {:?}",address);
             }
         }
         for (key,_) in account.storage.clone() {
             if statediffs_accountstate_hashmap.get(&(*address,key)).is_none() {
-                maybe_panic!(panic_mode, "A modified storage slot was not found on tevm state diffs, address: {:?}",address);
+                panic!("A modified storage slot was not found on tevm state diffs, address: {:?}",address);
             }
         }
     }
