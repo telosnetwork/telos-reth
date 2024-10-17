@@ -68,12 +68,12 @@ impl<EvmConfig> EthExecutorProvider<EvmConfig> {
 }
 
 impl<EvmConfig> EthExecutorProvider<EvmConfig>
-    where
-        EvmConfig: ConfigureEvm<Header = Header>,
+where
+    EvmConfig: ConfigureEvm<Header = Header>,
 {
     fn eth_executor<DB>(&self, db: DB) -> EthBlockExecutor<EvmConfig, DB>
-        where
-            DB: Database<Error: Into<ProviderError>>,
+    where
+        DB: Database<Error: Into<ProviderError>>,
     {
         EthBlockExecutor::new(
             self.chain_spec.clone(),
@@ -84,25 +84,25 @@ impl<EvmConfig> EthExecutorProvider<EvmConfig>
 }
 
 impl<EvmConfig> BlockExecutorProvider for EthExecutorProvider<EvmConfig>
-    where
-        EvmConfig: ConfigureEvm<Header = Header>,
+where
+    EvmConfig: ConfigureEvm<Header = Header>,
 {
     type Executor<DB: Database<Error: Into<ProviderError> + Display>> =
-    EthBlockExecutor<EvmConfig, DB>;
+        EthBlockExecutor<EvmConfig, DB>;
 
     type BatchExecutor<DB: Database<Error: Into<ProviderError> + Display>> =
-    EthBatchExecutor<EvmConfig, DB>;
+        EthBatchExecutor<EvmConfig, DB>;
 
     fn executor<DB>(&self, db: DB) -> Self::Executor<DB>
-        where
-            DB: Database<Error: Into<ProviderError> + Display>,
+    where
+        DB: Database<Error: Into<ProviderError> + Display>,
     {
         self.eth_executor(db)
     }
 
     fn batch_executor<DB>(&self, db: DB) -> Self::BatchExecutor<DB>
-        where
-            DB: Database<Error: Into<ProviderError> + Display>,
+    where
+        DB: Database<Error: Into<ProviderError> + Display>,
     {
         let executor = self.eth_executor(db);
         EthBatchExecutor { executor, batch_record: BlockBatchRecord::default() }
@@ -127,8 +127,8 @@ struct EthEvmExecutor<EvmConfig> {
 }
 
 impl<EvmConfig> EthEvmExecutor<EvmConfig>
-    where
-        EvmConfig: ConfigureEvm<Header = Header>,
+where
+    EvmConfig: ConfigureEvm<Header = Header>,
 {
     /// Executes the transactions in the block and returns the receipts of the transactions in the
     /// block, the total gas used and the list of EIP-7685 [requests](Request).
@@ -147,20 +147,20 @@ impl<EvmConfig> EthEvmExecutor<EvmConfig>
         #[cfg(feature = "telos")]
         telos_extra_fields: Option<TelosEngineAPIExtraFields>,
     ) -> Result<EthExecuteOutput, BlockExecutionError>
-        where
-            DB: Database,
-            DB::Error: Into<ProviderError> + Display,
+    where
+        DB: Database,
+        DB::Error: Into<ProviderError> + Display,
     {
         let mut system_caller = SystemCaller::new(&self.evm_config, &self.chain_spec);
 
         system_caller.apply_pre_execution_changes(block, &mut evm)?;
 
         #[cfg(feature = "telos")]
-            let mut tx_index = 0;
+        let mut tx_index = 0;
         #[cfg(feature = "telos")]
-            let unwrapped_telos_extra_fields = telos_extra_fields.unwrap_or_default();
+        let unwrapped_telos_extra_fields = telos_extra_fields.unwrap_or_default();
         #[cfg(feature = "telos")]
-            let mut new_addresses_using_create_iter = unwrapped_telos_extra_fields.new_addresses_using_create.as_ref().unwrap().into_iter().peekable();
+        let mut new_addresses_using_create_iter = unwrapped_telos_extra_fields.new_addresses_using_create.as_ref().unwrap().into_iter().peekable();
         // #[cfg(feature = "telos")]
         // let parent_telos_ext;
         // #[cfg(feature = "telos")]
@@ -195,7 +195,7 @@ impl<EvmConfig> EthEvmExecutor<EvmConfig>
         // execute transactions
         let mut cumulative_gas_used = 0;
         #[cfg(not(feature = "telos"))]
-            let mut receipts = Vec::with_capacity(block.body.transactions.len());
+        let mut receipts = Vec::with_capacity(block.body.transactions.len());
         for (sender, transaction) in block.transactions_with_sender() {
             #[cfg(feature = "telos")]
             while new_addresses_using_create_iter.peek().is_some() && new_addresses_using_create_iter.peek().unwrap().0 == tx_index {
@@ -217,7 +217,7 @@ impl<EvmConfig> EthEvmExecutor<EvmConfig>
                     transaction_gas_limit: transaction.gas_limit(),
                     block_available_gas,
                 }
-                    .into())
+                .into())
             }
 
             self.evm_config.fill_tx_env(evm.tx_mut(), transaction, *sender, #[cfg(feature = "telos")] block.header.telos_block_extension.tx_env_at(tx_index));
@@ -374,9 +374,9 @@ impl<EvmConfig, DB> EthBlockExecutor<EvmConfig, DB> {
 }
 
 impl<EvmConfig, DB> EthBlockExecutor<EvmConfig, DB>
-    where
-        EvmConfig: ConfigureEvm<Header = Header>,
-        DB: Database<Error: Into<ProviderError> + Display>,
+where
+    EvmConfig: ConfigureEvm<Header = Header>,
+    DB: Database<Error: Into<ProviderError> + Display>,
 {
     /// Configures a new evm configuration and block environment for the given block.
     ///
@@ -470,9 +470,9 @@ impl<EvmConfig, DB> EthBlockExecutor<EvmConfig, DB>
 }
 
 impl<EvmConfig, DB> Executor<DB> for EthBlockExecutor<EvmConfig, DB>
-    where
-        EvmConfig: ConfigureEvm<Header = Header>,
-        DB: Database<Error: Into<ProviderError> + Display>,
+where
+    EvmConfig: ConfigureEvm<Header = Header>,
+    DB: Database<Error: Into<ProviderError> + Display>,
 {
     type Input<'a> = BlockExecutionInput<'a, BlockWithSenders>;
     type Output = BlockExecutionOutput<Receipt>;
@@ -501,8 +501,8 @@ impl<EvmConfig, DB> Executor<DB> for EthBlockExecutor<EvmConfig, DB>
         #[cfg(feature = "telos")]
         telos_extra_fields: Option<TelosEngineAPIExtraFields>
     ) -> Result<Self::Output, Self::Error>
-        where
-            F: FnMut(&State<DB>),
+    where
+        F: FnMut(&State<DB>),
     {
         let BlockExecutionInput { block, total_difficulty } = input;
         let EthExecuteOutput { receipts, requests, gas_used } =
@@ -536,9 +536,9 @@ impl<EvmConfig, DB> EthBatchExecutor<EvmConfig, DB> {
 }
 
 impl<EvmConfig, DB> BatchExecutor<DB> for EthBatchExecutor<EvmConfig, DB>
-    where
-        EvmConfig: ConfigureEvm<Header = Header>,
-        DB: Database<Error: Into<ProviderError> + Display>,
+where
+    EvmConfig: ConfigureEvm<Header = Header>,
+    DB: Database<Error: Into<ProviderError> + Display>,
 {
     type Input<'a> = BlockExecutionInput<'a, BlockWithSenders>;
     type Output = ExecutionOutcome;
@@ -1392,8 +1392,8 @@ mod tests {
                         header,
                         body: BlockBody { transactions: vec![tx], ..Default::default() },
                     }
-                        .with_recovered_senders()
-                        .unwrap(),
+                    .with_recovered_senders()
+                    .unwrap(),
                     U256::ZERO,
                 )
                     .into(),
