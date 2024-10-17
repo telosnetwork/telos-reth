@@ -61,7 +61,7 @@ telos = [
 
 [dev-dependencies]
 alloy-consensus.workspace = true
-alloy-contract = "0.3.0"
+alloy-contract = "0.4.2"
 alloy-primitives.workspace = true
 alloy-provider.workspace = true
 alloy-network.workspace = true
@@ -77,8 +77,8 @@ reth-chainspec.workspace = true
 reth-e2e-test-utils.workspace = true
 eyre.workspace = true
 
-telos-consensus-client = { git = "https://github.com/telosnetwork/telos-consensus-client", rev = "8445957fc7846337d9e7e09ae90f5aa31c610dbb" }
-telos-translator-rs = { git = "https://github.com/telosnetwork/telos-consensus-client", rev = "8445957fc7846337d9e7e09ae90f5aa31c610dbb" }
+telos-consensus-client = { git = "https://github.com/telosnetwork/telos-consensus-client", rev = "f8ecbe1aeea57911c9fbefdddf49efa92d8472ce" }
+telos-translator-rs = { git = "https://github.com/telosnetwork/telos-consensus-client", rev = "f8ecbe1aeea57911c9fbefdddf49efa92d8472ce" }
 #telos-consensus-client = { path = "../../../../telos-consensus-client/client" }
 #telos-translator-rs = { path = "../../../../telos-consensus-client/translator" }
 

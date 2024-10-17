@@ -160,19 +160,19 @@ dependencies = [
 
 [[package]]
 name = "alloy-contract"
-version = "0.3.6"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0eefe64fd344cffa9cf9e3435ec4e93e6e9c3481bc37269af988bf497faf4a6a"
+checksum = "917f7d12cf3971dc8c11c9972f732b35ccb9aaaf5f28f2f87e9e6523bee3a8ad"
 dependencies = [
  "alloy-dyn-abi",
  "alloy-json-abi",
- "alloy-network 0.3.6",
- "alloy-network-primitives 0.3.6",
+ "alloy-network 0.4.2",
+ "alloy-network-primitives 0.4.2",
  "alloy-primitives",
- "alloy-provider 0.3.6",
- "alloy-rpc-types-eth 0.3.6",
+ "alloy-provider 0.4.2",
+ "alloy-rpc-types-eth 0.4.2",
  "alloy-sol-types",
- "alloy-transport 0.3.6",
+ "alloy-transport 0.4.2",
  "futures",
  "futures-util",
  "thiserror",
@@ -4573,7 +4573,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2 0.4.10",
+ "socket2 0.5.7",
  "tokio",
  "tower-service",
  "tracing",
@@ -12044,7 +12044,7 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 [[package]]
 name = "telos-consensus-client"
 version = "0.1.0"
-source = "git+https://github.com/telosnetwork/telos-consensus-client?rev=8445957fc7846337d9e7e09ae90f5aa31c610dbb#8445957fc7846337d9e7e09ae90f5aa31c610dbb"
+source = "git+https://github.com/telosnetwork/telos-consensus-client?rev=f8ecbe1aeea57911c9fbefdddf49efa92d8472ce#f8ecbe1aeea57911c9fbefdddf49efa92d8472ce"
 dependencies = [
  "alloy",
  "alloy-consensus 0.3.6",
@@ -12095,7 +12095,7 @@ dependencies = [
 [[package]]
 name = "telos-translator-rs"
 version = "0.1.0"
-source = "git+https://github.com/telosnetwork/telos-consensus-client?rev=8445957fc7846337d9e7e09ae90f5aa31c610dbb#8445957fc7846337d9e7e09ae90f5aa31c610dbb"
+source = "git+https://github.com/telosnetwork/telos-consensus-client?rev=f8ecbe1aeea57911c9fbefdddf49efa92d8472ce#f8ecbe1aeea57911c9fbefdddf49efa92d8472ce"
 dependencies = [
  "alloy",
  "alloy-consensus 0.3.6",

@@ -1,5 +1,6 @@
 use std::str::FromStr;
 use alloy_network::{Ethereum, Network, ReceiptResponse, TransactionBuilder};
+use alloy_primitives::U256;
 use alloy_provider::network::EthereumWallet;
 use alloy_provider::{Provider, ProviderBuilder, ReqwestProvider};
 use alloy_provider::fillers::{FillProvider, JoinFill, WalletFiller};
@@ -9,11 +10,10 @@ use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::private::primitives::TxKind::{Call, Create};
 use alloy_sol_types::{sol, SolEvent, SolValue};
 use alloy_transport_http::Http;
-use reth::primitives::{AccessList, Address, BlockId, U256};
+use reth::primitives::BlockId;
 
 use reth::rpc::types::{BlockTransactionsKind, TransactionInput, TransactionReceipt};
 use reth_primitives::constants::GWEI_TO_WEI;
-use reth_primitives::TxLegacy;
 use reqwest::{Client, Url};
 use tracing::info;
 use reth::primitives::BlockNumberOrTag::Number;
@@ -76,7 +76,7 @@ pub async fn test_blocknum_onchain(url: &str, private_key: &str) {
     let chain_id = provider.get_chain_id().await.unwrap();
     let gas_price = provider.get_gas_price().await.unwrap();
 
-    let legacy_tx = TxLegacy {
+    let legacy_tx = alloy_consensus::TxLegacy {
         chain_id: Some(chain_id),
         nonce,
         gas_price: gas_price.into(),
@@ -89,7 +89,7 @@ pub async fn test_blocknum_onchain(url: &str, private_key: &str) {
     let legacy_tx_request = TransactionRequest {
         from: Some(address),
         to: Some(legacy_tx.to),
-        gas: Some(legacy_tx.gas_limit as u128),
+        gas: Some(legacy_tx.gas_limit),
         gas_price: Some(legacy_tx.gas_price),
         value: Some(legacy_tx.value),
         input: TransactionInput::from(legacy_tx.input),
