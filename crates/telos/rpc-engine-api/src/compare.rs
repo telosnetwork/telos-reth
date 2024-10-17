@@ -212,6 +212,9 @@ where
         }
     }
     for row in &statediffs_accountstate {
+        if let None = revm_db.cache.accounts.get_mut(&row.address) {
+            let _ = revm_db.load_cache_account(row.address);
+        }
         if let Ok(revm_row) = revm_db.storage(row.address, row.key) {
             // The values should match, but if it is removed, then the revm value should be zero
             if !(revm_row == row.value) && !(revm_row != U256::ZERO || row.removed == true) {
