@@ -1182,7 +1182,7 @@ pub trait Call: LoadState + SpawnBlocking {
     fn prepare_call_env<DB>(
         &self,
         mut cfg: CfgEnvWithHandlerCfg,
-        mut block: BlockEnv,
+        block: BlockEnv,
         mut request: TransactionRequest,
         gas_limit: u64,
         db: &mut CacheDB<DB>,

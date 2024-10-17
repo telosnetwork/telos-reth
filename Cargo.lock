@@ -8483,7 +8483,6 @@ dependencies = [
  "reth-stages-api",
  "reth-static-file",
  "reth-tasks",
- "reth-telos-rpc-engine-api 1.0.8",
  "reth-tracing",
  "reth-trie",
  "reth-trie-parallel",
@@ -9747,7 +9746,6 @@ dependencies = [
  "reth-chainspec",
  "reth-primitives 1.0.8",
  "reth-rpc-types-compat",
- "reth-telos-rpc-engine-api 1.0.8",
 ]
 
 [[package]]
@@ -10232,7 +10230,6 @@ dependencies = [
  "reth-rpc-types-compat",
  "reth-tasks",
  "reth-telos-primitives-traits",
- "reth-telos-rpc-engine-api 1.0.8",
  "reth-transaction-pool",
  "reth-trie",
  "revm",
@@ -10347,7 +10344,6 @@ dependencies = [
  "alloy-rpc-types-eth 0.4.2",
  "alloy-serde 0.4.2",
  "reth-primitives 1.0.8",
- "reth-telos-primitives-traits",
  "reth-trie-common 1.0.8",
  "serde_json",
 ]
