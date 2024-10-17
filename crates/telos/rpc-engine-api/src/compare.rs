@@ -214,9 +214,14 @@ where
     for row in &statediffs_accountstate {
         if let None = revm_db.cache.accounts.get_mut(&row.address) {
             let cached_account = revm_db.load_cache_account(row.address);
-            if let Some(cached_account) = cached_account {
-                if cached_account.is_none() {
-                    panic!("An account state modification was made for an account that is not in revm storage, address: {:?}", row.address);
+            match cached_account {
+                Ok(cached_account) => {
+                    if cached_account.account.is_none() {
+                        panic!("An account state modification was made for an account that is not in revm storage, address: {:?}", row.address);
+                    }
+                },
+                Err(_) => {
+                    panic!("An account state modification was made for an account that returned Err from load_cache_account, address: {:?}", row.address);
                 }
             }
         }
@@ -241,7 +246,7 @@ where
             }
         } else {
             if statediffs_account_hashmap.get(address).is_none() {
-                panic!("A modified address was not found on tevm state diffs, address: {:?}",address);
+                panic!("A modified address was not found on tevm state diffs, info/previous_info were not Some, address: {:?}",address);
             }
         }
         for (key,_) in account.storage.clone() {
