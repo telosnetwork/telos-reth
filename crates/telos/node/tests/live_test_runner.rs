@@ -1,23 +1,16 @@
-use std::str::FromStr;
-use alloy_network::{Ethereum, Network, ReceiptResponse, TransactionBuilder};
+use alloy_network::{ReceiptResponse, TransactionBuilder};
 use alloy_primitives::U256;
 use alloy_provider::network::EthereumWallet;
-use alloy_provider::{Provider, ProviderBuilder, ReqwestProvider};
-use alloy_provider::fillers::{FillProvider, JoinFill, WalletFiller};
-use alloy_rpc_client::ClientBuilder;
-use alloy_rpc_types::{BlockNumberOrTag, TransactionRequest};
+use alloy_provider::{Provider, ProviderBuilder};
+use alloy_rpc_types::TransactionRequest;
 use alloy_signer_local::PrivateKeySigner;
-use alloy_sol_types::private::primitives::TxKind::{Call, Create};
-use alloy_sol_types::{sol, SolEvent, SolValue};
-use alloy_transport_http::Http;
+use alloy_sol_types::private::primitives::TxKind::Create;
+use alloy_sol_types::{sol, SolEvent};
+use reqwest::Url;
 use reth::primitives::BlockId;
-
-use reth::rpc::types::{BlockTransactionsKind, TransactionInput, TransactionReceipt};
-use reth_primitives::constants::GWEI_TO_WEI;
-use reqwest::{Client, Url};
+use reth::rpc::types::{BlockTransactionsKind, TransactionInput};
+use std::str::FromStr;
 use tracing::info;
-use reth::primitives::BlockNumberOrTag::Number;
-use reth::rpc::builder::Identity;
 
 #[tokio::test]
 pub async fn run_local() {
@@ -68,7 +61,8 @@ pub async fn test_blocknum_onchain(url: &str, private_key: &str) {
     let address = signer.address();
     let wallet = EthereumWallet::from(signer);
 
-    let provider = ProviderBuilder::new().wallet(wallet.clone()).on_http(Url::from_str(url).unwrap());
+    let provider =
+        ProviderBuilder::new().wallet(wallet.clone()).on_http(Url::from_str(url).unwrap());
 
     info!("Deploying contract using address {address}");
 
@@ -137,5 +131,4 @@ pub async fn test_blocknum_onchain(url: &str, private_key: &str) {
     //
     // let block_num_five_back = block_num_checker.getBlockNum().call().block(BlockId::number(rpc_block_num - 5)).await.unwrap();
     // assert!(block_num_five_back._0 == U256::from(rpc_block_num - 5), "Block number 5 blocks back via historical eth_call is not correct");
-
 }

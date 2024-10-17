@@ -1,10 +1,6 @@
-use alloy_network::eip2718::Eip2718Error;
-use alloy_network::{AnyTxType, Network};
 use alloy_provider::{Provider, ProviderBuilder};
 use antelope::api::client::{APIClient, DefaultProvider};
-use derive_more::Display;
 use reqwest::Url;
-use reth::rpc::types::{AnyTransactionReceipt, Header, Transaction, TransactionRequest};
 use reth::{
     args::RpcServerArgs,
     builder::{NodeBuilder, NodeConfig},
@@ -14,17 +10,18 @@ use reth_chainspec::{ChainSpec, ChainSpecBuilder, TEVMTESTNET};
 use reth_e2e_test_utils::node::NodeTestContext;
 use reth_node_telos::{TelosArgs, TelosNode};
 use reth_telos_rpc::TelosClient;
-use std::fs;
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::time::Duration;
-use telos_consensus_client::client::ConsensusClient;
-use telos_consensus_client::config::{AppConfig, CliArgs};
-use telos_translator_rs::{block::TelosEVMBlock, types::translator_types::ChainId};
-use telos_consensus_client::main_utils::build_consensus_client;
-use telos_translator_rs::translator::Translator;
-use testcontainers::core::ContainerPort::Tcp;
-use testcontainers::{runners::AsyncRunner, ContainerAsync, GenericImage};
+use std::{fs, path::PathBuf, sync::Arc, time::Duration};
+use telos_consensus_client::{
+    client::ConsensusClient,
+    config::{AppConfig, CliArgs},
+    main_utils::build_consensus_client,
+};
+use telos_translator_rs::{
+    block::TelosEVMBlock, translator::Translator, types::translator_types::ChainId,
+};
+use testcontainers::{
+    core::ContainerPort::Tcp, runners::AsyncRunner, ContainerAsync, GenericImage,
+};
 use tokio::sync::mpsc;
 
 pub mod live_test_runner;
@@ -34,7 +31,8 @@ struct TelosRethNodeHandle {
     jwt_secret: String,
 }
 
-const CONTAINER_TAG: &str = "v0.1.11@sha256:d138f2e08db108d5d420b4db99a57fb9d45a3ee3e0f0faa7d4c4a065f7f018ce";
+const CONTAINER_TAG: &str =
+    "v0.1.11@sha256:d138f2e08db108d5d420b4db99a57fb9d45a3ee3e0f0faa7d4c4a065f7f018ce";
 
 // This is the last block in the container, after this block the node is done syncing and is running live
 const CONTAINER_LAST_EVM_BLOCK: u64 = 1010;
@@ -45,14 +43,13 @@ async fn start_ship() -> ContainerAsync<GenericImage> {
 
     // The tag for this image needs to come from the Github packages UI, under the "OS/Arch" tab
     //   and should be the tag for linux/amd64
-    let container: ContainerAsync<GenericImage> = GenericImage::new(
-        "ghcr.io/telosnetwork/testcontainer-nodeos-evm", CONTAINER_TAG
-    )
-    .with_exposed_port(Tcp(8888))
-    .with_exposed_port(Tcp(18999))
-    .start()
-    .await
-    .unwrap();
+    let container: ContainerAsync<GenericImage> =
+        GenericImage::new("ghcr.io/telosnetwork/testcontainer-nodeos-evm", CONTAINER_TAG)
+            .with_exposed_port(Tcp(8888))
+            .with_exposed_port(Tcp(18999))
+            .start()
+            .await
+            .unwrap();
 
     let port_8888 = container.get_host_port_ipv4(8888).await.unwrap();
 

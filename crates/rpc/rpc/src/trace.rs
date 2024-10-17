@@ -39,9 +39,6 @@ use revm_inspectors::{
 };
 use tokio::sync::{AcquireError, OwnedSemaphorePermit};
 
-#[cfg(feature = "telos")]
-use reth_telos_primitives_traits::TelosTxEnv;
-
 /// `trace` API implementation.
 ///
 /// This type provides the functionality for handling `trace` related requests.
