@@ -9,7 +9,7 @@ use alloy_eips::{
     BlockNumHash,
 };
 use alloy_primitives::{
-    b256, keccak256, Address, BlockNumber, Bloom, Bytes, Sealable, Sealed, B256, B64, U256,
+    keccak256, Address, BlockNumber, Bloom, Bytes, Sealable, Sealed, B256, B64, U256,
 };
 use alloy_rlp::{
     length_of_length, Buf, BufMut, Decodable, Encodable, EMPTY_LIST_CODE, EMPTY_STRING_CODE,
@@ -18,6 +18,7 @@ use core::mem;
 use reth_codecs::Compact;
 use crate::TelosBlockExtension;
 
+/// TelosHeader
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
@@ -737,6 +738,7 @@ pub(super) mod serde_bincode_compat {
         parent_beacon_block_root: Option<B256>,
         #[serde(default)]
         requests_root: Option<B256>,
+	/// telos_block_extension
         pub telos_block_extension: Cow<'a, TelosBlockExtension>,
         extra_data: Cow<'a, Bytes>,
     }
