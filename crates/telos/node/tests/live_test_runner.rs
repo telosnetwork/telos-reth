@@ -1,16 +1,23 @@
-use alloy_network::{ReceiptResponse, TransactionBuilder};
-use alloy_primitives::U256;
+use std::fmt::Debug;
+use std::str::FromStr;
+use alloy_contract::private::Transport;
+use alloy_network::{Ethereum, Network, ReceiptResponse, TransactionBuilder};
+use alloy_primitives::{Address, B256, U256};
+use alloy_primitives::private::proptest::collection::vec;
 use alloy_provider::network::EthereumWallet;
 use alloy_provider::{Provider, ProviderBuilder};
-use alloy_rpc_types::TransactionRequest;
+use alloy_rpc_types::{TransactionRequest};
 use alloy_signer_local::PrivateKeySigner;
-use alloy_sol_types::private::primitives::TxKind::Create;
+use alloy_sol_types::private::primitives::TxKind::{Create};
 use alloy_sol_types::{sol, SolEvent};
-use reqwest::Url;
-use reth::primitives::BlockId;
+
 use reth::rpc::types::{BlockTransactionsKind, TransactionInput};
-use std::str::FromStr;
+use reqwest::{Url};
+
 use tracing::info;
+use reth::primitives::BlockId;
+use reth::revm::primitives::{AccessList, AccessListItem};
+
 
 #[tokio::test]
 pub async fn run_local() {
@@ -92,7 +99,7 @@ pub async fn test_blocknum_onchain(url: &str, private_key: &str) {
         ..Default::default()
     };
 
-    let deploy_result = provider.send_transaction(legacy_tx_request).await.unwrap();
+    let deploy_result = provider.send_transaction(legacy_tx_request.clone()).await.unwrap();
 
     let deploy_tx_hash = deploy_result.tx_hash();
     info!("Deployed contract with tx hash: {deploy_tx_hash}");
@@ -125,10 +132,63 @@ pub async fn test_blocknum_onchain(url: &str, private_key: &str) {
     assert_eq!(U256::from(rpc_block_num), block_num_event.number);
     info!("Block numbers match inside transaction event");
 
+    // test eip1559 transaction which is not supported
+    test_1559_tx(provider.clone(), address).await;
+    // test eip2930 transaction which is not supported
+    test_2930_tx(provider.clone(), address).await;
+
     // The below needs to be done using LegacyTransaction style call... with the current code it's including base_fee_per_gas and being rejected by reth
     // let block_num_latest = block_num_checker.getBlockNum().call().await.unwrap();
     // assert!(block_num_latest._0 > U256::from(rpc_block_num), "Latest block number via call to getBlockNum is not greater than the block number in the previous log event");
     //
     // let block_num_five_back = block_num_checker.getBlockNum().call().block(BlockId::number(rpc_block_num - 5)).await.unwrap();
     // assert!(block_num_five_back._0 == U256::from(rpc_block_num - 5), "Block number 5 blocks back via historical eth_call is not correct");
+
+}
+
+// test_1559_tx tests sending eip1559 transaction that has max_priority_fee_per_gas and max_fee_per_gas set
+pub async fn test_1559_tx<T>(provider: impl Provider<T, Ethereum> + Send + Sync, sender_address: Address)
+where
+    T: Transport + Clone + Debug,
+{
+    let nonce = provider.get_transaction_count(sender_address).await.unwrap();
+    let chain_id = provider.get_chain_id().await.unwrap();
+    let to_address: Address = Address::from_str("0x23CB6AE34A13a0977F4d7101eBc24B87Bb23F0d4").unwrap();
+
+    let tx = TransactionRequest::default()
+        .with_to(to_address)
+        .with_nonce(nonce)
+        .with_chain_id(chain_id)
+        .with_value(U256::from(100))
+        .with_gas_limit(21_000)
+        .with_max_priority_fee_per_gas(1_000_000_000)
+        .with_max_fee_per_gas(20_000_000_000);
+
+    let tx_result = provider.send_transaction(tx).await;
+    assert!(tx_result.is_err());
+}
+
+// test_2930_tx tests sending eip2930 transaction which has access_list provided
+pub async fn test_2930_tx<T>(provider: impl Provider<T, Ethereum> + Send + Sync, sender_address: Address)
+where
+    T: Transport + Clone + Debug,
+
+{
+    let nonce = provider.get_transaction_count(sender_address).await.unwrap();
+    let chain_id = provider.get_chain_id().await.unwrap();
+    let gas_price = provider.get_gas_price().await.unwrap();
+
+    let to_address: Address = Address::from_str("0x23CB6AE34A13a0977F4d7101eBc24B87Bb23F0d4").unwrap();
+    let tx = TransactionRequest::default()
+        .to(to_address)
+        .nonce(nonce)
+        .value(U256::from(1e17))
+        .with_chain_id(chain_id)
+        .with_gas_price(gas_price)
+        .with_gas_limit(20_000_000)
+        .max_priority_fee_per_gas(1e11 as u128)
+        .with_access_list(AccessList::from(vec![AccessListItem { address: to_address, storage_keys: vec![B256::ZERO] }]))
+        .max_fee_per_gas(2e9 as u128);
+    let tx_result = provider.send_transaction(tx).await;
+    assert!(tx_result.is_err());
 }
