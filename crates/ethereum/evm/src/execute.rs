@@ -283,7 +283,7 @@ where
         }
 
         #[cfg(feature = "telos")]
-            let receipts = if unwrapped_telos_extra_fields.receipts.is_some() {
+        let receipts = if unwrapped_telos_extra_fields.receipts.is_some() {
             unwrapped_telos_extra_fields.receipts.clone().unwrap()
         } else {
             vec![]
