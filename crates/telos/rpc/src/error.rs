@@ -1,6 +1,6 @@
 //! RPC errors specific to Telos.
 
-
+/// TelosEthApiError
 pub type TelosEthApiError = reth_rpc_eth_types::EthApiError;
 
 // use reth_rpc_eth_api::AsEthApiError;

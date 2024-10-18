@@ -18,13 +18,10 @@ use reth_consensus_common::validation::{
     validate_header_extradata, validate_header_gas,
 };
 use reth_primitives::{
-    constants::MINIMUM_GAS_LIMIT, BlockWithSenders, Header, SealedBlock, SealedHeader,
+    BlockWithSenders, Header, SealedBlock, SealedHeader,
     EMPTY_OMMER_ROOT_HASH,
 };
 use std::{fmt::Debug, sync::Arc, time::SystemTime};
-
-/// The bound divisor of the gas limit, used in update calculations.
-const GAS_LIMIT_BOUND_DIVISOR: u64 = 1024;
 
 mod validation;
 pub use validation::validate_block_post_execution;
@@ -44,6 +41,7 @@ impl<ChainSpec: EthChainSpec + EthereumHardforks> EthBeaconConsensus<ChainSpec> 
         Self { chain_spec }
     }
 
+    #[cfg(not(feature = "telos"))]
     /// Checks the gas limit for consistency between parent and self headers.
     ///
     /// The maximum allowable difference between self and parent gas limits is determined by the
@@ -64,7 +62,6 @@ impl<ChainSpec: EthChainSpec + EthereumHardforks> EthBeaconConsensus<ChainSpec> 
                 parent.gas_limit
             };
 
-        #[cfg(not(feature = "telos"))]
         // Check for an increase in gas limit beyond the allowed threshold.
 
         if header.gas_limit > parent_gas_limit {

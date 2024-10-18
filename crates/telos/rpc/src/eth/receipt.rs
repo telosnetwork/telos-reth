@@ -2,7 +2,7 @@
 
 use reth_node_api::FullNodeComponents;
 use reth_primitives::{Receipt, TransactionMeta, TransactionSigned};
-use reth_rpc_eth_api::{helpers::{EthApiSpec, LoadReceipt, LoadTransaction}, FromEthApiError, RpcReceipt};
+use reth_rpc_eth_api::{helpers::LoadReceipt, FromEthApiError, RpcReceipt};
 use reth_rpc_eth_types::{EthApiError, EthStateCache, ReceiptBuilder};
 use crate::eth::TelosEthApi;
 
