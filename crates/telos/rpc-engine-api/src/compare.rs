@@ -29,7 +29,10 @@ impl StateOverride {
                 Ok(maybe_info) => {
                     maybe_info.unwrap_or_else(|| AccountInfo::default())
                 },
-                Err(_) => AccountInfo::default()
+                Err(_) => {
+                    status = AccountStatus::Created | AccountStatus::Touched;
+                    AccountInfo::default()
+                }
             };
 
             self.accounts.insert(address, Account {
@@ -156,6 +159,7 @@ where
         }
         // Skip if row is removed
         if row.removed {
+            // TODO: Does the Telos EVM contract ever remove account rows, or should this be a panic??
             continue
         }
         if let Ok(revm_row) = revm_db.basic(row.address) {
@@ -258,5 +262,5 @@ where
 
     state_override.apply(revm_db);
 
-    return true
+    true
 }
