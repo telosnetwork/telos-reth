@@ -1,4 +1,6 @@
-use alloy_provider::ProviderBuilder;
+use std::str::FromStr;
+use alloy_primitives::{Address, U256};
+use alloy_provider::{Provider, ProviderBuilder, ReqwestProvider};
 use antelope::api::client::{APIClient, DefaultProvider};
 use antelope::api::v1::structs::{GetTableRowsParams, TableIndexType};
 use antelope::chain::name::Name;
@@ -6,7 +8,7 @@ use antelope::name;
 use reqwest::Url;
 use telos_translator_rs::types::evm_types::AccountRow;
 
-// #[tokio::test]
+#[tokio::test]
 pub async fn compare() {
     let evm_rpc = "http://localhost:8545";
     // let telos_rpc = "http://192.168.0.20:8884";
@@ -16,9 +18,8 @@ pub async fn compare() {
     let api_client = APIClient::<DefaultProvider>::default_provider(telos_rpc.into(), Some(5)).unwrap();
     let info = api_client.v1_chain.get_info().await.unwrap();
 
-
-    // let provider = ProviderBuilder::new()
-    //     .on_http(Url::from_str(evm_rpc).unwrap());
+    let provider = ProviderBuilder::new()
+        .on_http(Url::from_str(evm_rpc).unwrap());
 
     println!("Telos chain info: {:?}", info);
     let evm_block_num = info.head_block_num - block_delta;
@@ -45,7 +46,8 @@ pub async fn compare() {
             lower_bound = account_rows.next_key;
             has_more = lower_bound.is_some();
             for account_row in account_rows.rows {
-                println!("Account: {:?}", account_row.address.as_string());
+                let address = Address::from_slice(account_row.address.data.as_slice());
+                println!("Account: {:?}", address);
                 count += 1;
                 lower_bound = Some(TableIndexType::UINT64(account_row.index + 1));
             }
@@ -55,4 +57,14 @@ pub async fn compare() {
     }
 
     println!("Total account rows: {}", count);
+}
+
+async fn compare_account(account_row: AccountRow, provider: &ReqwestProvider) {
+    let address = Address::from_slice(account_row.address.data.as_slice());
+    let telos_balance = U256::from(account_row.balance.data.as_slice());
+    let telos_nonce = U256::from(account_row.nonce);
+    let telos_code = account_row.code;
+    let reth_balance = provider.get_balance(address).await.unwrap();
+
+    println!("Account: {:?}", address);
 }
