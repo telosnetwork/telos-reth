@@ -1,6 +1,7 @@
 use std::str::FromStr;
 use alloy_primitives::{Address, U256};
 use alloy_provider::{Provider, ProviderBuilder, ReqwestProvider};
+use alloy_rpc_types::BlockId;
 use antelope::api::client::{APIClient, DefaultProvider};
 use antelope::api::v1::structs::{GetTableRowsParams, TableIndexType};
 use antelope::chain::name::Name;
@@ -59,12 +60,16 @@ pub async fn compare() {
     println!("Total account rows: {}", count);
 }
 
-async fn compare_account(account_row: AccountRow, provider: &ReqwestProvider) {
+async fn compare_account(account_row: AccountRow, provider: &ReqwestProvider, at_block: BlockId) {
     let address = Address::from_slice(account_row.address.data.as_slice());
-    let telos_balance = U256::from(account_row.balance.data.as_slice());
+    let telos_balance = U256::from_be_slice(account_row.balance.data.as_slice());
     let telos_nonce = U256::from(account_row.nonce);
     let telos_code = account_row.code;
-    let reth_balance = provider.get_balance(address).await.unwrap();
+
+    let reth_balance = provider.get_balance(address).block_id(at_block).await.unwrap();
+    let reth_nonce = provider.get_transaction_count(address).block_id(at_block).await.unwrap();
+    let reth_code = provider.get_code_at(address).block_id(at_block).await.unwrap();
+
 
     println!("Account: {:?}", address);
 }
