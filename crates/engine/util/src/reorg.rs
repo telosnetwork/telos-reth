@@ -254,7 +254,7 @@ where
 
     // Ensure next payload is valid.
     let next_block = payload_validator
-        .ensure_well_formed_payload(next_payload, next_cancun_fields.into(), #[cfg(feature = "telos")] telos_extra_fields.clone().unwrap_or_default())
+        .ensure_well_formed_payload(next_payload, next_cancun_fields.into())
         .map_err(RethError::msg)?;
 
     // Fetch reorg target block depending on its depth and its parent.
