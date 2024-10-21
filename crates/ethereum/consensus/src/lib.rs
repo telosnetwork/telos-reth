@@ -44,6 +44,7 @@ impl<ChainSpec: EthChainSpec + EthereumHardforks> EthBeaconConsensus<ChainSpec> 
         Self { chain_spec }
     }
 
+    #[cfg(not(feature = "telos"))]
     /// Checks the gas limit for consistency between parent and self headers.
     ///
     /// The maximum allowable difference between self and parent gas limits is determined by the
@@ -64,7 +65,6 @@ impl<ChainSpec: EthChainSpec + EthereumHardforks> EthBeaconConsensus<ChainSpec> 
                 parent.gas_limit
             };
 
-        #[cfg(not(feature = "telos"))]
         // Check for an increase in gas limit beyond the allowed threshold.
 
         if header.gas_limit > parent_gas_limit {

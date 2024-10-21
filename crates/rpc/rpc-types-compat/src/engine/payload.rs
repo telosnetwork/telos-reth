@@ -17,9 +17,6 @@ use reth_primitives::{
     Block, BlockBody, Header, Request, SealedBlock, TransactionSigned, Withdrawals,
 };
 
-#[cfg(feature = "telos")]
-use reth_telos_primitives_traits::TelosBlockExtension;
-
 /// Converts [`ExecutionPayloadV1`] to [`Block`]
 pub fn try_payload_v1_to_block(payload: ExecutionPayloadV1) -> Result<Block, PayloadError> {
     if payload.extra_data.len() > MAXIMUM_EXTRA_DATA_SIZE {

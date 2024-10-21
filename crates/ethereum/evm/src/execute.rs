@@ -18,7 +18,7 @@ use reth_evm::{
     ConfigureEvm,
 };
 use reth_execution_types::ExecutionOutcome;
-use reth_primitives::{BlockWithSenders, EthereumHardfork, Header, Receipt, Request, SealedBlock, SealedBlockWithSenders, SealedHeader};
+use reth_primitives::{BlockWithSenders, EthereumHardfork, Header, Receipt, Request};
 use reth_prune_types::PruneModes;
 use reth_revm::{
     batch::BlockBatchRecord,

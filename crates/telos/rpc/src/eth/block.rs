@@ -6,7 +6,7 @@ use reth_primitives::TransactionMeta;
 use reth_provider::{BlockReaderIdExt, HeaderProvider};
 use reth_rpc_eth_api::{
     helpers::{
-        EthApiSpec, EthBlocks, LoadBlock, LoadPendingBlock, LoadTransaction,
+        EthBlocks, LoadBlock, LoadPendingBlock,
         SpawnBlocking, LoadReceipt,
     },
     RpcReceipt
