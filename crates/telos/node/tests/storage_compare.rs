@@ -5,9 +5,28 @@ use alloy_rpc_types::BlockId;
 use antelope::api::client::{APIClient, DefaultProvider};
 use antelope::api::v1::structs::{GetTableRowsParams, TableIndexType};
 use antelope::chain::name::Name;
-use antelope::name;
+use antelope::{name, StructPacker};
+use antelope::chain::{Encoder, Decoder, Packer};
+use antelope::chain::checksum::{Checksum160, Checksum256};
 use reqwest::Url;
-use telos_translator_rs::types::evm_types::{AccountRow, AccountStateRow};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, StructPacker)]
+pub struct AccountRow {
+    pub index: u64,
+    pub address: Checksum160,
+    pub account: Name,
+    pub nonce: u64,
+    pub code: Vec<u8>,
+    pub balance: Checksum256,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, StructPacker)]
+pub struct AccountStateRow {
+    pub index: u64,
+    pub key: Checksum256,
+    pub value: Checksum256,
+}
 
 #[tokio::test]
 pub async fn compare() {
@@ -22,8 +41,8 @@ pub async fn compare() {
     let provider = ProviderBuilder::new()
         .on_http(Url::from_str(evm_rpc).unwrap());
 
-    println!("Telos chain info: {:?}", info);
     let evm_block_num = info.head_block_num - block_delta;
+    println!("Telos EVM Block Number: {:?}", evm_block_num);
 
     let mut has_more = true;
     let mut lower_bound = Some(TableIndexType::UINT64(0));
