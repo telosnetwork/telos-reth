@@ -231,9 +231,15 @@ where
         }
         if let Ok(revm_row) = revm_db.storage(row.address, row.key) {
             // The values should match, but if it is removed, then the revm value should be zero
-            if !(revm_row == row.value) && !(revm_row != U256::ZERO || row.removed == true) {
-                maybe_panic!(panic_mode, "Difference in value on revm storage, address: {:?}, key: {:?}, revm-value: {:?}, tevm-row: {:?}", row.address, row.key, revm_row, row);
-                state_override.override_storage(revm_db, row.address, row.key, row.value);
+            if revm_row != row.value {
+                if revm_row != U256::ZERO && row.removed == true {
+                    maybe_panic!(panic_mode, "Difference in value on revm storage, removed on Telos, non-ZERO on revm, address: {:?}, key: {:?}, revm-value: {:?}, tevm-row: {:?}", row.address, row.key, revm_row, row);
+                    state_override.override_storage(revm_db, row.address, row.key, U256::ZERO);
+                }
+                if row.removed == false {
+                    maybe_panic!(panic_mode, "Difference in value on revm storage, address: {:?}, key: {:?}, revm-value: {:?}, tevm-row: {:?}", row.address, row.key, revm_row, row);
+                    state_override.override_storage(revm_db, row.address, row.key, row.value);
+                }
             }
         } else {
             maybe_panic!(panic_mode, "Key was not found on revm storage, address: {:?}, key: {:?}",row.address,row.key);
