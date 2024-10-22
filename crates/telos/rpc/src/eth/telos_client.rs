@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use reth_rpc_eth_types::error::{EthResult};
+use reth_rpc_eth_types::error::EthResult;
 use antelope::api::client::{APIClient, DefaultProvider};
 use antelope::chain::name::Name;
 use antelope::chain::private_key::PrivateKey;
@@ -7,8 +7,10 @@ use antelope::{chain::{Packer, Encoder, Decoder}, name, StructPacker};
 use antelope::chain::action::{Action, PermissionLevel};
 use antelope::chain::checksum::Checksum160;
 use antelope::chain::transaction::{SignedTransaction, Transaction};
-use log::{debug, error};
+use backoff::Exponential;
 use reth_rpc_eth_types::EthApiError;
+use std::future::Future;
+use tracing::{debug, error, warn};
 
 /// A client to interact with a Telos node
 #[derive(Debug, Clone)]
@@ -45,10 +47,59 @@ struct RawActionData {
     pub sender: Option<Checksum160>,
 }
 
+mod backoff {
+    use std::time::Duration;
+
+    pub(crate) struct Exponential {
+        current: u64,
+        factor: u64,
+        max: u64,
+    }
+
+    impl Iterator for Exponential {
+        type Item = Duration;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            let current = Duration::from_millis(self.current);
+            self.current = (self.current * self.factor).min(self.max);
+            Some(current)
+        }
+    }
+
+    impl Default for Exponential {
+        fn default() -> Self {
+            Self { current: 2, factor: 2, max: 4096 } // 8 seconds total
+        }
+    }
+}
+
+async fn retry<F, Fut, T>(mut call: F) -> Result<T, String>
+where
+    F: FnMut() -> Fut,
+    Fut: Future<Output = Result<T, String>>,
+{
+    const RETRIES: usize = 12;
+    let mut backoff = Exponential::default().take(RETRIES - 1);
+    let mut retry_num = 0;
+    loop {
+        match (call().await, backoff.next()) {
+            (Ok(value), _) => return Ok(value),
+            (Err(_), Some(wait)) => tokio::time::sleep(wait).await,
+            (Err(error), None) => return Err(error),
+        }
+        retry_num += 1;
+        debug!("Retrying, attempt number: {retry_num}");
+    }
+}
+
 impl TelosClient {
     /// Creates a new [`TelosClient`].
     pub fn new(telos_client_args: TelosClientArgs) -> Self {
-        if telos_client_args.telos_endpoint.is_none() || telos_client_args.signer_account.is_none() || telos_client_args.signer_permission.is_none() || telos_client_args.signer_key.is_none() {
+        if telos_client_args.telos_endpoint.is_none()
+            || telos_client_args.signer_account.is_none()
+            || telos_client_args.signer_permission.is_none()
+            || telos_client_args.signer_key.is_none()
+        {
             panic!("Should not construct TelosClient without proper TelosArgs with telos_endpoint and signer args");
         }
         let api_client = APIClient::<DefaultProvider>::default_provider(telos_client_args.telos_endpoint.unwrap().into(), Some(3)).unwrap();
@@ -56,7 +107,8 @@ impl TelosClient {
             api_client,
             signer_account: name!(&telos_client_args.signer_account.unwrap()),
             signer_permission: name!(&telos_client_args.signer_permission.unwrap()),
-            signer_key: PrivateKey::from_str(&telos_client_args.signer_key.unwrap(), false).unwrap(),
+            signer_key: PrivateKey::from_str(&telos_client_args.signer_key.unwrap(), false)
+                .unwrap(),
         };
         Self { inner: Arc::new(inner) }
     }
@@ -78,10 +130,7 @@ impl TelosClient {
         let action = Action::new_ex(
             name!("eosio.evm"),
             name!("raw"),
-            vec![PermissionLevel::new(
-                self.inner.signer_account,
-                self.inner.signer_permission,
-            )],
+            vec![PermissionLevel::new(self.inner.signer_account, self.inner.signer_permission)],
             raw_action_data,
         );
 
@@ -94,22 +143,37 @@ impl TelosClient {
 
         let signed_telos_transaction = SignedTransaction {
             transaction: transaction.clone(),
-            signatures: vec![self.inner
+            signatures: vec![self
+                .inner
                 .signer_key
-                .sign_message(&transaction.signing_data(&get_info.chain_id.data.to_vec()))],
+                .sign_message(&transaction.signing_data(get_info.chain_id.data.as_ref()))],
             context_free_data: vec![],
         };
 
-        let result = self.inner.api_client.v1_chain.send_transaction(signed_telos_transaction);
+        let tx_response = retry(|| async {
+            self.inner
+                .api_client
+                .v1_chain
+                .send_transaction(signed_telos_transaction.clone())
+                .await
+                .map_err(|error| {
+                    warn!("{error:?}");
+                    format!("{error:?}")
+                })
+        })
+        .await;
 
-        let trx_response = result.await;
-        if trx_response.is_err() {
-            let err = trx_response.unwrap_err();
-            error!("Error sending transaction to Telos: {:?}", err);
-            return Err(EthApiError::EvmCustom("Error sending transaction to Telos".to_string()));
-        }
+        let tx = match tx_response {
+            Ok(value) => value,
+            Err(err) => {
+                error!("Error sending transaction to Telos: {:?}", err);
+                return Err(EthApiError::EvmCustom(
+                    "Error sending transaction to Telos".to_string(),
+                ));
+            }
+        };
 
-        debug!("Transaction sent to Telos: {:?}", trx_response.unwrap().transaction_id);
+        debug!("Transaction sent to Telos: {:?}", tx.transaction_id);
         Ok(())
     }
 }
