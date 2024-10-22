@@ -1,5 +1,5 @@
 use std::str::FromStr;
-use alloy_primitives::{Address, U256};
+use alloy_primitives::{Address, StorageValue, U256};
 use alloy_provider::{Provider, ProviderBuilder, ReqwestProvider};
 use alloy_rpc_types::BlockId;
 use antelope::api::client::{APIClient, DefaultProvider};
@@ -30,9 +30,10 @@ pub struct AccountStateRow {
 
 #[tokio::test]
 pub async fn compare() {
-    let evm_rpc = "http://localhost:8545";
+    let evm_rpc = "http://38.91.106.49:9545";
+    // let evm_rpc = "http://localhost:8545";
     // let telos_rpc = "http://192.168.0.20:8884";
-    let telos_rpc = "http://38.91.106.49:9000";
+    let telos_rpc = "http://38.91.106.49:8899";
     let block_delta = 57;
 
     let api_client = APIClient::<DefaultProvider>::default_provider(telos_rpc.into(), Some(5)).unwrap();
@@ -135,12 +136,15 @@ async fn compare_account_storage(account_row: &AccountRow, api_client: &APIClien
             has_more = lower_bound.is_some();
             for account_state_row in account_state_rows.rows {
                 let key = U256::from_be_slice(account_state_row.key.data.as_slice());
-                let telos_value = U256::from_be_slice(account_state_row.value.data.as_slice());
-                let reth_value = provider.get_storage_at(address, key).block_id(at_block).await.unwrap();
+                let telos_value: U256 = U256::from_be_slice(account_state_row.value.data.as_slice());
+                let reth_value: U256 = provider.get_storage_at(address, key).block_id(at_block).await.unwrap();
                 if telos_value != reth_value {
-                    println!("Storage key: {:?}", key);
+                    println!("STORAGE MISMATCH!!!");
+                    println!("Storage account: {:?} with scope: {:?} and key: {:?}", address, scope.unwrap(), key);
                     println!("Telos Storage value: {:?}", telos_value);
-                    println!("Reth storage value: {:?}", reth_value);
+                    println!("Reth storage value:  {:?}", reth_value);
+                } else {
+                    println!(">>>>>>Storage match!!!!!<<<<<<");
                 }
                 lower_bound = Some(TableIndexType::UINT64(account_state_row.index + 1));
                 count += 1;
