@@ -49,6 +49,7 @@ impl MatchCounter {
     }
 
     pub fn print(&self) {
+        println!("Compared at block: {:?}", self.evm_block_number);
         println!("Mismatched accounts: {}", self.mismatched_accounts);
         println!("Mismatched storage rows: {}", self.mismatched_storage_rows);
         println!("Matching accounts: {}", self.total_accounts - self.mismatched_accounts);
