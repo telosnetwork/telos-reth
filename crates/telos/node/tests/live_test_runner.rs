@@ -1,23 +1,21 @@
 use std::fmt::Debug;
 use std::str::FromStr;
 use alloy_contract::private::Transport;
-use alloy_network::{Ethereum, Network, ReceiptResponse, TransactionBuilder};
-use alloy_primitives::{Address, B256, U256};
-use alloy_primitives::private::proptest::collection::vec;
+use alloy_network::{Ethereum, ReceiptResponse, TransactionBuilder};
+use alloy_primitives::{keccak256, Address, B256, U256};
 use alloy_provider::network::EthereumWallet;
 use alloy_provider::{Provider, ProviderBuilder};
 use alloy_rpc_types::{TransactionRequest};
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::private::primitives::TxKind::{Create};
 use alloy_sol_types::{sol, SolEvent};
-
 use reth::rpc::types::{BlockTransactionsKind, TransactionInput};
 use reqwest::{Url};
-
 use tracing::info;
 use reth::primitives::BlockId;
-use reth::revm::primitives::{AccessList, AccessListItem};
 
+use reth::primitives::revm_primitives::bytes::Bytes;
+use reth::revm::primitives::{AccessList, AccessListItem};
 
 #[tokio::test]
 pub async fn run_local() {
@@ -136,7 +134,8 @@ pub async fn test_blocknum_onchain(url: &str, private_key: &str) {
     test_1559_tx(provider.clone(), address).await;
     // test eip2930 transaction which is not supported
     test_2930_tx(provider.clone(), address).await;
-
+    //  test double approve erc20 call
+    test_double_approve_erc20(provider.clone(), address).await;
     // The below needs to be done using LegacyTransaction style call... with the current code it's including base_fee_per_gas and being rejected by reth
     // let block_num_latest = block_num_checker.getBlockNum().call().await.unwrap();
     // assert!(block_num_latest._0 > U256::from(rpc_block_num), "Latest block number via call to getBlockNum is not greater than the block number in the previous log event");
@@ -190,5 +189,46 @@ where
         .with_access_list(AccessList::from(vec![AccessListItem { address: to_address, storage_keys: vec![B256::ZERO] }]))
         .max_fee_per_gas(2e9 as u128);
     let tx_result = provider.send_transaction(tx).await;
+    assert!(tx_result.is_err());
+}
+
+// test_double_approve_erc20 sends 2 transactions for approve on the ERC20 token and asserts that only once it is success
+pub async fn test_double_approve_erc20<T>(provider: impl Provider<T, Ethereum> + Send + Sync, sender_address: Address)
+where
+    T: Transport + Clone + Debug,
+
+{
+    let nonce = provider.get_transaction_count(sender_address).await.unwrap();
+    let chain_id = provider.get_chain_id().await.unwrap();
+    let gas_price = provider.get_gas_price().await.unwrap();
+
+    let erc20_contract_address: Address = "0x49f54c5e2301eb9256438123e80762470c2c7ec2".parse().unwrap();
+    let spender: Address = "0x23CB6AE34A13a0977F4d7101eBc24B87Bb23F0d4".parse().unwrap();
+    let function_signature = "approve(address,uint256)";
+    let amount: U256 = U256::from(0);
+    let selector = &keccak256(function_signature.as_bytes())[..4];
+    let amount_bytes: [u8; 32] = amount.to_be_bytes();
+    let mut encoded_data = Vec::new();
+    encoded_data.extend_from_slice(selector);
+    encoded_data.extend_from_slice(spender.as_ref());
+    encoded_data.extend_from_slice(&amount_bytes);
+    let input_data = Bytes::from(encoded_data);
+
+    // Build approve transaction
+    let tx = TransactionRequest::default()
+        .to(erc20_contract_address)
+        .with_input(input_data)
+        .nonce(nonce)
+        .value(U256::from(10))
+        .with_chain_id(chain_id)
+        .with_gas_price(gas_price)
+        .with_gas_limit(20_000_000);
+
+    // call approve
+    let tx_result = provider.send_transaction(tx.clone()).await;
+    assert!(tx_result.is_ok());
+
+    // repeat approve
+    let tx_result = provider.send_transaction(tx.clone()).await;
     assert!(tx_result.is_err());
 }
