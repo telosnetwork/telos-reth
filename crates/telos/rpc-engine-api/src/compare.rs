@@ -84,12 +84,12 @@ impl StateOverride {
         }
     }
 
-    pub fn override_storage<DB: Database> (&mut self, revm_db: &mut &mut State<DB>, address: Address, key: U256, val: U256) {
+    pub fn override_storage<DB: Database> (&mut self, revm_db: &mut &mut State<DB>, address: Address, key: U256, new_val: U256, old_val: U256) {
         self.maybe_init_account(revm_db, address);
         let mut acc = self.accounts.get_mut(&address).unwrap();
         acc.storage.insert(key, EvmStorageSlot {
-            original_value: Default::default(),
-            present_value: val,
+            original_value: old_val,
+            present_value: new_val,
             is_cold: false
         });
     }
@@ -234,16 +234,16 @@ where
             if revm_row != row.value {
                 if revm_row != U256::ZERO && row.removed == true {
                     maybe_panic!(panic_mode, "Difference in value on revm storage, removed on Telos, non-ZERO on revm, address: {:?}, key: {:?}, revm-value: {:?}, tevm-row: {:?}", row.address, row.key, revm_row, row);
-                    state_override.override_storage(revm_db, row.address, row.key, U256::ZERO);
+                    state_override.override_storage(revm_db, row.address, row.key, U256::ZERO, revm_row);
                 }
                 if row.removed == false {
                     maybe_panic!(panic_mode, "Difference in value on revm storage, address: {:?}, key: {:?}, revm-value: {:?}, tevm-row: {:?}", row.address, row.key, revm_row, row);
-                    state_override.override_storage(revm_db, row.address, row.key, row.value);
+                    state_override.override_storage(revm_db, row.address, row.key, row.value, revm_row);
                 }
             }
         } else {
             maybe_panic!(panic_mode, "Key was not found on revm storage, address: {:?}, key: {:?}",row.address,row.key);
-            state_override.override_storage(revm_db, row.address, row.key, row.value);
+            state_override.override_storage(revm_db, row.address, row.key, row.value, U256::ZERO);
         }
     }
 
