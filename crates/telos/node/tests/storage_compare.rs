@@ -28,14 +28,71 @@ pub struct AccountStateRow {
     pub value: Checksum256,
 }
 
+#[derive(Debug)]
+struct MatchCounter {
+    evm_block_number: BlockId,
+    total_accounts: u64,
+    total_storage_rows: u64,
+    mismatched_accounts: u64,
+    mismatched_storage_rows: u64,
+}
+
+impl MatchCounter {
+    pub fn new(evm_block_number: BlockId) -> Self {
+        Self {
+            evm_block_number,
+            total_accounts: 0,
+            total_storage_rows: 0,
+            mismatched_accounts: 0,
+            mismatched_storage_rows: 0,
+        }
+    }
+
+    pub fn print(&self) {
+        println!("Mismatched accounts: {}", self.mismatched_accounts);
+        println!("Mismatched storage rows: {}", self.mismatched_storage_rows);
+        println!("Matching accounts: {}", self.total_accounts - self.mismatched_accounts);
+        println!("Matching storage rows: {}", self.total_storage_rows - self.mismatched_storage_rows);
+        println!("Total accounts: {}", self.total_accounts);
+        println!("Total storage rows: {}", self.total_storage_rows);
+    }
+
+    pub fn add_matching_account(&mut self) {
+        self.total_accounts += 1;
+    }
+
+    pub fn add_matching_account_storage(&mut self) {
+        self.total_storage_rows += 1;
+    }
+
+    pub fn add_mismatched_account(&mut self) {
+        self.total_accounts += 1;
+        self.mismatched_accounts += 1;
+    }
+
+    pub fn add_mismatched_account_storage(&mut self) {
+        self.total_storage_rows += 1;
+        self.mismatched_storage_rows += 1;
+    }
+
+    pub fn matches(&self) -> bool {
+        self.mismatched_accounts == 0 && self.mismatched_storage_rows == 0
+    }
+
+}
+
 #[tokio::test]
 pub async fn compare() {
-    let evm_rpc = "http://38.91.106.49:9545";
-    // let evm_rpc = "http://localhost:8545";
+    // let evm_rpc = "http://38.91.106.49:9545";
+    let evm_rpc = "http://localhost:8545";
     // let telos_rpc = "http://192.168.0.20:8884";
     let telos_rpc = "http://38.91.106.49:8899";
     let block_delta = 57;
 
+    assert!(storage_matches(evm_rpc, telos_rpc, block_delta).await);
+}
+
+pub async fn storage_matches(evm_rpc: &str, telos_rpc: &str, block_delta: u32) -> bool {
     let api_client = APIClient::<DefaultProvider>::default_provider(telos_rpc.into(), Some(5)).unwrap();
     let info = api_client.v1_chain.get_info().await.unwrap();
 
@@ -49,6 +106,9 @@ pub async fn compare() {
     let mut lower_bound = Some(TableIndexType::UINT64(0));
 
     let mut count = 0;
+
+    let evm_block_id = BlockId::from(evm_block_num as u64);
+    let mut match_counter = MatchCounter::new(evm_block_id);
 
     while has_more {
         let query_params = GetTableRowsParams {
@@ -69,7 +129,7 @@ pub async fn compare() {
             for account_row in account_rows.rows {
                 let address = Address::from_slice(account_row.address.data.as_slice());
                 lower_bound = Some(TableIndexType::UINT64(account_row.index + 1));
-                compare_account(&account_row, &api_client, &provider, BlockId::from(evm_block_num as u64)).await;
+                compare_account(&mut match_counter, &account_row, &api_client, &provider).await;
                 count += 1;
             }
         } else {
@@ -77,10 +137,12 @@ pub async fn compare() {
         }
     }
 
-    println!("Total account rows: {}", count);
+    match_counter.print();
+    match_counter.matches()
 }
 
-async fn compare_account(account_row: &AccountRow, api_client: &APIClient<DefaultProvider>, provider: &ReqwestProvider, at_block: BlockId) {
+async fn compare_account(match_counter: &mut MatchCounter, account_row: &AccountRow, api_client: &APIClient<DefaultProvider>, provider: &ReqwestProvider) {
+    let at_block = match_counter.evm_block_number;
     let address = Address::from_slice(account_row.address.data.as_slice());
     let telos_balance = U256::from_be_slice(account_row.balance.data.as_slice());
 
@@ -93,6 +155,7 @@ async fn compare_account(account_row: &AccountRow, api_client: &APIClient<Defaul
     let code_missmatch = account_row.code != reth_code;
 
     if balance_missmatch || nonce_missmatch || code_missmatch {
+        println!("ACCOUNT MISMATCH!!!");
         println!("Account: {:?}", address);
         println!("Telos balance: {:?}", telos_balance);
         println!("Telos nonce: {:?}", account_row.nonce);
@@ -100,12 +163,15 @@ async fn compare_account(account_row: &AccountRow, api_client: &APIClient<Defaul
         println!("Reth balance: {:?}", reth_balance);
         println!("Reth nonce: {:?}", reth_nonce);
         println!("Reth code: {:?}", reth_code);
+        match_counter.add_mismatched_account();
+    } else {
+        match_counter.add_matching_account();
     }
 
-    compare_account_storage(account_row, api_client, provider, at_block).await;
+    compare_account_storage(match_counter, account_row, api_client, provider).await;
 }
 
-async fn compare_account_storage(account_row: &AccountRow, api_client: &APIClient<DefaultProvider>, provider: &ReqwestProvider, at_block: BlockId) {
+async fn compare_account_storage(match_counter: &mut MatchCounter, account_row: &AccountRow, api_client: &APIClient<DefaultProvider>, provider: &ReqwestProvider) {
     let address = Address::from_slice(account_row.address.data.as_slice());
 
     let mut has_more = true;
@@ -137,14 +203,15 @@ async fn compare_account_storage(account_row: &AccountRow, api_client: &APIClien
             for account_state_row in account_state_rows.rows {
                 let key = U256::from_be_slice(account_state_row.key.data.as_slice());
                 let telos_value: U256 = U256::from_be_slice(account_state_row.value.data.as_slice());
-                let reth_value: U256 = provider.get_storage_at(address, key).block_id(at_block).await.unwrap();
+                let reth_value: U256 = provider.get_storage_at(address, key).block_id(match_counter.evm_block_number).await.unwrap();
                 if telos_value != reth_value {
+                    match_counter.add_mismatched_account_storage();
                     println!("STORAGE MISMATCH!!!");
                     println!("Storage account: {:?} with scope: {:?} and key: {:?}", address, scope.unwrap(), key);
                     println!("Telos Storage value: {:?}", telos_value);
                     println!("Reth storage value:  {:?}", reth_value);
                 } else {
-                    println!(">>>>>>Storage match!!!!!<<<<<<");
+                    match_counter.add_matching_account_storage();
                 }
                 lower_bound = Some(TableIndexType::UINT64(account_state_row.index + 1));
                 count += 1;
