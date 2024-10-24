@@ -9381,7 +9381,7 @@ dependencies = [
 name = "reth-node-telos"
 version = "1.0.8"
 dependencies = [
- "alloy-consensus 0.4.2",
+ "alloy-consensus 0.3.6",
  "alloy-contract",
  "alloy-network 0.4.2",
  "alloy-primitives",

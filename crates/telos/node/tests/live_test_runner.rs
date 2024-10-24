@@ -1,18 +1,20 @@
-use std::fmt::Debug;
-use std::str::FromStr;
+use alloy_consensus::{Signed, TxLegacy};
 use alloy_contract::private::Transport;
 use alloy_network::{Ethereum, ReceiptResponse, TransactionBuilder};
-use alloy_primitives::{keccak256, Address, B256, U256};
+use alloy_primitives::{keccak256, Address, Signature, B256, U256};
 use alloy_provider::network::EthereumWallet;
 use alloy_provider::{Provider, ProviderBuilder};
-use alloy_rpc_types::{TransactionRequest};
+use alloy_rpc_types::TransactionRequest;
 use alloy_signer_local::PrivateKeySigner;
-use alloy_sol_types::private::primitives::TxKind::{Create};
+use alloy_sol_types::private::primitives::TxKind::Create;
 use alloy_sol_types::{sol, SolEvent};
-use reth::rpc::types::{BlockTransactionsKind, TransactionInput};
-use reqwest::{Url};
-use tracing::info;
+use reqwest::Url;
 use reth::primitives::BlockId;
+use reth::rpc::types::{BlockTransactionsKind, TransactionInput};
+use std::fmt::Debug;
+use std::str::FromStr;
+use telos_translator_rs::rlp::telos_rlp_decode::TelosTxDecodable;
+use tracing::info;
 
 use reth::primitives::revm_primitives::bytes::Bytes;
 use reth::revm::primitives::{AccessList, AccessListItem};
@@ -88,7 +90,7 @@ pub async fn test_blocknum_onchain(url: &str, private_key: &str) {
     let legacy_tx_request = TransactionRequest {
         from: Some(address),
         to: Some(legacy_tx.to),
-        gas: Some(legacy_tx.gas_limit),
+        gas: Some(legacy_tx.gas_limit as u64),
         gas_price: Some(legacy_tx.gas_price),
         value: Some(legacy_tx.value),
         input: TransactionInput::from(legacy_tx.input),
@@ -134,25 +136,30 @@ pub async fn test_blocknum_onchain(url: &str, private_key: &str) {
     test_1559_tx(provider.clone(), address).await;
     // test eip2930 transaction which is not supported
     test_2930_tx(provider.clone(), address).await;
-    //  test double approve erc20 call
+    // test double approve erc20 call
     test_double_approve_erc20(provider.clone(), address).await;
+    // test incorrect rlp call
+    test_incorrect_rlp(provider.clone(), address).await;
+
     // The below needs to be done using LegacyTransaction style call... with the current code it's including base_fee_per_gas and being rejected by reth
     // let block_num_latest = block_num_checker.getBlockNum().call().await.unwrap();
     // assert!(block_num_latest._0 > U256::from(rpc_block_num), "Latest block number via call to getBlockNum is not greater than the block number in the previous log event");
     //
     // let block_num_five_back = block_num_checker.getBlockNum().call().block(BlockId::number(rpc_block_num - 5)).await.unwrap();
     // assert!(block_num_five_back._0 == U256::from(rpc_block_num - 5), "Block number 5 blocks back via historical eth_call is not correct");
-
 }
 
 // test_1559_tx tests sending eip1559 transaction that has max_priority_fee_per_gas and max_fee_per_gas set
-pub async fn test_1559_tx<T>(provider: impl Provider<T, Ethereum> + Send + Sync, sender_address: Address)
-where
+pub async fn test_1559_tx<T>(
+    provider: impl Provider<T, Ethereum> + Send + Sync,
+    sender_address: Address,
+) where
     T: Transport + Clone + Debug,
 {
     let nonce = provider.get_transaction_count(sender_address).await.unwrap();
     let chain_id = provider.get_chain_id().await.unwrap();
-    let to_address: Address = Address::from_str("0x23CB6AE34A13a0977F4d7101eBc24B87Bb23F0d4").unwrap();
+    let to_address: Address =
+        Address::from_str("0x23CB6AE34A13a0977F4d7101eBc24B87Bb23F0d4").unwrap();
 
     let tx = TransactionRequest::default()
         .with_to(to_address)
@@ -168,16 +175,18 @@ where
 }
 
 // test_2930_tx tests sending eip2930 transaction which has access_list provided
-pub async fn test_2930_tx<T>(provider: impl Provider<T, Ethereum> + Send + Sync, sender_address: Address)
-where
+pub async fn test_2930_tx<T>(
+    provider: impl Provider<T, Ethereum> + Send + Sync,
+    sender_address: Address,
+) where
     T: Transport + Clone + Debug,
-
 {
     let nonce = provider.get_transaction_count(sender_address).await.unwrap();
     let chain_id = provider.get_chain_id().await.unwrap();
     let gas_price = provider.get_gas_price().await.unwrap();
 
-    let to_address: Address = Address::from_str("0x23CB6AE34A13a0977F4d7101eBc24B87Bb23F0d4").unwrap();
+    let to_address: Address =
+        Address::from_str("0x23CB6AE34A13a0977F4d7101eBc24B87Bb23F0d4").unwrap();
     let tx = TransactionRequest::default()
         .to(to_address)
         .nonce(nonce)
@@ -186,23 +195,28 @@ where
         .with_gas_price(gas_price)
         .with_gas_limit(20_000_000)
         .max_priority_fee_per_gas(1e11 as u128)
-        .with_access_list(AccessList::from(vec![AccessListItem { address: to_address, storage_keys: vec![B256::ZERO] }]))
+        .with_access_list(AccessList::from(vec![AccessListItem {
+            address: to_address,
+            storage_keys: vec![B256::ZERO],
+        }]))
         .max_fee_per_gas(2e9 as u128);
     let tx_result = provider.send_transaction(tx).await;
     assert!(tx_result.is_err());
 }
 
 // test_double_approve_erc20 sends 2 transactions for approve on the ERC20 token and asserts that only once it is success
-pub async fn test_double_approve_erc20<T>(provider: impl Provider<T, Ethereum> + Send + Sync, sender_address: Address)
-where
+pub async fn test_double_approve_erc20<T>(
+    provider: impl Provider<T, Ethereum> + Send + Sync,
+    sender_address: Address,
+) where
     T: Transport + Clone + Debug,
-
 {
     let nonce = provider.get_transaction_count(sender_address).await.unwrap();
     let chain_id = provider.get_chain_id().await.unwrap();
     let gas_price = provider.get_gas_price().await.unwrap();
 
-    let erc20_contract_address: Address = "0x49f54c5e2301eb9256438123e80762470c2c7ec2".parse().unwrap();
+    let erc20_contract_address: Address =
+        "0x49f54c5e2301eb9256438123e80762470c2c7ec2".parse().unwrap();
     let spender: Address = "0x23CB6AE34A13a0977F4d7101eBc24B87Bb23F0d4".parse().unwrap();
     let function_signature = "approve(address,uint256)";
     let amount: U256 = U256::from(0);
@@ -231,4 +245,49 @@ where
     // repeat approve
     let tx_result = provider.send_transaction(tx.clone()).await;
     assert!(tx_result.is_err());
+}
+
+pub async fn test_incorrect_rlp<T>(
+    provider: impl Provider<T, Ethereum> + Send + Sync,
+    sender_address: Address,
+) where
+    T: Transport + Clone + Debug,
+{
+    let chain_id = Some(provider.get_chain_id().await.unwrap());
+    let nonce = Some(provider.get_transaction_count(sender_address).await.unwrap());
+    let legacy_tx = tx_trailing_empty_values().unwrap().tx().clone();
+
+    let legacy_tx_request = TransactionRequest {
+        from: Some(sender_address),
+        to: Some(legacy_tx.to),
+        gas: Some(legacy_tx.gas_limit as u64),
+        gas_price: Some(legacy_tx.gas_price),
+        value: Some(legacy_tx.value),
+        input: TransactionInput::from(legacy_tx.input),
+        nonce,
+        chain_id,
+        ..Default::default()
+    };
+
+    let tx_result = provider.send_transaction(legacy_tx_request).await;
+    assert!(tx_result.is_err());
+}
+
+fn tx_trailing_empty_values() -> eyre::Result<Signed<TxLegacy>> {
+    let byte_array: [u8; 43] = [
+        234, 21, 133, 117, 98, 209, 251, 63, 131, 30, 132, 128, 148, 221, 124, 155, 23, 110, 221,
+        57, 225, 22, 88, 115, 0, 111, 245, 56, 10, 44, 0, 51, 174, 130, 39, 16, 130, 0, 0, 128,
+        128, 128, 128,
+    ];
+
+    let r = U256::from_str(
+        "7478307613393818857995123362551696556625819847066981460737539381080402549198",
+    )?;
+    let s = U256::from_str(
+        "93208746529385687702128536437164864077231874732405909428462768306792425324544",
+    )?;
+    let v = 42u64;
+
+    let sig = Signature::from_rs_and_parity(r, s, v)?;
+    Ok(TxLegacy::decode_telos_signed_fields(&mut &byte_array[..], Some(sig))?)
 }
