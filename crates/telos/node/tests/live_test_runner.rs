@@ -1,10 +1,13 @@
 use alloy_consensus::{Signed, TxLegacy};
+use std::thread::sleep;
+use std::time::Duration;
 use alloy_contract::private::Transport;
 use alloy_network::{Ethereum, ReceiptResponse, TransactionBuilder};
 use alloy_primitives::{keccak256, Address, Signature, B256, U256};
 use alloy_provider::network::EthereumWallet;
 use alloy_provider::{Provider, ProviderBuilder};
-use alloy_rpc_types::TransactionRequest;
+use alloy_rpc_types::{TransactionRequest};
+use alloy_rpc_types::BlockNumberOrTag::Latest;
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::private::primitives::TxKind::Create;
 use alloy_sol_types::{sol, SolEvent};
@@ -131,6 +134,23 @@ pub async fn test_blocknum_onchain(url: &str, private_key: &str) {
     let block_num_event = BlockNumChecker::BlockNumber::decode_log(&first_log, true).unwrap();
     assert_eq!(U256::from(rpc_block_num), block_num_event.number);
     info!("Block numbers match inside transaction event");
+
+    // wait for some blocks
+    while let Some(block) = provider.get_block_by_number(Latest, false).await.unwrap() {
+        if block.header.number == block_num_event.number.as_limbs()[0] + 8 {
+            break;
+        }
+    }
+    // test latest block and call get block from the contract
+    let latest_block = provider.get_block_by_number(Latest, false).await.unwrap().unwrap();
+    let contract = BlockNumChecker::new(contract_address, provider.clone());
+    let block_number = contract.getBlockNum().call().await.unwrap();
+    assert_eq!(U256::from(latest_block.header.number), block_number._0);
+    assert!(latest_block.header.number > rpc_block_num);
+
+    // call for history blocks
+    let block_num_five_back = block_num_checker.getBlockNum().call().block(BlockId::number(latest_block.header.number - 5)).await.unwrap();
+    assert_eq!(block_num_five_back._0, U256::from(latest_block.header.number - 5), "Block number 5 blocks back via historical eth_call is not correct");
 
     // test eip1559 transaction which is not supported
     test_1559_tx(provider.clone(), address).await;
