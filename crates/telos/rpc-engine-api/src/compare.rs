@@ -175,18 +175,32 @@ where
                     state_override.override_nonce(revm_db, row.address, row.nonce);
                 }
                 // Check code size inequality
-                if (unwrapped_revm_row.clone().code.is_none() && row.code.len() != 0) ||
-                    (unwrapped_revm_row.clone().code.is_some() && !unwrapped_revm_row.clone().code.unwrap().original_bytes().len() != row.code.len()) {
-                    match revm_db.code_by_hash(unwrapped_revm_row.code_hash) {
-                        Ok(code_by_hash) =>
-                            if (code_by_hash.is_empty() && row.code.len() != 0) || (!code_by_hash.is_empty() && row.code.len() == 0) {
-                                maybe_panic!(panic_mode, "Difference in code existence, address: {:?} - revm: {:?} - tevm: {:?}",row.address,code_by_hash,row.code);
-                                state_override.override_code(revm_db, row.address, Some(row.code.clone()));
-                            },
-                        Err(_) => {
-                            maybe_panic!(panic_mode, "Difference in code existence (Err while searching by code_hash), address: {:?} - revm: {:?} - tevm: {:?}",row.address,unwrapped_revm_row.code,row.code);
+                let maybe_revm_code = unwrapped_revm_row.clone().code;
+
+                match maybe_revm_code {
+                    None => {
+                        if row.code.len() != 0 {
+                            maybe_panic!(panic_mode, "Difference in code existence, address: {:?} - revm: None - tevm: {:?}",row.address,row.code);
                             state_override.override_code(revm_db, row.address, Some(row.code.clone()));
-                        },
+                        }
+                    }
+                    Some(revm_bytecode) => {
+                       match revm_bytecode {
+                           Bytecode::LegacyRaw(code) => {
+                              if code.len() != row.code.len() {
+                                  maybe_panic!(panic_mode, "Difference in legacy code size, address: {:?} - revm: {:?} - tevm: {:?}",row.address,code.len(),row.code.len());
+                                  state_override.override_code(revm_db, row.address, Some(row.code.clone()));
+                              }
+                           }
+                           Bytecode::LegacyAnalyzed(code) => {
+                               if code.original_len() != row.code.len() {
+                                   maybe_panic!(panic_mode, "Difference in legacy (analyzed) code size, address: {:?} - revm: {:?} - tevm: {:?}",row.address,code.original_len(),row.code.len());
+                                   state_override.override_code(revm_db, row.address, Some(row.code.clone()));
+                               }
+                           }
+                           Bytecode::Eof(_) => panic!("Eof not implemented!"),
+                           Bytecode::Eip7702(_) => panic!("EIP7702 not implemented!")
+                       }
                     }
                 }
                 // // Check code content inequality
