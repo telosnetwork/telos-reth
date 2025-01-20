@@ -1,4 +1,4 @@
-//! /// A Telos client to interact with a Sequencer
+//! /// A Telos client to interact with native network
 
 pub mod error;
 pub mod eth;

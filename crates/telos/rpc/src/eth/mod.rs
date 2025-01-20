@@ -1,4 +1,4 @@
-//! Telos `eth_` endpoint implementation.
+//! Telos-Reth `eth_` endpoint implementation.
 
 pub mod receipt;
 pub mod transaction;
@@ -10,21 +10,19 @@ mod pending_block;
 /// Client for interacting with Telos node.
 pub mod telos_client;
 
+use reth_node_api::NodePrimitives;
 use std::{fmt, sync::Arc};
-
-use crate::TelosClient;
 use alloy_network::AnyNetwork;
 use alloy_primitives::U256;
-use derive_more::Deref;
-use reth_chainspec::EthereumHardforks;
+use reth_chainspec::{EthChainSpec, EthereumHardforks};
 use reth_evm::ConfigureEvm;
 use reth_network_api::NetworkInfo;
-use reth_node_api::{BuilderProvider, FullNodeComponents, FullNodeTypes, NodeTypes};
 use reth_node_builder::EthApiBuilderCtx;
-use reth_primitives::Header;
+use reth_primitives::EthPrimitives;
 use reth_provider::{
-    BlockIdReader, BlockNumReader, BlockReaderIdExt, ChainSpecProvider, HeaderProvider,
-    StageCheckpointReader, StateProviderFactory,
+    BlockNumReader, BlockReader, BlockReaderIdExt, CanonStateSubscriptions, ChainSpecProvider,
+    EvmEnvProvider, NodePrimitivesProvider, ProviderBlock, ProviderHeader, ProviderReceipt,
+    ProviderTx, StageCheckpointReader, StateProviderFactory,
 };
 use reth_rpc::eth::{core::EthApiInner, DevSigner, EthTxBuilder};
 use reth_rpc_eth_api::{
@@ -32,7 +30,7 @@ use reth_rpc_eth_api::{
         AddDevSigners, EthApiSpec, EthFees, EthSigner, EthState, LoadBlock, LoadFee, LoadState,
         SpawnBlocking, Trace,
     },
-    EthApiTypes,
+    EthApiTypes, RpcNodeCore, RpcNodeCoreExt,
 };
 use reth_rpc_eth_types::{EthStateCache, FeeHistoryCache, GasPriceOracle};
 use reth_tasks::{
@@ -40,19 +38,23 @@ use reth_tasks::{
     TaskSpawner,
 };
 use reth_transaction_pool::TransactionPool;
-use tokio::sync::OnceCell;
 
+use crate::TelosClient;
 use crate::error::TelosEthApiError;
 
 /// Adapter for [`EthApiInner`], which holds all the data required to serve core `eth_` API.
 pub type EthApiNodeBackend<N> = EthApiInner<
-    <N as FullNodeTypes>::Provider,
-    <N as FullNodeComponents>::Pool,
-    <N as FullNodeComponents>::Network,
-    <N as FullNodeComponents>::Evm,
+    <N as RpcNodeCore>::Provider,
+    <N as RpcNodeCore>::Pool,
+    <N as RpcNodeCore>::Network,
+    <N as RpcNodeCore>::Evm,
 >;
 
-/// Telos `Eth` API implementation.
+/// A helper trait with requirements for [`RpcNodeCore`] to be used in [`TelosEthApi`].
+pub trait TelosNodeCore: RpcNodeCore<Provider: BlockReader> {}
+impl<T> TelosNodeCore for T where T: RpcNodeCore<Provider: BlockReader> {}
+
+/// Telos-Reth `Eth` API implementation.
 ///
 /// This type provides the functionality for handling `eth_` related requests.
 ///
@@ -62,22 +64,253 @@ pub type EthApiNodeBackend<N> = EthApiInner<
 ///
 /// This type implements the [`FullEthApi`](reth_rpc_eth_api::helpers::FullEthApi) by implemented
 /// all the `Eth` helper traits and prerequisite traits.
-#[derive(Clone, Deref)]
-pub struct TelosEthApi<N: FullNodeComponents> {
+#[derive(Clone)]
+pub struct TelosEthApi<N: TelosNodeCore> {
     /// Gateway to node's core components.
-    #[deref]
-    inner: Arc<EthApiNodeBackend<N>>,
-    telos_client: Arc<OnceCell<TelosClient>>,
+    inner: Arc<TelosEthApiInner<N>>,
 }
 
-impl<N: FullNodeComponents> TelosEthApi<N> {
-    /// Creates a new instance for given context.
-    #[allow(clippy::type_complexity)]
-    pub fn with_spawner(ctx: &EthApiBuilderCtx<N, Self>) -> Self {
+impl<N> TelosEthApi<N>
+where
+    N: TelosNodeCore<
+        Provider: BlockReaderIdExt
+                      + ChainSpecProvider
+                      + CanonStateSubscriptions<Primitives = EthPrimitives>
+                      + Clone
+                      + 'static,
+    >,
+{
+    /// Build a [`TelosEthApi`] using [`TelosEthApiBuilder`].
+    pub const fn builder() -> TelosEthApiBuilder {
+        TelosEthApiBuilder::new()
+    }
+}
+
+impl<N> EthApiTypes for TelosEthApi<N>
+where
+    Self: Send + Sync,
+    N: TelosNodeCore,
+{
+    type Error = TelosEthApiError;
+    type NetworkTypes = AnyNetwork;
+    type TransactionCompat = EthTxBuilder;
+
+    fn tx_resp_builder(&self) -> &Self::TransactionCompat {
+        self
+    }
+}
+
+impl<N> RpcNodeCore for TelosEthApi<N>
+where
+    N: TelosNodeCore,
+{
+    type Provider = N::Provider;
+    type Pool = N::Pool;
+    type Evm = <N as RpcNodeCore>::Evm;
+    type Network = <N as RpcNodeCore>::Network;
+    type PayloadBuilder = ();
+
+    #[inline]
+    fn pool(&self) -> &Self::Pool {
+        self.inner.eth_api.pool()
+    }
+
+    #[inline]
+    fn evm_config(&self) -> &Self::Evm {
+        self.inner.eth_api.evm_config()
+    }
+
+    #[inline]
+    fn network(&self) -> &Self::Network {
+        self.inner.eth_api.network()
+    }
+
+    #[inline]
+    fn payload_builder(&self) -> &Self::PayloadBuilder {
+        &()
+    }
+
+    #[inline]
+    fn provider(&self) -> &Self::Provider {
+        self.inner.eth_api.provider()
+    }
+}
+
+impl<N> RpcNodeCoreExt for TelosEthApi<N>
+where
+    N: TelosNodeCore,
+{
+    #[inline]
+    fn cache(&self) -> &EthStateCache<ProviderBlock<N::Provider>, ProviderReceipt<N::Provider>> {
+        self.inner.eth_api.cache()
+    }
+}
+
+impl<N> EthApiSpec for TelosEthApi<N>
+where
+    N: TelosNodeCore<
+        Provider: ChainSpecProvider<ChainSpec: EthereumHardforks>
+                      + BlockNumReader
+                      + StageCheckpointReader,
+        Network: NetworkInfo,
+    >,
+{
+    type Transaction = ProviderTx<Self::Provider>;
+
+    #[inline]
+    fn starting_block(&self) -> U256 {
+        self.inner.eth_api.starting_block()
+    }
+
+    #[inline]
+    fn signers(&self) -> &parking_lot::RwLock<Vec<Box<dyn EthSigner<ProviderTx<Self::Provider>>>>> {
+        self.inner.eth_api.signers()
+    }
+}
+
+impl<N> SpawnBlocking for TelosEthApi<N>
+where
+    Self: Send + Sync + Clone + 'static,
+    N: TelosNodeCore,
+{
+    #[inline]
+    fn io_task_spawner(&self) -> impl TaskSpawner {
+        self.inner.eth_api.task_spawner()
+    }
+
+    #[inline]
+    fn tracing_task_pool(&self) -> &BlockingTaskPool {
+        self.inner.eth_api.blocking_task_pool()
+    }
+
+    #[inline]
+    fn tracing_task_guard(&self) -> &BlockingTaskGuard {
+        self.inner.eth_api.blocking_task_guard()
+    }
+}
+
+impl<N> LoadFee for TelosEthApi<N>
+where
+    Self: LoadBlock<Provider = N::Provider>,
+    N: TelosNodeCore<
+        Provider: BlockReaderIdExt
+                      + EvmEnvProvider
+                      + ChainSpecProvider<ChainSpec: EthChainSpec + EthereumHardforks>
+                      + StateProviderFactory,
+    >,
+{
+    #[inline]
+    fn gas_oracle(&self) -> &GasPriceOracle<Self::Provider> {
+        self.inner.eth_api.gas_oracle()
+    }
+
+    #[inline]
+    fn fee_history_cache(&self) -> &FeeHistoryCache {
+        self.inner.eth_api.fee_history_cache()
+    }
+}
+
+impl<N> LoadState for TelosEthApi<N> where
+    N: TelosNodeCore<
+        Provider: StateProviderFactory + ChainSpecProvider<ChainSpec: EthereumHardforks>,
+        Pool: TransactionPool,
+    >
+{
+}
+
+impl<N> EthState for TelosEthApi<N>
+where
+    Self: LoadState + SpawnBlocking,
+    N: TelosNodeCore,
+{
+    #[inline]
+    fn max_proof_window(&self) -> u64 {
+        self.inner.eth_api.eth_proof_window()
+    }
+}
+
+impl<N> EthFees for TelosEthApi<N>
+where
+    Self: LoadFee,
+    N: TelosNodeCore,
+{
+}
+
+impl<N> Trace for TelosEthApi<N>
+where
+    Self: RpcNodeCore<Provider: BlockReader>
+        + LoadState<
+            Evm: ConfigureEvm<
+                Header = ProviderHeader<Self::Provider>,
+                Transaction = ProviderTx<Self::Provider>,
+            >,
+        >,
+    N: TelosNodeCore,
+{
+}
+
+impl<N> AddDevSigners for TelosEthApi<N>
+where
+    N: TelosNodeCore,
+{
+    fn with_dev_accounts(&self) {
+        *self.inner.eth_api.signers().write() = DevSigner::random_signers(20)
+    }
+}
+
+impl<N: TelosNodeCore> fmt::Debug for TelosEthApi<N> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TelosEthApi").finish_non_exhaustive()
+    }
+}
+
+/// Container type `TelosEthApi`
+#[allow(missing_debug_implementations)]
+struct TelosEthApiInner<N: TelosNodeCore> {
+    /// Gateway to node's core components.
+    eth_api: EthApiNodeBackend<N>,
+    /// Telos client, configured to forward submitted transactions to native network.
+    telos_client: Option<TelosClient>,
+}
+
+/// A type that knows how to build a [`TelosEthApi`].
+#[derive(Debug, Default)]
+pub struct TelosEthApiBuilder {
+    /// Telos client, configured to forward submitted transactions to native network.
+    telos_client: Option<TelosClient>,
+}
+
+impl TelosEthApiBuilder {
+    /// Creates a [`TelosEthApiBuilder`] instance from [`EthApiBuilderCtx`].
+    pub const fn new() -> Self {
+        Self { telos_client: None }
+    }
+
+    /// With a [`TelosClient`].
+    pub fn with_telos_client(mut self, telos_client: Option<TelosClient>) -> Self {
+        self.telos_client = telos_client;
+        self
+    }
+}
+
+impl TelosEthApiBuilder {
+    /// Builds an instance of [`TelosEthApi`]
+    pub fn build<N>(self, ctx: &EthApiBuilderCtx<N>) -> TelosEthApi<N>
+    where
+        N: TelosNodeCore<
+            Provider: BlockReaderIdExt<
+                Block = <<N::Provider as NodePrimitivesProvider>::Primitives as NodePrimitives>::Block,
+                Receipt = <<N::Provider as NodePrimitivesProvider>::Primitives as NodePrimitives>::Receipt,
+            > + ChainSpecProvider
+                          + CanonStateSubscriptions
+                          + Clone
+                          + 'static,
+        >,
+    {
         let blocking_task_pool =
             BlockingTaskPool::build().expect("failed to build blocking task pool");
 
-        let inner = EthApiInner::new(
+        let eth_api = EthApiInner::new(
             ctx.provider.clone(),
             ctx.pool.clone(),
             ctx.network.clone(),
@@ -93,173 +326,8 @@ impl<N: FullNodeComponents> TelosEthApi<N> {
             ctx.config.proof_permits,
         );
 
-        Self { inner: Arc::new(inner), telos_client: Arc::new(OnceCell::new()) }
-    }
-}
-
-impl<N> EthApiTypes for TelosEthApi<N>
-where
-    Self: Send + Sync,
-    N: FullNodeComponents,
-{
-    type Error = TelosEthApiError;
-    type NetworkTypes = AnyNetwork;
-    type TransactionCompat = EthTxBuilder;
-}
-
-impl<N> EthApiSpec for TelosEthApi<N>
-where
-    Self: Send + Sync,
-    N: FullNodeComponents<Types: NodeTypes<ChainSpec: EthereumHardforks>>,
-{
-    #[inline]
-    fn provider(
-        &self,
-    ) -> impl ChainSpecProvider<ChainSpec: EthereumHardforks> + BlockNumReader + StageCheckpointReader
-    {
-        self.inner.provider()
-    }
-
-    #[inline]
-    fn network(&self) -> impl NetworkInfo {
-        self.inner.network()
-    }
-
-    #[inline]
-    fn starting_block(&self) -> U256 {
-        self.inner.starting_block()
-    }
-
-    #[inline]
-    fn signers(&self) -> &parking_lot::RwLock<Vec<Box<dyn EthSigner>>> {
-        self.inner.signers()
-    }
-}
-
-impl<N> SpawnBlocking for TelosEthApi<N>
-where
-    Self: Send + Sync + Clone + 'static,
-    N: FullNodeComponents,
-{
-    #[inline]
-    fn io_task_spawner(&self) -> impl TaskSpawner {
-        self.inner.task_spawner()
-    }
-
-    #[inline]
-    fn tracing_task_pool(&self) -> &BlockingTaskPool {
-        self.inner.blocking_task_pool()
-    }
-
-    #[inline]
-    fn tracing_task_guard(&self) -> &BlockingTaskGuard {
-        self.inner.blocking_task_guard()
-    }
-}
-
-impl<N> LoadFee for TelosEthApi<N>
-where
-    Self: LoadBlock,
-    N: FullNodeComponents<Types: NodeTypes<ChainSpec: EthereumHardforks>>,
-{
-    #[inline]
-    fn provider(
-        &self,
-    ) -> impl BlockIdReader + HeaderProvider + ChainSpecProvider<ChainSpec: EthereumHardforks> {
-        self.inner.provider()
-    }
-
-    #[inline]
-    fn cache(&self) -> &EthStateCache {
-        self.inner.cache()
-    }
-
-    #[inline]
-    fn gas_oracle(&self) -> &GasPriceOracle<impl BlockReaderIdExt> {
-        self.inner.gas_oracle()
-    }
-
-    #[inline]
-    fn fee_history_cache(&self) -> &FeeHistoryCache {
-        self.inner.fee_history_cache()
-    }
-}
-
-impl<N> LoadState for TelosEthApi<N>
-where
-    Self: Send + Sync + Clone,
-    N: FullNodeComponents<Types: NodeTypes<ChainSpec: EthereumHardforks>>,
-{
-    #[inline]
-    fn provider(
-        &self,
-    ) -> impl StateProviderFactory + ChainSpecProvider<ChainSpec: EthereumHardforks> {
-        self.inner.provider()
-    }
-
-    #[inline]
-    fn cache(&self) -> &EthStateCache {
-        self.inner.cache()
-    }
-
-    #[inline]
-    fn pool(&self) -> impl TransactionPool {
-        self.inner.pool()
-    }
-}
-
-impl<N> EthState for TelosEthApi<N>
-where
-    Self: LoadState + SpawnBlocking,
-    N: FullNodeComponents,
-{
-    #[inline]
-    fn max_proof_window(&self) -> u64 {
-        self.inner.eth_proof_window()
-    }
-}
-
-impl<N> EthFees for TelosEthApi<N>
-where
-    Self: LoadFee,
-    N: FullNodeComponents,
-{
-}
-
-impl<N> Trace for TelosEthApi<N>
-where
-    Self: LoadState,
-    N: FullNodeComponents,
-{
-    #[inline]
-    fn evm_config(&self) -> &impl ConfigureEvm<Header = Header> {
-        self.inner.evm_config()
-    }
-}
-
-impl<N> AddDevSigners for TelosEthApi<N>
-where
-    N: FullNodeComponents<Types: NodeTypes<ChainSpec: EthereumHardforks>>,
-{
-    fn with_dev_accounts(&self) {
-        *self.signers().write() = DevSigner::random_signers(20)
-    }
-}
-
-impl<N> BuilderProvider<N> for TelosEthApi<N>
-where
-    Self: Send,
-    N: FullNodeComponents,
-{
-    type Ctx<'a> = &'a EthApiBuilderCtx<N, Self>;
-
-    fn builder() -> Box<dyn for<'a> Fn(Self::Ctx<'a>) -> Self + Send> {
-        Box::new(Self::with_spawner)
-    }
-}
-
-impl<N: FullNodeComponents> fmt::Debug for TelosEthApi<N> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("TelosEthApi").finish_non_exhaustive()
+        TelosEthApi {
+            inner: Arc::new(TelosEthApiInner { eth_api, telos_client: self.telos_client }),
+        }
     }
 }

@@ -10,9 +10,11 @@ exclude.workspace = true
 
 [dependencies]
 async-trait.workspace = true
+alloy-consensus.workspace = true
 alloy-primitives.workspace = true
 alloy-network.workspace = true
 alloy-rpc-types.workspace = true
+alloy-rpc-types-eth.workspace =  true
 parking_lot = "0.12.3"
 jsonrpsee-types.workspace = true
 reth-chainspec.workspace = true

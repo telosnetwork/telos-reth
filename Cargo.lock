@@ -10422,9 +10422,11 @@ dependencies = [
 name = "reth-telos-rpc"
 version = "1.1.4"
 dependencies = [
+ "alloy-consensus 0.7.3",
  "alloy-network 0.7.3",
  "alloy-primitives",
  "alloy-rpc-types",
+ "alloy-rpc-types-eth 0.7.3",
  "antelope-client 0.3.0 (git+https://github.com/telosnetwork/antelope-rs?branch=master)",
  "async-trait",
  "derive_more",

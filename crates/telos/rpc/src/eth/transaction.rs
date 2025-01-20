@@ -1,49 +1,43 @@
-//! Loads and formats OP transaction RPC response.
+//! Loads and formats Telos transaction RPC response.
 
 use alloy_primitives::{Bytes, B256};
-use reth_node_api::FullNodeComponents;
-use reth_provider::{BlockReaderIdExt, TransactionsProvider};
+use reth_provider::{
+    BlockReader, BlockReaderIdExt, ProviderTx, TransactionsProvider,
+};
 use reth_rpc_eth_api::{
     helpers::{EthSigner, EthTransactions, LoadTransaction, SpawnBlocking},
-    FromEthApiError, FullEthApiTypes,
+    FromEthApiError, FullEthApiTypes, RpcNodeCore, RpcNodeCoreExt,
 };
-use reth_rpc_eth_types::{utils::recover_raw_transaction, EthStateCache};
+use reth_rpc_eth_types::utils::recover_raw_transaction;
 use reth_transaction_pool::{PoolTransaction, TransactionOrigin, TransactionPool};
 
-use crate::eth::TelosClient;
+use crate::eth::telos_client::TelosClient;
 use crate::eth::TelosEthApi;
+use crate::eth::TelosNodeCore;
 
 impl<N> EthTransactions for TelosEthApi<N>
 where
-    Self: LoadTransaction,
-    N: FullNodeComponents,
+    Self: LoadTransaction<Provider: BlockReaderIdExt>,
+    N: TelosNodeCore<Provider: BlockReader<Transaction = ProviderTx<Self::Provider>>>,
 {
-    fn provider(&self) -> impl BlockReaderIdExt {
-        self.inner.provider()
-    }
-
-    fn signers(&self) -> &parking_lot::RwLock<Vec<Box<dyn EthSigner>>> {
-        self.inner.signers()
+    fn signers(&self) -> &parking_lot::RwLock<Vec<Box<dyn EthSigner<ProviderTx<Self::Provider>>>>> {
+        self.inner.eth_api.signers()
     }
 
     /// Decodes and recovers the transaction and submits it to the pool.
     ///
     /// Returns the hash of the transaction.
     async fn send_raw_transaction(&self, tx: Bytes) -> Result<B256, Self::Error> {
-        let recovered = recover_raw_transaction(tx.clone())?;
+        let recovered = recover_raw_transaction(&tx)?;
         let pool_transaction = <Self::Pool as TransactionPool>::Transaction::from_pooled(recovered);
 
-        // On Telos, transactions are forwarded directly to the native network to be included in a block.
+        // On Telos, transactions are forwarded directly to the native network to be included in
+        // blocks that it builds.
         if let Some(client) = self.raw_tx_forwarder().as_ref() {
-            tracing::debug!( target: "rpc::eth",  "forwarding raw transaction to Telos native");
-            let result = client.send_to_telos(&tx).await.inspect_err(|err| {
+            tracing::debug!(target: "rpc::eth", hash = %pool_transaction.hash(), "forwarding raw transaction to Telos native");
+            let _ = client.send_to_telos(&tx).await.inspect_err(|err| {
                     tracing::debug!(target: "rpc::eth", %err, hash=% *pool_transaction.hash(), "failed to forward raw transaction");
                 });
-
-            // TODO: Retry here if it's a network error, parse errors from Telos and try to return appropriate error to client
-            if let Err(err) = result {
-                return Err(Self::Error::from_eth_err(err));
-            }
         }
 
         // submit the transaction to the pool with a `Local` origin
@@ -59,38 +53,26 @@ where
 
 impl<N> LoadTransaction for TelosEthApi<N>
 where
-    Self: SpawnBlocking + FullEthApiTypes,
-    N: FullNodeComponents,
+    Self: SpawnBlocking + FullEthApiTypes + RpcNodeCoreExt,
+    N: TelosNodeCore<Provider: TransactionsProvider, Pool: TransactionPool>,
+    Self::Pool: TransactionPool,
 {
-    type Pool = N::Pool;
-
-    fn provider(&self) -> impl TransactionsProvider {
-        self.inner.provider()
-    }
-
-    fn cache(&self) -> &EthStateCache {
-        self.inner.cache()
-    }
-
-    fn pool(&self) -> &Self::Pool {
-        self.inner.pool()
-    }
 }
 
 impl<N> TelosEthApi<N>
 where
-    N: FullNodeComponents,
+    N: TelosNodeCore,
 {
     /// Sets a [`TelosClient`] for `eth_sendRawTransaction` to forward transactions to.
     pub fn set_telos_client(
         &self,
         telos_client: TelosClient,
     ) {
-        self.telos_client.set(telos_client).expect("Telos client can be set only once");
+        self.inner.telos_client.set(telos_client).expect("Telos client can be set only once");
     }
 
     /// Returns the [`TelosClient`] if one is set.
     pub fn raw_tx_forwarder(&self) -> Option<TelosClient> {
-        self.telos_client.get().cloned()
+        self.inner.telos_client
     }
 }

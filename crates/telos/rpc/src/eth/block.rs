@@ -1,33 +1,28 @@
-//! Loads and formats OP block RPC response.   
+//! Loads and formats Telos block RPC response.
 
-use alloy_rpc_types::{AnyTransactionReceipt, BlockId};
-use reth_node_api::FullNodeComponents;
-use reth_primitives::TransactionMeta;
-use reth_provider::{BlockReaderIdExt, HeaderProvider};
+use alloy_consensus::BlockHeader;
+use alloy_network::AnyTransactionReceipt;
+use alloy_rpc_types_eth::BlockId;
+use reth_chainspec::{ChainSpec, ChainSpecProvider};
+use reth_node_api::BlockBody;
+use reth_primitives::{Receipt, TransactionMeta, TransactionSigned};
+use reth_provider::{BlockReader, HeaderProvider};
 use reth_rpc_eth_api::{
-    helpers::{
-        EthBlocks, LoadBlock, LoadPendingBlock,
-        SpawnBlocking, LoadReceipt,
-    },
-    RpcReceipt
+    helpers::{EthBlocks, LoadBlock, LoadPendingBlock, LoadReceipt, SpawnBlocking},
+    RpcReceipt,
 };
-use reth_rpc_eth_types::{EthStateCache, ReceiptBuilder};
-use crate::error::TelosEthApiError;
-use crate::eth::TelosEthApi;
+
+use crate::{eth::{TelosNodeCore, TelosEthApi}, error::TelosEthApiError};
 
 impl<N> EthBlocks for TelosEthApi<N>
 where
     Self: LoadBlock<
         Error = TelosEthApiError,
         NetworkTypes: alloy_network::Network<ReceiptResponse = AnyTransactionReceipt>,
+        Provider: BlockReader<Receipt = Receipt, Transaction = TransactionSigned>,
     >,
-    N: FullNodeComponents,
+    N: TelosNodeCore<Provider: ChainSpecProvider<ChainSpec = ChainSpec> + HeaderProvider>,
 {
-    #[inline]
-    fn provider(&self) -> impl HeaderProvider {
-        self.inner.provider()
-    }
-
     async fn block_receipts(
         &self,
         block_id: BlockId,
@@ -36,22 +31,21 @@ where
         Self: LoadReceipt,
     {
         if let Some((block, receipts)) = self.load_block_and_receipts(block_id).await? {
-            let block_number = block.number;
-            let base_fee = block.base_fee_per_gas;
+            let block_number = block.number();
+            let base_fee = block.base_fee_per_gas();
             let block_hash = block.hash();
-            let excess_blob_gas = block.excess_blob_gas;
-            let timestamp = block.timestamp;
-            let block = block.unseal();
+            let excess_blob_gas = block.excess_blob_gas();
+            let timestamp = block.timestamp();
 
             return block
                 .body
-                .transactions
-                .into_iter()
+                .transactions()
+                .iter()
                 .zip(receipts.iter())
                 .enumerate()
                 .map(|(idx, (tx, receipt))| {
                     let meta = TransactionMeta {
-                        tx_hash: tx.hash,
+                        tx_hash: tx.hash(),
                         index: idx as u64,
                         block_hash,
                         block_number,
@@ -74,15 +68,6 @@ where
 impl<N> LoadBlock for TelosEthApi<N>
 where
     Self: LoadPendingBlock + SpawnBlocking,
-    N: FullNodeComponents,
+    N: TelosNodeCore,
 {
-    #[inline]
-    fn provider(&self) -> impl BlockReaderIdExt {
-        self.inner.provider()
-    }
-
-    #[inline]
-    fn cache(&self) -> &EthStateCache {
-        self.inner.cache()
-    }
 }
