@@ -1,10 +1,7 @@
 //! Compact implementation for [`AlloyHeader`]
 
 use crate::Compact;
-#[cfg(not(feature = "telos"))]
 use alloy_consensus::Header as AlloyHeader;
-#[cfg(feature = "telos")]
-use reth_telos_primitives_traits::TelosHeader as AlloyHeader;
 use alloy_primitives::{Address, BlockNumber, Bloom, Bytes, B256, U256};
 
 /// Block header
@@ -135,8 +132,6 @@ impl Compact for AlloyHeader {
             requests_hash: header.extra_fields.as_ref().and_then(|h| h.requests_hash),
             extra_data: header.extra_data,
             target_blobs_per_block: header.extra_fields.as_ref().and_then(|h| h.target_blobs_per_block),
-            #[cfg(feature = "telos")]
-            telos_block_extension: Default::default(),
         };
         (alloy_header, buf)
     }

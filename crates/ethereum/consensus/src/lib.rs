@@ -9,10 +9,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
 use alloy_consensus::EMPTY_OMMER_ROOT_HASH;
-#[cfg(not(feature = "telos"))]
 use alloy_consensus::Header;
-#[cfg(feature = "telos")]
-use reth_telos_primitives_traits::TelosHeader as Header;
 use alloy_primitives::U256;
 use reth_chainspec::{EthChainSpec, EthereumHardfork, EthereumHardforks};
 use reth_consensus::{

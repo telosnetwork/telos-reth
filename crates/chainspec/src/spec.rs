@@ -14,10 +14,7 @@ use derive_more::From;
 use alloy_consensus::constants::{
     DEV_GENESIS_HASH, HOLESKY_GENESIS_HASH, MAINNET_GENESIS_HASH, SEPOLIA_GENESIS_HASH,
 };
-#[cfg(not(feature = "telos"))]
 use alloy_consensus::Header;
-#[cfg(feature = "telos")]
-use reth_telos_primitives_traits::TelosHeader as Header;
 use alloy_eips::eip1559::ETHEREUM_BLOCK_GAS_LIMIT;
 use reth_ethereum_forks::{
     ChainHardforks, DisplayHardforks, EthereumHardfork, EthereumHardforks, ForkCondition,

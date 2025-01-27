@@ -154,7 +154,7 @@ members = [
     "examples/txpool-tracing/",
     "examples/custom-beacon-withdrawals",
     "testing/ef-tests/",
-    "testing/testing-utils",
+    "testing/testing-utils", "crates/telos/alloy-network",
 ]
 default-members = ["bin/reth"]
 exclude = ["book/sources"]
@@ -621,6 +621,7 @@ tracy-client = "0.17.3"
 # telos
 reth-bin-telos = { path = "crates/telos/bin" }
 reth-node-telos = { path = "crates/telos/node" }
+telos-alloy-network = { path = "crates/telos/alloy-network" }
 reth-telos-rpc = { path = "crates/telos/rpc" }
 reth-telos-primitives-traits = { path = "crates/telos/primitives-traits" }
 reth-telos-rpc-engine-api = { path = "crates/telos/rpc-engine-api" }

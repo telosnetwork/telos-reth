@@ -12,8 +12,3 @@ pub trait SerdeBincodeCompat: Sized + 'static {
 impl SerdeBincodeCompat for alloy_consensus::Header {
     type BincodeRepr<'a> = alloy_consensus::serde_bincode_compat::Header<'a>;
 }
-
-#[cfg(feature = "telos")]
-impl SerdeBincodeCompat for reth_telos_primitives_traits::TelosHeader {
-    type BincodeRepr<'a> = reth_telos_primitives_traits::serde_bincode_compat::TelosHeader<'a>;
-}

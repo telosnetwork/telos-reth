@@ -83,10 +83,7 @@ pub struct EthPrimitives;
 
 impl reth_primitives_traits::NodePrimitives for EthPrimitives {
     type Block = crate::Block;
-    #[cfg(not(feature = "telos"))]
     type BlockHeader = alloy_consensus::Header;
-    #[cfg(feature = "telos")]
-    type BlockHeader = reth_telos_primitives_traits::TelosHeader;
     type BlockBody = crate::BlockBody;
     type SignedTx = crate::TransactionSigned;
     type TxType = crate::TxType;

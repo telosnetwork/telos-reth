@@ -134,10 +134,7 @@ where
     /// This does not initialize the tx environment.
     fn evm_env_for_block(
         &self,
-        #[cfg(not(feature = "telos"))]
         header: &alloy_consensus::Header,
-        #[cfg(feature = "telos")]
-        header: &reth_telos_primitives_traits::TelosHeader,
         total_difficulty: U256,
     ) -> EnvWithHandlerCfg {
         let (cfg, block_env) = self.evm_config.cfg_and_block_env(header, total_difficulty);

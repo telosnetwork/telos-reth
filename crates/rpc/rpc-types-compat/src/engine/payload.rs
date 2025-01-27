@@ -2,10 +2,7 @@
 //! Ethereum's Engine
 
 use alloy_consensus::{constants::MAXIMUM_EXTRA_DATA_SIZE, EMPTY_OMMER_ROOT_HASH};
-#[cfg(not(feature = "telos"))]
 use alloy_consensus::Header;
-#[cfg(feature = "telos")]
-use reth_telos_primitives_traits::TelosHeader as Header;
 use alloy_eips::{
     eip2718::{Decodable2718, Encodable2718},
     eip4895::Withdrawals,
@@ -84,8 +81,6 @@ pub fn try_payload_v1_to_block(payload: ExecutionPayloadV1) -> Result<Block, Pay
         ommers_hash: EMPTY_OMMER_ROOT_HASH,
         difficulty: Default::default(),
         nonce: Default::default(),
-        #[cfg(feature = "telos")]
-        telos_block_extension: Default::default(),
         target_blobs_per_block: None,
     };
 

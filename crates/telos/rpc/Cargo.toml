@@ -26,6 +26,7 @@ reth-primitives.workspace = true
 reth-provider.workspace = true
 reth-rpc.workspace = true
 reth-rpc-server-types.workspace = true
+telos-alloy-network.workspace = true
 reth-tasks.workspace = true
 reth-transaction-pool.workspace = true
 

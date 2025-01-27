@@ -12,7 +12,6 @@ pub mod telos_client;
 
 use reth_node_api::NodePrimitives;
 use std::{fmt, sync::Arc};
-use alloy_network::AnyNetwork;
 use alloy_primitives::U256;
 use reth_chainspec::{EthChainSpec, EthereumHardforks};
 use reth_evm::ConfigureEvm;
@@ -38,7 +37,7 @@ use reth_tasks::{
     TaskSpawner,
 };
 use reth_transaction_pool::TransactionPool;
-
+use telos_alloy_network::Telos;
 use crate::TelosClient;
 use crate::error::TelosEthApiError;
 
@@ -92,7 +91,7 @@ where
     N: TelosNodeCore,
 {
     type Error = TelosEthApiError;
-    type NetworkTypes = AnyNetwork;
+    type NetworkTypes = Telos;
     type TransactionCompat = EthTxBuilder;
 
     fn tx_resp_builder(&self) -> &Self::TransactionCompat {

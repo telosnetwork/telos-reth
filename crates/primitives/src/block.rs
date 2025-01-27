@@ -3,10 +3,7 @@ use crate::{
     RecoveredTx, SealedHeader, TransactionSigned,
 };
 use alloc::vec::Vec;
-#[cfg(not(feature = "telos"))]
 use alloy_consensus::Header;
-#[cfg(feature = "telos")]
-use reth_telos_primitives_traits::TelosHeader as Header;
 use alloy_eips::{eip2718::Encodable2718, eip4895::Withdrawals};
 use alloy_primitives::{Address, Bytes, B256};
 use alloy_rlp::{Decodable, Encodable, RlpDecodable, RlpEncodable};
@@ -707,11 +704,8 @@ impl<'a> arbitrary::Arbitrary<'a> for BlockBody {
 #[cfg(feature = "serde-bincode-compat")]
 pub(super) mod serde_bincode_compat {
     use alloc::{borrow::Cow, vec::Vec};
-    #[cfg(not(feature = "telos"))]
     use alloy_consensus::serde_bincode_compat::Header;
     use alloy_eips::eip4895::Withdrawals;
-    #[cfg(feature = "telos")]
-    use reth_telos_primitives_traits::serde_bincode_compat::TelosHeader as Header;
     use alloy_primitives::Address;
     use reth_primitives_traits::serde_bincode_compat::{SealedHeader, SerdeBincodeCompat};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};

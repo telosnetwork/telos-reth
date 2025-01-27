@@ -32,18 +32,6 @@ pub trait BlockHeader:
     + MaybeSerdeBincodeCompat
     + AsRef<Self>
     + 'static
-{
-    #[cfg(feature = "telos")]
-    /// Retrieves the telos block extension of the block
-    fn telos_block_extension(&self) -> reth_telos_primitives_traits::TelosBlockExtension;
-}
+{}
 
-#[cfg(not(feature = "telos"))]
 impl BlockHeader for alloy_consensus::Header {}
-#[cfg(feature = "telos")]
-impl BlockHeader for reth_telos_primitives_traits::TelosHeader {
-    /// Retrieves the telos block extension of the block
-    fn telos_block_extension(&self) -> reth_telos_primitives_traits::TelosBlockExtension {
-        return self.telos_block_extension.clone();
-    }
-}
