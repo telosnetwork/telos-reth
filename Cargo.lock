@@ -1148,8 +1148,8 @@ dependencies = [
 
 [[package]]
 name = "antelope-client"
-version = "0.3.0"
-source = "git+https://github.com/telosnetwork/antelope-rs?rev=d701cd9ca2e87e8e0fd99746f9c672cb3536e5ec#d701cd9ca2e87e8e0fd99746f9c672cb3536e5ec"
+version = "0.3.1"
+source = "git+https://github.com/telosnetwork/antelope-rs?branch=sha256_index_fix#899e57bb401c5f6e3a59f3099f9499ec6e5b0e53"
 dependencies = [
  "antelope-client-macros",
  "async-trait",
@@ -8914,6 +8914,7 @@ dependencies = [
  "derive_more 1.0.0",
  "env_logger",
  "eyre",
+ "lazy_static",
  "num-bigint",
  "reqwest 0.12.8",
  "reth",
@@ -11544,7 +11545,6 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 [[package]]
 name = "telos-consensus-client"
 version = "0.1.0"
-source = "git+https://github.com/telosnetwork/telos-consensus-client?rev=9fadee1fd565e3a7ad51c1142e2673df52bd9028#9fadee1fd565e3a7ad51c1142e2673df52bd9028"
 dependencies = [
  "alloy",
  "alloy-consensus 0.3.6",
@@ -11597,7 +11597,6 @@ dependencies = [
 [[package]]
 name = "telos-translator-rs"
 version = "0.1.0"
-source = "git+https://github.com/telosnetwork/telos-consensus-client?rev=9fadee1fd565e3a7ad51c1142e2673df52bd9028#9fadee1fd565e3a7ad51c1142e2673df52bd9028"
 dependencies = [
  "alloy",
  "alloy-consensus 0.3.6",

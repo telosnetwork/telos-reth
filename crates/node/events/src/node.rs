@@ -484,7 +484,6 @@ where
                             target: "reth::cli",
                             connected_peers = this.state.num_connected_peers(),
                             stage = %stage_id,
-                            checkpoint = checkpoint.block_number,
                             target = %OptionalField(*target),
                             %stage_eta,
                             "Status"

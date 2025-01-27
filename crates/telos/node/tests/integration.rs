@@ -13,6 +13,8 @@ use reth_node_telos::{TelosArgs, TelosNode};
 use reth_telos_rpc::TelosClient;
 use std::str::FromStr;
 use std::{fs, path::PathBuf, sync::Arc, time::Duration};
+use antelope::chain::binary_extension::BinaryExtension;
+use antelope::chain::private_key::PrivateKey;
 use telos_consensus_client::{
     client::ConsensusClient,
     config::{AppConfig, CliArgs},
@@ -27,8 +29,11 @@ use testcontainers::{
 };
 use tokio::sync::mpsc;
 use tracing::info;
+use crate::live_test_runner::TestProvider;
+use crate::utils::cleos_evm::{setrevision_tx, sign_native_tx, EOSIO_PKEY, EOSIO_WALLET};
 
 pub mod live_test_runner;
+pub mod utils;
 
 struct TelosRethNodeHandle {
     execution_port: u16,
@@ -36,14 +41,14 @@ struct TelosRethNodeHandle {
 }
 
 const CONTAINER_TAG: &str =
-    "v0.1.11@sha256:d138f2e08db108d5d420b4db99a57fb9d45a3ee3e0f0faa7d4c4a065f7f018ce";
+    "latest@sha256:e91304655bca4b190af5c7d1bbdd86ba26ae927c43fe82bdc36edfad24e022cb";
 
 // This is the last block in the container, after this block the node is done syncing and is running live
-const CONTAINER_LAST_EVM_BLOCK: u64 = 1010;
+const CONTAINER_LAST_EVM_BLOCK: u64 = 37;
 
 // evmuser address from the container
-const EVM_USER_ADDRESS: &str = "0x4c641f9b61809fadeef2ec64f54ea2bcb398e4f3";
-const EVM_USER: &str = "evmuser";
+const EVM_USER_ADDRESS: &str = "0xd80744e16d62c62c5fa2a04b92da3fe6b9efb523";
+const EVM_USER: &str = "evmuser1";
 
 async fn start_ship() -> ContainerAsync<GenericImage> {
     // Change this container to a local image if using new ship data,
@@ -52,7 +57,7 @@ async fn start_ship() -> ContainerAsync<GenericImage> {
     // The tag for this image needs to come from the Github packages UI, under the "OS/Arch" tab
     //   and should be the tag for linux/amd64
     let container: ContainerAsync<GenericImage> =
-        GenericImage::new("ghcr.io/telosnetwork/testcontainer-nodeos-evm", CONTAINER_TAG)
+        GenericImage::new("guilledk/testcontainer-nodeos-evm-lite", CONTAINER_TAG)
             .with_exposed_port(Tcp(8888))
             .with_exposed_port(Tcp(18999))
             .start()
@@ -208,12 +213,16 @@ async fn testing_chain_sync() {
     let translator_handle = tokio::spawn(translator.launch(Some(block_sender)));
 
     let rpc_url = Url::from(format!("http://localhost:{}", rpc_port).parse().unwrap());
-    let provider = ProviderBuilder::new().on_http(rpc_url.clone());
+    let provider = ProviderBuilder::new()
+        .wallet(EOSIO_WALLET.clone())
+        .on_http(rpc_url.clone());
 
     info!("Client URL {:?}", format!("http://localhost:{chain_port}"));
 
+    let antelope_rpc_url = format!("http://localhost:{chain_port}").to_string();
+
     let api_client = APIClient::<DefaultProvider>::default_provider(
-        format!("http://localhost:{chain_port}").to_string(),
+        antelope_rpc_url.clone(),
         Some(1),
     )
     .unwrap();
@@ -228,14 +237,24 @@ async fn testing_chain_sync() {
         }
         if latest_block > CONTAINER_LAST_EVM_BLOCK {
             // test account nonce after successful reth sync from the container
-            test_evm_address_nonce(provider, api_client.clone()).await;
+            test_evm_address_nonce(&provider, &api_client).await;
             // test current revision from the transactions in the container
-            test_revision(api_client).await;
+            test_revision(&api_client, None).await;
             break;
         }
     }
 
+    // set revision to 1
+    let info = api_client.v1_chain.get_info().await.unwrap();
+    let eosio_key = PrivateKey::from_str(EOSIO_PKEY, false).unwrap();
+    let unsigned_rev_tx = setrevision_tx(&info, 1);
+    let rev_tx = sign_native_tx(&unsigned_rev_tx, &info, &eosio_key);
+    api_client.v1_chain.send_transaction(rev_tx).await.unwrap();
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
     live_test_runner::run_tests(
+        &*antelope_rpc_url,
         &rpc_url.clone().to_string(),
         "87ef69a835f8cd0c44ab99b7609a20b2ca7f1c8470af4f0e5b44db927d542084",
     )
@@ -250,7 +269,7 @@ async fn testing_chain_sync() {
     println!("Translator shutdown done.");
 }
 
-async fn test_evm_address_nonce(provider: ReqwestProvider, api_client: APIClient<DefaultProvider>) {
+async fn test_evm_address_nonce(provider: &TestProvider, api_client: &APIClient<DefaultProvider>) {
     let params = live_test_runner::account_params(EVM_USER);
     let row: &AccountRow = &api_client.v1_chain.get_table_rows(params).await.unwrap().rows[0];
 
@@ -258,16 +277,14 @@ async fn test_evm_address_nonce(provider: ReqwestProvider, api_client: APIClient
     let tx_count =
         provider.get_transaction_count(Address::from_str(EVM_USER_ADDRESS).unwrap()).await.unwrap();
     // assert nonce of the account that has sent transactions in the container blocks
-    assert_eq!(account.nonce, 2);
+    assert_eq!(account.nonce, 12);
     assert_eq!(account.nonce, tx_count);
     assert_eq!(account.nonce, row.nonce);
 }
 
-async fn test_revision(api_client: APIClient<DefaultProvider>) {
-    // revision in the container transaction is set to 1
-    let expected_revision = 1u32;
+async fn test_revision(api_client: &APIClient<DefaultProvider>, expected_revision: Option<&u32>) {
     let params = live_test_runner::config_params();
     let row: &EvmContractConfigRow = &api_client.v1_chain.get_table_rows(params).await.unwrap().rows[0];
 
-    assert_eq!(*row.revision.value().unwrap(), expected_revision);
+    assert_eq!(row.revision.value(), expected_revision);
 }
