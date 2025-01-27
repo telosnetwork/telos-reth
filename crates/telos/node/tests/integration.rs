@@ -9,14 +9,14 @@ use reth_node_telos::{TelosArgs, TelosNode};
 use reth_telos_rpc::TelosClient;
 use std::time::Duration;
 use alloy_network::{Ethereum, EthereumWallet, ReceiptResponse, TransactionBuilder};
-use alloy_primitives::{Address, B256, Bytes, keccak256, U256};
+use alloy_primitives::{Address, B256, BlockNumber, Bytes, keccak256, TxHash, U256};
 use alloy_primitives::hex::FromHex;
 use alloy_primitives::TxKind::Create;
 use telos_translator_rs::block::TelosEVMBlock;
 use tokio::sync::mpsc;
 use tracing::{info, warn};
 use reth::primitives::BlockId;
-use alloy_rpc_types::{AccessList, AccessListItem, BlockTransactionsKind};
+use alloy_rpc_types::{AccessList, AccessListItem, BlockNumberOrTag, BlockTransactionsKind};
 use alloy_transport_http::Http;
 use antelope::chain::action::PermissionLevel;
 use antelope::chain::private_key::PrivateKey;
@@ -24,7 +24,7 @@ use antelope::name;
 use antelope::chain::name::Name;
 
 pub mod utils;
-use crate::utils::cleos_evm::{EOSIO_ADDR, EOSIO_PKEY, EOSIO_WALLET, get_nonce, multi_raw_eth_tx, setrevision_tx, sign_native_tx};
+use crate::utils::cleos_evm::{doresources_sandwich, EOSIO_ADDR, EOSIO_PKEY, EOSIO_WALLET, get_nonce, multi_raw_eth_tx, setrevision_tx, sign_native_tx};
 use crate::utils::runners::{build_consensus_and_translator, CONTAINER_LAST_EVM_BLOCK_LITE, CONTAINER_NAME_LITE, CONTAINER_TAG_LITE, init_reth, start_ship, TelosRethNodeHandle};
 
 use alloy_provider::{Identity, Provider, ProviderBuilder, ReqwestProvider};
@@ -32,7 +32,7 @@ use alloy_provider::fillers::{FillProvider, JoinFill, WalletFiller};
 use alloy_rpc_types::BlockNumberOrTag::Latest;
 use alloy_sol_types::{sol, SolEvent};
 use reqwest::{Client, Url};
-use reth::rpc::types::{TransactionInput, TransactionRequest};
+use reth::rpc::types::{Transaction, TransactionInput, TransactionRequest};
 
 pub type TestProvider = FillProvider<JoinFill<Identity, WalletFiller<EthereumWallet>>, ReqwestProvider, Http<Client>, Ethereum>;
 
@@ -142,11 +142,9 @@ pub async fn run_tests(
     let block = reth_provider.get_block(BlockId::latest(), BlockTransactionsKind::Full).await;
     info!("Latest block:\n {:?}", block);
 
-    test_1k_txs(
-        telos_client,
-        reth_provider,
-        Address::from_hex("0000000000000000deadbeef0000000000000000").unwrap()
-    ).await;
+    test_2k_txs(telos_client, reth_provider).await;
+
+    test_doresources_sandwich(telos_client, reth_provider).await;
 
     // set revision to 1
     let info = telos_client.v1_chain.get_info().await.unwrap();
@@ -154,6 +152,8 @@ pub async fn run_tests(
     let unsigned_rev_tx = setrevision_tx(&info, 1);
     let rev_tx = sign_native_tx(&unsigned_rev_tx, &info, &eosio_key);
     telos_client.v1_chain.send_transaction(rev_tx).await.unwrap();
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
 
     test_blocknum_onchain(reth_provider).await;
 }
@@ -350,10 +350,36 @@ pub async fn test_double_approve_erc20(
     }
 }
 
-pub async fn test_1k_txs(
+pub async fn test_doresources_sandwich(
     telos_client: &APIClient<DefaultProvider>,
-    reth_provider: &TestProvider,
-    target_addr: Address
+    reth_provider: &TestProvider
+) {
+    let info = telos_client.v1_chain.get_info().await.unwrap();
+    let eosio_key = PrivateKey::from_str(EOSIO_PKEY, false).unwrap();
+    let nonce = reth_provider.get_transaction_count(EOSIO_ADDR.clone()).await.unwrap();
+    let chain_id = reth_provider.get_chain_id().await.unwrap();
+    let pre_gas_price = reth_provider.get_gas_price().await.unwrap();
+    let unsigned_sandwich = doresources_sandwich(
+        &info, name!("eosio"), chain_id, nonce, pre_gas_price, EOSIO_ADDR.clone(), Address::from_hex("0000000000000000deadbeef0000000000000000").unwrap()
+    ).await;
+    let sandwich_tx = sign_native_tx(&unsigned_sandwich, &info, &eosio_key);
+    let result_tx = telos_client.v1_chain.send_transaction(sandwich_tx).await.unwrap();
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    let post_gas_price = reth_provider.get_gas_price().await.unwrap();
+
+    let block = reth_provider.get_block_by_number(BlockNumberOrTag::Number(result_tx.processed.block_num - 57), true).await.unwrap().unwrap();
+    let txs: Vec<Transaction> = block.transactions.clone().into_transactions().collect();
+    let receipt_0 = reth_provider.get_transaction_receipt(txs[0].hash).await.unwrap().unwrap();
+    let receipt_1 = reth_provider.get_transaction_receipt(txs[1].hash).await.unwrap().unwrap();
+    assert_ne!(receipt_0.effective_gas_price, receipt_1.effective_gas_price);
+
+    assert_ne!(pre_gas_price, post_gas_price);
+}
+
+pub async fn test_2k_txs(
+    telos_client: &APIClient<DefaultProvider>,
+    reth_provider: &TestProvider
 ) {
     let chain_id = reth_provider.get_chain_id().await.unwrap();
     let gas_price = reth_provider.get_gas_price().await.unwrap();
@@ -362,7 +388,9 @@ pub async fn test_1k_txs(
 
     let start_nonce = get_nonce(&telos_client, &EOSIO_ADDR).await;
 
-    for _i in 0..2 {
+    let total_batches = 4;
+    for i in 0..total_batches {
+        let to = Some(Address::random());
         let info = telos_client.v1_chain.get_info().await.unwrap();
         let nonce = get_nonce(&telos_client, &EOSIO_ADDR).await;
         let tx = multi_raw_eth_tx(
@@ -376,21 +404,21 @@ pub async fn test_1k_txs(
             chain_id,
             nonce,
             EOSIO_ADDR.clone(),
-            target_addr,
+            to,
             gas_price,
             20_000_000,
-            U256::from(10)
+            U256::from(10000)
         ).await;
 
         let signed_tx = sign_native_tx(&tx, &info, &eosio_key);
 
         let result = telos_client.v1_chain.send_transaction(signed_tx).await.unwrap();
 
-        warn!("500 txs in block {}", result.processed.block_num);
-        tokio::time::sleep(Duration::from_millis(750)).await;
+        warn!("({}/{}) 500 txs in block {}", i + 1, total_batches, result.processed.block_num);
+        tokio::time::sleep(Duration::from_secs(1)).await;
     }
 
     tokio::time::sleep(Duration::from_millis(500)).await;
     let last_nonce = get_nonce(&telos_client, &EOSIO_ADDR).await;
-    assert_eq!(last_nonce - start_nonce, 1000);
+    assert_eq!(last_nonce - start_nonce, 500 * total_batches);
 }

@@ -602,7 +602,7 @@ reth-telos-rpc = { path = "crates/telos/rpc" }
 reth-telos-primitives-traits = { path = "crates/telos/primitives-traits" }
 reth-telos-rpc-engine-api = { path = "crates/telos/rpc-engine-api" }
 # antelope-client = { git = "https://github.com/telosnetwork/antelope-rs", branch = "master" }
-antelope-client = { git = "https://github.com/telosnetwork/antelope-rs", rev = "c485ff3e0a3e247c85c204b41144765accefbbc3" }
+antelope-client = { git = "https://github.com/telosnetwork/antelope-rs", branch = "sha256_index_fix" }
 
 [patch.crates-io]
 #alloy-consensus = { git = "https://github.com/alloy-rs/alloy", rev = "8c499409"}
