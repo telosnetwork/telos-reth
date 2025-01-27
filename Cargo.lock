@@ -11545,6 +11545,7 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 [[package]]
 name = "telos-consensus-client"
 version = "0.1.0"
+source = "git+https://github.com/telosnetwork/telos-consensus-client?branch=antelope_sha256_fix#ea48917708ba721c5d96a6b8c496566165d3e07c"
 dependencies = [
  "alloy",
  "alloy-consensus 0.3.6",
@@ -11597,6 +11598,7 @@ dependencies = [
 [[package]]
 name = "telos-translator-rs"
 version = "0.1.0"
+source = "git+https://github.com/telosnetwork/telos-consensus-client?branch=antelope_sha256_fix#ea48917708ba721c5d96a6b8c496566165d3e07c"
 dependencies = [
  "alloy",
  "alloy-consensus 0.3.6",
