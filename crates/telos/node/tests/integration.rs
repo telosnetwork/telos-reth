@@ -1,3 +1,9 @@
+mod live_test_runner;
+mod utils;
+
+use crate::live_test_runner::TestProvider;
+use crate::utils::cleos_evm::{setrevision_tx, sign_native_tx, EOSIO_PKEY, EOSIO_WALLET};
+
 use alloy_primitives::Address;
 use alloy_provider::{Provider, ProviderBuilder, ReqwestProvider};
 use antelope::api::client::{APIClient, DefaultProvider};
@@ -29,11 +35,7 @@ use testcontainers::{
 };
 use tokio::sync::mpsc;
 use tracing::info;
-use crate::live_test_runner::TestProvider;
-use crate::utils::cleos_evm::{setrevision_tx, sign_native_tx, EOSIO_PKEY, EOSIO_WALLET};
 
-pub mod live_test_runner;
-pub mod utils;
 
 struct TelosRethNodeHandle {
     execution_port: u16,

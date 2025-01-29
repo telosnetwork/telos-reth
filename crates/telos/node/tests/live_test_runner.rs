@@ -1,3 +1,5 @@
+use super::utils::cleos_evm::{doresources_sandwich, get_nonce, multi_raw_eth_tx, sign_native_tx, EOSIO_ADDR, EOSIO_PKEY, EOSIO_WALLET};
+
 use alloy_consensus::{Signed, TxLegacy};
 use alloy_contract::private::Transport;
 use alloy_network::{Ethereum, ReceiptResponse, TransactionBuilder};
@@ -29,8 +31,6 @@ use tracing::info;
 use tracing::log::warn;
 use reth::primitives::revm_primitives::bytes::Bytes;
 use reth::revm::primitives::{AccessList, AccessListItem};
-use crate::utils::cleos_evm::{doresources_sandwich, get_nonce, multi_raw_eth_tx, sign_native_tx, EOSIO_ADDR, EOSIO_PKEY, EOSIO_WALLET};
-
 
 use alloy_provider::{Identity, Provider, ProviderBuilder, ReqwestProvider};
 use alloy_provider::fillers::{FillProvider, JoinFill, WalletFiller};
@@ -39,7 +39,7 @@ use reqwest::Client;
 
 pub type TestProvider = FillProvider<JoinFill<Identity, WalletFiller<EthereumWallet>>, ReqwestProvider, Http<Client>, Ethereum>;
 
-pub(crate) fn account_params(account: &str) -> GetTableRowsParams {
+pub fn account_params(account: &str) -> GetTableRowsParams {
     GetTableRowsParams {
         code: name!("eosio.evm"),
         table: name!("account"),
@@ -53,7 +53,7 @@ pub(crate) fn account_params(account: &str) -> GetTableRowsParams {
     }
 }
 
-pub(crate) fn config_params() -> GetTableRowsParams {
+pub fn config_params() -> GetTableRowsParams {
     GetTableRowsParams {
         code: name!("eosio.evm"),
         table: name!("config"),
