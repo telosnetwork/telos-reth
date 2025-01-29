@@ -3,8 +3,7 @@ use alloy_contract::private::Transport;
 use alloy_network::{Ethereum, ReceiptResponse, TransactionBuilder};
 use alloy_primitives::{hex, keccak256, Address, Signature, B256, U256};
 use alloy_provider::network::EthereumWallet;
-use alloy_provider::{Provider, ProviderBuilder};
-use alloy_rpc_types::TransactionRequest;
+use alloy_rpc_types::{BlockNumberOrTag};
 
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::private::primitives::TxKind::Create;
@@ -16,14 +15,29 @@ use num_bigint::{BigUint, ToBigUint};
 use reqwest::Url;
 use reth::primitives::BlockId;
 use reth::primitives::BlockNumberOrTag::Latest;
-use reth::rpc::types::{BlockTransactionsKind, TransactionInput};
+use reth::rpc::types::{BlockTransactionsKind, Transaction, TransactionInput, TransactionRequest};
 use std::fmt::Debug;
 use std::str::FromStr;
+use std::time::Duration;
+use alloy_primitives::hex::FromHex;
+use antelope::api::client::APIClient;
+use antelope::api::default_provider::DefaultProvider;
+use antelope::chain::action::PermissionLevel;
+use antelope::chain::private_key::PrivateKey;
 use telos_translator_rs::rlp::telos_rlp_decode::TelosTxDecodable;
 use tracing::info;
-
+use tracing::log::warn;
 use reth::primitives::revm_primitives::bytes::Bytes;
 use reth::revm::primitives::{AccessList, AccessListItem};
+use crate::utils::cleos_evm::{doresources_sandwich, get_nonce, multi_raw_eth_tx, sign_native_tx, EOSIO_ADDR, EOSIO_PKEY, EOSIO_WALLET};
+
+
+use alloy_provider::{Identity, Provider, ProviderBuilder, ReqwestProvider};
+use alloy_provider::fillers::{FillProvider, JoinFill, WalletFiller};
+use alloy_transport_http::Http;
+use reqwest::Client;
+
+pub type TestProvider = FillProvider<JoinFill<Identity, WalletFiller<EthereumWallet>>, ReqwestProvider, Http<Client>, Ethereum>;
 
 pub(crate) fn account_params(account: &str) -> GetTableRowsParams {
     GetTableRowsParams {
@@ -58,17 +72,17 @@ pub async fn run_local() {
     env_logger::builder().is_test(true).try_init().unwrap();
     let url = "http://localhost:8545";
     let private_key = "26e86e45f6fc45ec6e2ecd128cec80fa1d1505e5507dcd2ae58c3130a7a97b48";
-    run_tests(url, private_key).await;
+    run_tests("http://localhost:8888", url, private_key).await;
 }
 
-pub async fn run_tests(url: &str, private_key: &str) {
+pub async fn run_tests(telos_url: &str, eth_url: &str, private_key: &str) {
     let signer = PrivateKeySigner::from_str(private_key).unwrap();
     let wallet = EthereumWallet::from(signer.clone());
 
     let provider = ProviderBuilder::new()
         //.network::<TelosNetwork>()
         .wallet(wallet.clone())
-        .on_http(Url::from_str(url).unwrap());
+        .on_http(Url::from_str(eth_url).unwrap());
 
     let signer_address = signer.address();
     let balance = provider.get_balance(signer_address).await.unwrap();
@@ -78,7 +92,15 @@ pub async fn run_tests(url: &str, private_key: &str) {
     let block = provider.get_block(BlockId::latest(), BlockTransactionsKind::Full).await;
     info!("Latest block:\n {:?}", block);
 
-    test_blocknum_onchain(url, private_key).await;
+    test_blocknum_onchain(eth_url, private_key).await;
+
+    let api_client = APIClient::<DefaultProvider>::default_provider(
+        telos_url.to_string(),
+        Some(1),
+    ).unwrap();
+
+    test_2k_txs(&api_client, &provider).await;
+    test_doresources_sandwich(&api_client, &provider).await;
 }
 
 pub async fn test_blocknum_onchain(url: &str, private_key: &str) {
@@ -362,7 +384,7 @@ pub async fn test_wrong_nonce<T>(
     let err = tx_result.unwrap_err();
     assert_eq!(
         err.to_string(),
-        "server returned an error response: error code -32003: nonce too low: next nonce 9, tx nonce 0"
+        "server returned an error response: error code -32003: nonce too low: next nonce 8, tx nonce 0"
     )
 }
 
@@ -586,4 +608,77 @@ pub fn make_unique_vrs(
     let r = U256::from_be_slice(r_biguint.to_bytes_be().as_slice());
     let s = U256::from_be_slice(&s_bytes);
     Signature::from_rs_and_parity(r, s, v).expect("Failed to create signature")
+}
+
+pub async fn test_doresources_sandwich(
+    telos_client: &APIClient<DefaultProvider>,
+    reth_provider: &TestProvider
+) {
+    let info = telos_client.v1_chain.get_info().await.unwrap();
+    let eosio_key = PrivateKey::from_str(EOSIO_PKEY, false).unwrap();
+    let nonce = reth_provider.get_transaction_count(EOSIO_ADDR.clone()).await.unwrap();
+    let chain_id = reth_provider.get_chain_id().await.unwrap();
+    let pre_gas_price = reth_provider.get_gas_price().await.unwrap();
+    let unsigned_sandwich = doresources_sandwich(
+        &info, name!("eosio"), chain_id, nonce, pre_gas_price, EOSIO_ADDR.clone(), Address::from_hex("0000000000000000deadbeef0000000000000000").unwrap()
+    ).await;
+    let sandwich_tx = sign_native_tx(&unsigned_sandwich, &info, &eosio_key);
+    let result_tx = telos_client.v1_chain.send_transaction(sandwich_tx).await.unwrap();
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    let post_gas_price = reth_provider.get_gas_price().await.unwrap();
+
+    let block = reth_provider.get_block_by_number(BlockNumberOrTag::Number(result_tx.processed.block_num - 57), true).await.unwrap().unwrap();
+    let txs: Vec<Transaction> = block.transactions.clone().into_transactions().collect();
+    let receipt_0 = reth_provider.get_transaction_receipt(txs[0].hash).await.unwrap().unwrap();
+    let receipt_1 = reth_provider.get_transaction_receipt(txs[1].hash).await.unwrap().unwrap();
+    assert_ne!(receipt_0.effective_gas_price, receipt_1.effective_gas_price);
+
+    assert_ne!(pre_gas_price, post_gas_price);
+}
+
+pub async fn test_2k_txs(
+    telos_client: &APIClient<DefaultProvider>,
+    reth_provider: &TestProvider
+) {
+    let chain_id = reth_provider.get_chain_id().await.unwrap();
+    let gas_price = reth_provider.get_gas_price().await.unwrap();
+
+    let eosio_key = PrivateKey::from_str(EOSIO_PKEY, false).unwrap();
+
+    let start_nonce = get_nonce(&telos_client, &EOSIO_ADDR).await;
+
+    let total_batches = 4;
+    for i in 0..total_batches {
+        let to = Some(Address::random());
+        let info = telos_client.v1_chain.get_info().await.unwrap();
+        let nonce = get_nonce(&telos_client, &EOSIO_ADDR).await;
+        let tx = multi_raw_eth_tx(
+            500,
+            &info,
+            name!("eosio"),
+            PermissionLevel::new(name!("eosio"), name!("active")),
+            false,
+            None,
+            &EOSIO_WALLET,
+            chain_id,
+            nonce,
+            EOSIO_ADDR.clone(),
+            to,
+            gas_price,
+            20_000_000,
+            U256::from(10000)
+        ).await;
+
+        let signed_tx = sign_native_tx(&tx, &info, &eosio_key);
+
+        let result = telos_client.v1_chain.send_transaction(signed_tx).await.unwrap();
+
+        warn!("({}/{}) 500 txs in block {}", i + 1, total_batches, result.processed.block_num);
+        tokio::time::sleep(Duration::from_secs(1)).await;
+    }
+
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    let last_nonce = get_nonce(&telos_client, &EOSIO_ADDR).await;
+    assert_eq!(last_nonce - start_nonce, 500 * total_batches);
 }
