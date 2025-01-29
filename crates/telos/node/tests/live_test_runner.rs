@@ -1,4 +1,6 @@
-use super::utils::cleos_evm::{doresources_sandwich, get_nonce, multi_raw_eth_tx, sign_native_tx, EOSIO_ADDR, EOSIO_PKEY, EOSIO_WALLET};
+use super::utils::cleos_evm::{transfer_tx, doresources_sandwich, get_nonce, multi_raw_eth_tx, sign_native_tx, EOSIO_ADDR, EOSIO_PKEY, EOSIO_WALLET};
+
+use crate::integration::EVM_USER;
 
 use alloy_consensus::{Signed, TxLegacy};
 use alloy_contract::private::Transport;
@@ -36,6 +38,8 @@ use alloy_provider::{Identity, Provider, ProviderBuilder, ReqwestProvider};
 use alloy_provider::fillers::{FillProvider, JoinFill, WalletFiller};
 use alloy_transport_http::Http;
 use reqwest::Client;
+use telos_translator_rs::types::names::EOSIO;
+use tokio::time::sleep;
 
 pub type TestProvider = FillProvider<JoinFill<Identity, WalletFiller<EthereumWallet>>, ReqwestProvider, Http<Client>, Ethereum>;
 
@@ -99,6 +103,7 @@ pub async fn run_tests(telos_url: &str, eth_url: &str, private_key: &str) {
         Some(1),
     ).unwrap();
 
+    test_bad_memo(&api_client, &provider).await;
     test_2k_txs(&api_client, &provider).await;
     test_doresources_sandwich(&api_client, &provider).await;
 }
@@ -681,4 +686,24 @@ pub async fn test_2k_txs(
     tokio::time::sleep(Duration::from_millis(500)).await;
     let last_nonce = get_nonce(&telos_client, &EOSIO_ADDR).await;
     assert_eq!(last_nonce - start_nonce, 500 * total_batches);
+}
+
+pub async fn test_bad_memo(
+    telos_client: &APIClient<DefaultProvider>,
+    reth_provider: &TestProvider
+) {
+    let bad_memo = vec![1,3,4,5];
+    let is_utf8 = String::from_utf8(bad_memo.clone()).is_ok();
+    assert!(!is_utf8, "Bad memo should not be valid utf8");
+    let info = telos_client.v1_chain.get_info().await.unwrap();
+    let eosio_key = PrivateKey::from_str(EOSIO_PKEY, false).unwrap();
+    let unsigned_bad_memo_tx = transfer_tx(&info, Name::from_u64(EOSIO), Name::new_from_str(EVM_USER), 1_0000, bad_memo);
+    let bad_memo_tx = sign_native_tx(&unsigned_bad_memo_tx, &info, &eosio_key);
+    let result_tx = telos_client.v1_chain.send_transaction(bad_memo_tx).await.unwrap();
+
+    let bad_transfer_evm_block = result_tx.processed.block_num - 57;
+    sleep(Duration::from_secs(2)).await;
+
+    let block = reth_provider.get_block_by_number(BlockNumberOrTag::Latest, true).await.unwrap().unwrap();
+    assert!(block.header.number > bad_transfer_evm_block, "Chain should sync past the bad memo block");
 }
