@@ -2,8 +2,6 @@ mod live_test_runner;
 mod utils;
 
 use crate::live_test_runner::TestProvider;
-use crate::utils::cleos_evm::{setrevision_tx, sign_native_tx, EOSIO_PKEY, EOSIO_WALLET};
-
 use alloy_primitives::Address;
 use alloy_provider::{Provider, ProviderBuilder, ReqwestProvider};
 use antelope::api::client::{APIClient, DefaultProvider};
@@ -19,8 +17,15 @@ use reth_node_telos::{TelosArgs, TelosNode};
 use reth_telos_rpc::TelosClient;
 use std::str::FromStr;
 use std::{fs, path::PathBuf, sync::Arc, time::Duration};
+use antelope::api::system::structs::CreateAccountParams;
+use antelope::api::system::SystemAPI;
+use antelope::chain::asset::Asset;
+use antelope::chain::authority::{Authority, KeyWeight};
 use antelope::chain::binary_extension::BinaryExtension;
+use antelope::chain::key_type::KeyType::K1;
+use antelope::chain::name::Name;
 use antelope::chain::private_key::PrivateKey;
+use antelope::name;
 use telos_consensus_client::{
     client::ConsensusClient,
     config::{AppConfig, CliArgs},
@@ -34,7 +39,8 @@ use testcontainers::{
     core::ContainerPort::Tcp, runners::AsyncRunner, ContainerAsync, GenericImage,
 };
 use tokio::sync::mpsc;
-use tracing::info;
+use tracing::log::info;
+use crate::utils::cleos_evm::{create_tx, get_account_by_addr, get_account_by_name, setrevision_tx, sign_native_tx, EOSIO_PKEY, EOSIO_WALLET};
 
 
 struct TelosRethNodeHandle {
@@ -43,7 +49,7 @@ struct TelosRethNodeHandle {
 }
 
 const CONTAINER_TAG: &str =
-    "latest@sha256:e91304655bca4b190af5c7d1bbdd86ba26ae927c43fe82bdc36edfad24e022cb";
+    "v0.1.12@sha256:683f5ad1c51a5361d24ec23f10b3dd36d9ae8f4655d4577a54ee90f0d916f8b6";
 
 // This is the last block in the container, after this block the node is done syncing and is running live
 const CONTAINER_LAST_EVM_BLOCK: u64 = 37;
@@ -59,7 +65,7 @@ async fn start_ship() -> ContainerAsync<GenericImage> {
     // The tag for this image needs to come from the Github packages UI, under the "OS/Arch" tab
     //   and should be the tag for linux/amd64
     let container: ContainerAsync<GenericImage> =
-        GenericImage::new("guilledk/testcontainer-nodeos-evm-lite", CONTAINER_TAG)
+        GenericImage::new("ghcr.io/telosnetwork/testcontainer-nodeos-evm", CONTAINER_TAG)
             .with_exposed_port(Tcp(8888))
             .with_exposed_port(Tcp(18999))
             .start()
@@ -282,6 +288,69 @@ async fn test_evm_address_nonce(provider: &TestProvider, api_client: &APIClient<
     assert_eq!(account.nonce, 12);
     assert_eq!(account.nonce, tx_count);
     assert_eq!(account.nonce, row.nonce);
+
+    // test create nonce
+    let eosio_key = PrivateKey::from_str(EOSIO_PKEY, false).unwrap();
+    let sys_api = SystemAPI::new(api_client.clone());
+
+    let acc_1 = Name::new_from_str("testcreate");
+    let acc_1_owner_key = PrivateKey::from_str("5JZSEjWMRbyYSEYeVpHQNjex4Ds5gTEgrzZ7r4C7wS3MwtFbiDs", false).unwrap();
+    let acc_1_active_key = PrivateKey::from_str("5Hsgdhn5VXe1krvfnMHvmZ3upjJRVKUfqkGLwSuh6fwFzQDDu2a", false).unwrap();
+
+    sys_api.create_account(CreateAccountParams{
+        creator: name!("eosio"),
+        name: acc_1,
+        stake_net: Asset::from_string("10.0000 TLOS"),
+        stake_cpu: Asset::from_string("10.0000 TLOS"),
+        ram_bytes: 10_000_000,
+        owner: Authority {threshold: 1, keys: vec![KeyWeight{key: acc_1_owner_key.to_public(), weight: 1}], accounts: vec![], waits: vec![]},
+        active: Authority {threshold: 1, keys: vec![KeyWeight{key: acc_1_active_key.to_public(), weight: 1}], accounts: vec![], waits: vec![]},
+        transfer: true
+    }, eosio_key.clone()).await.unwrap();
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    let info = api_client.v1_chain.get_info().await.unwrap();
+    let create_tx = create_tx(&info, acc_1, "create testing".to_string());
+    let signed_create_tx = sign_native_tx(&create_tx, &info, &acc_1_active_key);
+    let result = api_client.v1_chain.send_transaction(signed_create_tx).await.unwrap();
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    let evm_acc_1 = get_account_by_name(&api_client, acc_1).await;
+
+    assert_eq!(evm_acc_1.nonce, 1);
+
+    // test openwallet create
+
+    let acc_2 = Name::new_from_str("testopenw");
+    let acc_2_owner_key = PrivateKey::from_str("5JTkn5TR8qWsGqtnMwbH21y9atXtJw3dXWzzUNj4nmgn9ZG12ij", false).unwrap();
+    let acc_2_active_key = PrivateKey::from_str("5K44tPtNYBDZ1wYdgjCJWZakWBPnbuBBm9kdDkr6WFXadooHca4", false).unwrap();
+    let acc_2_evm_key = Address::random();
+
+    sys_api.create_account(CreateAccountParams{
+        creator: name!("eosio"),
+        name: acc_2,
+        stake_net: Asset::from_string("10.0000 TLOS"),
+        stake_cpu: Asset::from_string("10.0000 TLOS"),
+        ram_bytes: 10_000_000,
+        owner: Authority {threshold: 1, keys: vec![KeyWeight{key: acc_2_owner_key.to_public(), weight: 1}], accounts: vec![], waits: vec![]},
+        active: Authority {threshold: 1, keys: vec![KeyWeight{key: acc_2_active_key.to_public(), weight: 1}], accounts: vec![], waits: vec![]},
+        transfer: true
+    }, eosio_key).await.unwrap();
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    let info = api_client.v1_chain.get_info().await.unwrap();
+    let create_tx = crate::utils::cleos_evm::openwallet_tx(&info, acc_2, acc_2_evm_key);
+    let signed_create_tx = sign_native_tx(&create_tx, &info, &acc_2_active_key);
+    let result = api_client.v1_chain.send_transaction(signed_create_tx).await.unwrap();
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    let evm_acc_2 = get_account_by_addr(&api_client, &acc_2_evm_key).await;
+
+    assert_eq!(evm_acc_2.nonce, 0);
 }
 
 async fn test_revision(api_client: &APIClient<DefaultProvider>, expected_revision: Option<&u32>) {

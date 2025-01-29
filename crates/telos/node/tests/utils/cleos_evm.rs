@@ -15,9 +15,7 @@ use antelope::chain::private_key::PrivateKey;
 use alloy_rpc_types::TransactionRequest;
 use alloy_signer_local::PrivateKeySigner;
 use antelope::api::client::{APIClient, DefaultProvider};
-use antelope::util::bytes_to_hex;
 use lazy_static::lazy_static;
-use tracing::info;
 use reth_node_telos::two_way_storage_compare::AccountRow;
 
 pub const EOSIO_PKEY: &str = "5Jr65kdYmn33C3UabzhmWDm2PuqbRfPuDStts3ZFNSBLM7TqaiL";
@@ -59,9 +57,91 @@ pub async fn get_account_by_addr(client: &APIClient<DefaultProvider>, address: &
         .clone()
 }
 
+pub async fn get_account_by_name(client: &APIClient<DefaultProvider>, name: Name) -> AccountRow {
+    let query_params_account = GetTableRowsParams {
+        code: name!("eosio.evm"),
+        table: name!("account"),
+        scope: None,
+        lower_bound: Some(TableIndexType::NAME(name)),
+        upper_bound: Some(TableIndexType::NAME(name)),
+        limit: Some(1),
+        reverse: None,
+        index_position: Some(IndexPosition::TERTIARY),
+        show_payer: None,
+    };
+    let account_rows = client.v1_chain.get_table_rows::<AccountRow>(query_params_account)
+        .await
+        .expect(&format!("Network error trying find an account row for {}", name));
+
+    account_rows.rows
+        .first()
+        .expect(&format!("Couldn\'t find an account row for {}", name))
+        .clone()
+}
+
 pub async fn get_nonce(client: &APIClient<DefaultProvider>, address: &Address) -> u64 {
     let account = get_account_by_addr(client, address).await;
     account.nonce
+}
+
+#[allow(dead_code)]
+pub fn create_tx(
+    info: &GetInfoResponse,
+    account: Name,
+    data: String
+) -> Transaction {
+    #[derive(Clone, Eq, PartialEq, Default, StructPacker)]
+    struct Create {
+        account: Name,
+        data: String
+    }
+
+    let raw_data = Create {
+        account, data
+    };
+    let create_act = Action::new_ex(
+        name!("eosio.evm"),
+        name!("create"),
+        vec![PermissionLevel::new(account, name!("active"))],
+        raw_data,
+    );
+
+    Transaction {
+        header: info.get_transaction_header(90),
+        context_free_actions: vec![],
+        actions: vec![create_act],
+        extension: vec![],
+    }
+}
+
+#[allow(dead_code)]
+pub fn openwallet_tx(
+    info: &GetInfoResponse,
+    account: Name,
+    address: Address
+) -> Transaction {
+    #[derive(Clone, Eq, PartialEq, Default, StructPacker)]
+    struct OpenWallet {
+        account: Name,
+        address: Checksum160
+    }
+
+    let raw_data = OpenWallet {
+        account, address: Checksum160::from_bytes(address.as_slice()).unwrap()
+    };
+    let openw_act = Action::new_ex(
+        name!("eosio.evm"),
+        name!("openwallet"),
+        vec![PermissionLevel::new(account, name!("active"))],
+        raw_data,
+    );
+
+    Transaction {
+        header: info.get_transaction_header(90),
+        context_free_actions: vec![],
+        actions: vec![openw_act],
+        extension: vec![],
+    }
 }
 
 #[allow(dead_code)]
