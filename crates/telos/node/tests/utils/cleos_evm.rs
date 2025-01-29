@@ -15,6 +15,7 @@ use antelope::chain::private_key::PrivateKey;
 use alloy_rpc_types::TransactionRequest;
 use alloy_signer_local::PrivateKeySigner;
 use antelope::api::client::{APIClient, DefaultProvider};
+use antelope::chain::asset::{Asset, Symbol};
 use antelope::util::bytes_to_hex;
 use lazy_static::lazy_static;
 use tracing::info;
@@ -23,6 +24,14 @@ use reth_node_telos::two_way_storage_compare::AccountRow;
 pub const EOSIO_PKEY: &str = "5Jr65kdYmn33C3UabzhmWDm2PuqbRfPuDStts3ZFNSBLM7TqaiL";
 pub const EOSIO_EVM_PRIV_KEY: &str = "87ef69a835f8cd0c44ab99b7609a20b2ca7f1c8470af4f0e5b44db927d542084";
 pub const EOSIO_EVM_PUB_KEY: &str = "c51fe232a0153f1f44572369cefe7b90f2ba08a5";
+
+#[derive(Debug, Clone, Default, StructPacker)]
+pub struct TransferAction {
+    pub from: Name,
+    pub to: Name,
+    pub quantity: Asset,
+    pub memo: Vec<u8>,
+}
 
 lazy_static! {
     pub static ref EOSIO_SIGNER: PrivateKeySigner = PrivateKeySigner::from_str(EOSIO_EVM_PRIV_KEY).unwrap();
@@ -62,6 +71,36 @@ pub async fn get_account_by_addr(client: &APIClient<DefaultProvider>, address: &
 pub async fn get_nonce(client: &APIClient<DefaultProvider>, address: &Address) -> u64 {
     let account = get_account_by_addr(client, address).await;
     account.nonce
+}
+
+#[allow(dead_code)]
+pub fn transfer_tx(
+    info: &GetInfoResponse,
+    from: Name,
+    to: Name,
+    amount: i64,
+    memo: Vec<u8>
+) -> Transaction {
+    let raw_data = TransferAction {
+        from,
+        to,
+        quantity: Asset::new(amount, Symbol::new("TLOS", 4)),
+        memo,
+    };
+
+    let rev_act = Action::new_ex(
+        name!("eosio.token"),
+        name!("transfer"),
+        vec![PermissionLevel::new(name!("eosio.evm"), name!("active"))],
+        raw_data,
+    );
+
+    Transaction {
+        header: info.get_transaction_header(90),
+        context_free_actions: vec![],
+        actions: vec![rev_act],
+        extension: vec![],
+    }
 }
 
 #[allow(dead_code)]

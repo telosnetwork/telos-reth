@@ -49,8 +49,8 @@ const CONTAINER_TAG: &str =
 const CONTAINER_LAST_EVM_BLOCK: u64 = 37;
 
 // evmuser address from the container
-const EVM_USER_ADDRESS: &str = "0xd80744e16d62c62c5fa2a04b92da3fe6b9efb523";
-const EVM_USER: &str = "evmuser1";
+pub const EVM_USER_ADDRESS: &str = "0xd80744e16d62c62c5fa2a04b92da3fe6b9efb523";
+pub const EVM_USER: &str = "evmuser1";
 
 async fn start_ship() -> ContainerAsync<GenericImage> {
     // Change this container to a local image if using new ship data,
