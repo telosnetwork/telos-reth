@@ -141,7 +141,7 @@ pub fn transfer_tx(
     let transfer_act = Action::new_ex(
         name!("eosio.token"),
         name!("transfer"),
-        vec![PermissionLevel::new(name!("eosio.evm"), name!("active"))],
+        vec![PermissionLevel::new(from, name!("active"))],
         raw_data,
     );
 
