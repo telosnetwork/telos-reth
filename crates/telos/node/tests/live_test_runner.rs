@@ -1,7 +1,5 @@
 use super::utils::cleos_evm::{transfer_tx, doresources_sandwich, get_nonce, multi_raw_eth_tx, sign_native_tx, EOSIO_ADDR, EOSIO_PKEY, EOSIO_WALLET};
 
-use crate::integration::EVM_USER;
-
 use alloy_consensus::{Signed, TxLegacy};
 use alloy_contract::private::Transport;
 use alloy_network::{Ethereum, ReceiptResponse, TransactionBuilder};
@@ -692,7 +690,9 @@ pub async fn test_bad_memo(
     telos_client: &APIClient<DefaultProvider>,
     reth_provider: &TestProvider
 ) {
-    let bad_memo = vec![1,3,4,5];
+    // TODO: Import this from integration.rs once the mod refactor is done
+    const EVM_USER: &str = "evmuser1";
+    let bad_memo = vec![174,3,4,5,2,4,3,2,3,4,2,34,2,34,2,3,2,3,4,23,4];
     let is_utf8 = String::from_utf8(bad_memo.clone()).is_ok();
     assert!(!is_utf8, "Bad memo should not be valid utf8");
     let info = telos_client.v1_chain.get_info().await.unwrap();
