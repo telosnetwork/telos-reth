@@ -1,4 +1,3 @@
-use std::fmt::Debug;
 use std::str::FromStr;
 use alloy_consensus::{Signed, TxLegacy};
 use alloy_network::TransactionBuilder;
@@ -13,7 +12,7 @@ use tracing::log::info;
 use crate::utils::cleos_evm::{TestProvider, EOSIO_ADDR, EVM_USER_ADDR};
 
 // test_1559_tx tests sending eip1559 transaction that has max_priority_fee_per_gas and max_fee_per_gas set
-pub async fn test_1559_tx(provider: &TestProvider) {
+pub(crate) async fn test_1559_tx(provider: &TestProvider) {
     info!("test 1559 tx");
     let nonce = provider.get_transaction_count(*EOSIO_ADDR).await.unwrap();
     let chain_id = provider.get_chain_id().await.unwrap();
@@ -33,7 +32,7 @@ pub async fn test_1559_tx(provider: &TestProvider) {
 }
 
 // test_2930_tx tests sending eip2930 transaction which has access_list provided
-pub async fn test_2930_tx(provider: &TestProvider) {
+pub(crate) async fn test_2930_tx(provider: &TestProvider) {
     info!("test 2930 tx");
     let nonce = provider.get_transaction_count(*EOSIO_ADDR).await.unwrap();
     let chain_id = provider.get_chain_id().await.unwrap();
@@ -58,7 +57,7 @@ pub async fn test_2930_tx(provider: &TestProvider) {
 }
 
 // test_double_approve_erc20 sends 2 transactions for approve on the ERC20 token and asserts that only once it is success
-pub async fn test_double_approve_erc20(provider: &TestProvider) {
+pub(crate) async fn test_double_approve_erc20(provider: &TestProvider) {
     info!("test double approve erc20");
     let nonce = provider.get_transaction_count(*EOSIO_ADDR).await.unwrap();
     let chain_id = provider.get_chain_id().await.unwrap();
@@ -111,7 +110,7 @@ pub async fn test_double_approve_erc20(provider: &TestProvider) {
     }
 }
 
-pub async fn test_wrong_nonce(provider: &TestProvider) {
+pub(crate) async fn test_wrong_nonce(provider: &TestProvider) {
     info!("test wrong nonce");
     let chain_id = Some(provider.get_chain_id().await.unwrap());
     let nonce = Some(0);
@@ -138,7 +137,7 @@ pub async fn test_wrong_nonce(provider: &TestProvider) {
     )
 }
 
-pub async fn test_high_nonce(provider: &TestProvider) {
+pub(crate) async fn test_high_nonce(provider: &TestProvider) {
     info!("test high nonce");
     let chain_id = Some(provider.get_chain_id().await.unwrap());
     let nonce = Some(500);
@@ -166,7 +165,7 @@ pub async fn test_high_nonce(provider: &TestProvider) {
     )
 }
 
-pub async fn test_incorrect_rlp(provider: &TestProvider) {
+pub(crate) async fn test_incorrect_rlp(provider: &TestProvider) {
     info!("test incorrect rlp");
     let chain_id = Some(provider.get_chain_id().await.unwrap());
     let nonce = Some(provider.get_transaction_count(*EOSIO_ADDR).await.unwrap());
@@ -208,7 +207,7 @@ fn tx_trailing_empty_values() -> eyre::Result<Signed<TxLegacy>> {
     Ok(TxLegacy::decode_telos_signed_fields(&mut &byte_array[..], Some(sig))?)
 }
 
-pub async fn test_unsigned_trx(provider: &TestProvider) {
+pub(crate) async fn test_unsigned_trx(provider: &TestProvider) {
     info!("test unsigned trx");
     let chain_id = Some(provider.get_chain_id().await.unwrap());
     let nonce = Some(provider.get_transaction_count(*EOSIO_ADDR).await.unwrap());
@@ -250,7 +249,7 @@ fn tx_unsigned_trx() -> eyre::Result<Signed<TxLegacy>> {
     )?)
 }
 
-pub async fn test_unsigned_trx2(provider: &TestProvider) {
+pub(crate) async fn test_unsigned_trx2(provider: &TestProvider) {
     info!("test unsigned trx2");
     let chain_id = Some(provider.get_chain_id().await.unwrap());
     let nonce = Some(provider.get_transaction_count(*EOSIO_ADDR).await.unwrap());
@@ -292,7 +291,7 @@ fn tx_unsigned_trx2() -> eyre::Result<Signed<TxLegacy>> {
     )?)
 }
 
-pub async fn test_signed_trx(provider: &TestProvider) {
+pub(crate) async fn test_signed_trx(provider: &TestProvider) {
     info!("test signed trx");
     let chain_id = Some(provider.get_chain_id().await.unwrap());
     let nonce = Some(provider.get_transaction_count(*EOSIO_ADDR).await.unwrap());
@@ -323,7 +322,7 @@ fn tx_signed_trx() -> eyre::Result<Signed<TxLegacy>> {
     Ok(TxLegacy::decode_telos_signed_fields(&mut raw.as_slice(), None)?)
 }
 
-pub fn make_unique_vrs(
+fn make_unique_vrs(
     block_hash_native: Checksum256,
     sender_address: Address,
     trx_index: usize,

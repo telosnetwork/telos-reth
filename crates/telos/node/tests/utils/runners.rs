@@ -14,19 +14,19 @@ use reth::args::RpcServerArgs;
 use reth::builder::NodeConfig;
 use reth_chainspec::{ChainSpec, ChainSpecBuilder, TEVMTESTNET};
 
-pub struct TelosRethNodeHandle {
+pub(crate) struct TelosRethNodeHandle {
     pub execution_port: u16,
     pub jwt_secret: String,
 }
 
-pub const CONTAINER_REPO: &str = "ghcr.io/telosnetwork/testcontainer-nodeos-evm";
-pub const CONTAINER_TAG: &str =
+pub(crate) const CONTAINER_REPO: &str = "ghcr.io/telosnetwork/testcontainer-nodeos-evm";
+pub(crate) const CONTAINER_TAG: &str =
     "v0.1.12@sha256:683f5ad1c51a5361d24ec23f10b3dd36d9ae8f4655d4577a54ee90f0d916f8b6";
 
 // This is the last block in the container, after this block the node is done syncing and is running live
-pub const CONTAINER_LAST_EVM_BLOCK: u64 = 37;
+pub(crate) const CONTAINER_LAST_EVM_BLOCK: u64 = 37;
 
-pub async fn start_ship() -> ContainerAsync<GenericImage> {
+pub(crate) async fn start_ship() -> ContainerAsync<GenericImage> {
     // Change this container to a local image if using new ship data,
     //   then make sure to update the ship data in the testcontainer-nodeos-evm repo and build a new version
 
@@ -62,7 +62,7 @@ pub async fn start_ship() -> ContainerAsync<GenericImage> {
     container
 }
 
-pub fn init_reth() -> eyre::Result<(NodeConfig<ChainSpec>, String)> {
+pub(crate) fn init_reth() -> eyre::Result<(NodeConfig<ChainSpec>, String)> {
     let chain_spec = Arc::new(
         ChainSpecBuilder::default()
             .chain(TEVMTESTNET.chain)
@@ -89,7 +89,7 @@ pub fn init_reth() -> eyre::Result<(NodeConfig<ChainSpec>, String)> {
     Ok((node_config, jwt))
 }
 
-pub async fn build_consensus_and_translator(
+pub(crate) async fn build_consensus_and_translator(
     reth_handle: TelosRethNodeHandle,
     ship_port: u16,
     chain_port: u16,

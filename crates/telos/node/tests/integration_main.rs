@@ -1,3 +1,8 @@
+//! # Integration Main
+//!
+//! This entry point manages a reth node & dockerized nodeos, running all tests in `tests/integration`
+//!
+
 use std::env;
 use std::time::Duration;
 use alloy_provider::{Provider, ProviderBuilder};
@@ -25,7 +30,7 @@ use crate::utils::cleos_evm::{setrevision_tx, sign_native_tx, TestProvider, EOSI
 
 #[tokio::test]
 async fn integration_test_entrypoint() {
-    let log_level = env::var("RUST_LOG").unwrap_or_else(|e| "info".to_string());
+    let log_level = env::var("RUST_LOG").unwrap_or_else(|_e| "info".to_string());
 
     tracing_subscriber::fmt()
         .with_env_filter(format!("integration_main={}", log_level))
@@ -146,7 +151,7 @@ async fn run_rev_0_tests(reth_provider: &TestProvider, telos_api: &APIClient<Def
 }
 
 async fn run_rev_1_tests(reth_provider: &TestProvider, telos_api: &APIClient<DefaultProvider>) {
-    test_blocknum_onchain(&reth_provider, &telos_api).await;
+    test_blocknum_onchain(&reth_provider).await;
 
     test_1559_tx(&reth_provider).await;
     test_2930_tx(&reth_provider).await;

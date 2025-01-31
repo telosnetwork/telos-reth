@@ -5,11 +5,10 @@ use alloy_provider::{Provider};
 use alloy_rpc_types::{BlockId, TransactionInput, TransactionRequest};
 use alloy_rpc_types::BlockNumberOrTag::Latest;
 use alloy_sol_types::{sol, SolEvent};
-use antelope::api::client::{APIClient, DefaultProvider};
 use tracing::log::{debug, info};
 use crate::utils::cleos_evm::{TestProvider, EOSIO_ADDR};
 
-pub async fn test_blocknum_onchain(reth_provider: &TestProvider, telos_api: &APIClient<DefaultProvider>) {
+pub(crate) async fn test_blocknum_onchain(reth_provider: &TestProvider) {
     info!("test blocknum onchain");
     sol! {
         #[sol(rpc, bytecode="6080604052348015600e575f80fd5b5060ef8061001b5f395ff3fe6080604052348015600e575f80fd5b50600436106030575f3560e01c80637f6c6f101460345780638fb82b0214604e575b5f80fd5b603a6056565b6040516045919060a2565b60405180910390f35b6054605d565b005b5f43905090565b437fc04eeb4cfe0799838abac8fa75bca975bff679179886c80c84a7b93229a1a61860405160405180910390a2565b5f819050919050565b609c81608c565b82525050565b5f60208201905060b35f8301846095565b9291505056fea264697066735822122003482ecf0ea4d820deb6b5ebd2755b67c3c8d4fb9ed50a8b4e0bce59613552df64736f6c634300081a0033")]

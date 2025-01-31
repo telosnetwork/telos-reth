@@ -5,13 +5,12 @@ use alloy_provider::Provider;
 use alloy_rpc_types::{BlockNumberOrTag, Transaction};
 use antelope::api::client::{APIClient, DefaultProvider};
 use antelope::chain::action::PermissionLevel;
-use antelope::chain::private_key::PrivateKey;
 use antelope::name;
 use antelope::chain::name::Name;
 use tracing::log::{debug, info};
 use crate::utils::cleos_evm::{doresources_sandwich, get_nonce, multi_raw_eth_tx, sign_native_tx, TestProvider, EOSIO_ADDR, EOSIO_PKEY, EOSIO_WALLET};
 
-pub async fn test_doresources_sandwich(
+pub(crate) async fn test_doresources_sandwich(
     reth_provider: &TestProvider,
     telos_client: &APIClient<DefaultProvider>
 ) {
@@ -38,7 +37,7 @@ pub async fn test_doresources_sandwich(
     assert_ne!(pre_gas_price, post_gas_price);
 }
 
-pub async fn test_2k_txs(
+pub(crate) async fn test_2k_txs(
     reth_provider: &TestProvider,
     telos_client: &APIClient<DefaultProvider>
 ) {
@@ -75,7 +74,7 @@ pub async fn test_2k_txs(
         let result = telos_client.v1_chain.send_transaction(signed_tx).await.unwrap();
 
         debug!("({}/{}) 500 txs in block {}", i + 1, total_batches, result.processed.block_num);
-        tokio::time::sleep(Duration::from_secs(1)).await;
+        tokio::time::sleep(Duration::from_secs(2)).await;
     }
 
     tokio::time::sleep(Duration::from_millis(500)).await;

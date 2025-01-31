@@ -1,2 +1,2 @@
-pub mod cleos_evm;
-pub mod runners;
+pub(crate) mod cleos_evm;
+pub(crate) mod runners;

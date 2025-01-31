@@ -8,7 +8,7 @@ use tokio::time::sleep;
 use tracing::log::info;
 use crate::utils::cleos_evm::{sign_native_tx, transfer_tx, TestProvider, EOSIO_PKEY, EVM_USER};
 
-pub async fn test_bad_memo(
+pub(crate) async fn test_bad_memo(
     reth_provider: &TestProvider,
     telos_client: &APIClient<DefaultProvider>,
 ) {

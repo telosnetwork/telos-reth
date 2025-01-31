@@ -1,4 +1,3 @@
-use std::str::FromStr;
 use std::time::Duration;
 use alloy_primitives::Address;
 use alloy_provider::Provider;
@@ -14,7 +13,7 @@ use telos_translator_rs::types::evm_types::AccountRow;
 use tracing::log::info;
 use crate::utils::cleos_evm::{create_tx, get_account_by_addr, get_account_by_name, sign_native_tx, TestProvider, EOSIO_PKEY, EVM_USER, EVM_USER_ADDR};
 
-pub async fn test_evm_address_nonce(reth_provider: &TestProvider, telos_api: &APIClient<DefaultProvider>) {
+pub(crate) async fn test_evm_address_nonce(reth_provider: &TestProvider, telos_api: &APIClient<DefaultProvider>) {
     info!("test evm address nonce");
     let row: AccountRow = get_account_by_name(&telos_api, name!(EVM_USER)).await;
 
@@ -49,7 +48,7 @@ pub async fn test_evm_address_nonce(reth_provider: &TestProvider, telos_api: &AP
     let info = telos_api.v1_chain.get_info().await.unwrap();
     let create_tx = create_tx(&info, acc_1, "create testing".to_string());
     let signed_create_tx = sign_native_tx(&create_tx, &info, &acc_1_active_key);
-    let result = telos_api.v1_chain.send_transaction(signed_create_tx).await.unwrap();
+    telos_api.v1_chain.send_transaction(signed_create_tx).await.unwrap();
 
     tokio::time::sleep(Duration::from_secs(1)).await;
 
@@ -80,7 +79,7 @@ pub async fn test_evm_address_nonce(reth_provider: &TestProvider, telos_api: &AP
     let info = telos_api.v1_chain.get_info().await.unwrap();
     let create_tx = crate::utils::cleos_evm::openwallet_tx(&info, acc_2, acc_2_evm_key);
     let signed_create_tx = sign_native_tx(&create_tx, &info, &acc_2_active_key);
-    let result = telos_api.v1_chain.send_transaction(signed_create_tx).await.unwrap();
+    telos_api.v1_chain.send_transaction(signed_create_tx).await.unwrap();
 
     tokio::time::sleep(Duration::from_secs(1)).await;
 
