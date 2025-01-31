@@ -1,8 +1,10 @@
 use std::str::FromStr;
-use alloy_network::{EthereumWallet, TransactionBuilder};
+use alloy_network::{Ethereum, EthereumWallet, TransactionBuilder};
 use alloy_primitives::{Address, U256};
 use alloy_primitives::bytes::BytesMut;
 use alloy_primitives::private::alloy_rlp::Encodable;
+use alloy_provider::fillers::{FillProvider, JoinFill, WalletFiller};
+use alloy_provider::{Identity, ReqwestProvider};
 use antelope::api::v1::structs::{GetInfoResponse, GetTableRowsParams, IndexPosition, TableIndexType};
 use antelope::chain::action::{Action, PermissionLevel};
 use antelope::chain::checksum::{Checksum160, Checksum256};
@@ -14,15 +16,23 @@ use antelope::serializer::{Decoder, Encoder};
 use antelope::chain::private_key::PrivateKey;
 use alloy_rpc_types::TransactionRequest;
 use alloy_signer_local::PrivateKeySigner;
+use alloy_transport_http::Http;
 use antelope::api::client::{APIClient, DefaultProvider};
 use antelope::chain::asset::{Asset, Symbol};
-use antelope::util::bytes_to_hex;
 use lazy_static::lazy_static;
-use reth_node_telos::two_way_storage_compare::AccountRow;
+use reqwest::Client;
+use telos_translator_rs::types::evm_types::{AccountRow, EvmContractConfigRow};
 
-pub const EOSIO_PKEY: &str = "5Jr65kdYmn33C3UabzhmWDm2PuqbRfPuDStts3ZFNSBLM7TqaiL";
+// reth provider type
+pub type TestProvider = FillProvider<JoinFill<Identity, WalletFiller<EthereumWallet>>, ReqwestProvider, Http<Client>, Ethereum>;
+
+pub const EOSIO_PKEY_STR: &str = "5Jr65kdYmn33C3UabzhmWDm2PuqbRfPuDStts3ZFNSBLM7TqaiL";
 pub const EOSIO_EVM_PRIV_KEY: &str = "87ef69a835f8cd0c44ab99b7609a20b2ca7f1c8470af4f0e5b44db927d542084";
 pub const EOSIO_EVM_PUB_KEY: &str = "c51fe232a0153f1f44572369cefe7b90f2ba08a5";
+
+// evmuser address from the container
+pub const EVM_USER_PUB_KEY: &str = "d80744e16d62c62c5fa2a04b92da3fe6b9efb523";
+pub const EVM_USER: &str = "evmuser1";
 
 #[derive(Debug, Clone, Default, StructPacker)]
 pub struct TransferAction {
@@ -33,9 +43,34 @@ pub struct TransferAction {
 }
 
 lazy_static! {
+    pub static ref EOSIO_PKEY: PrivateKey = PrivateKey::from_str(EOSIO_PKEY_STR, true).unwrap();
     pub static ref EOSIO_SIGNER: PrivateKeySigner = PrivateKeySigner::from_str(EOSIO_EVM_PRIV_KEY).unwrap();
     pub static ref EOSIO_ADDR: Address = Address::from_str(EOSIO_EVM_PUB_KEY).unwrap();
     pub static ref EOSIO_WALLET: EthereumWallet = EthereumWallet::from(EOSIO_SIGNER.clone());
+
+    pub static ref EVM_USER_ADDR: Address = Address::from_str(EVM_USER_PUB_KEY).unwrap();
+}
+
+pub async fn get_evm_config(client: &APIClient<DefaultProvider>) -> EvmContractConfigRow {
+    let query_params = GetTableRowsParams {
+        code: name!("eosio.evm"),
+        table: name!("config"),
+        scope: None,
+        lower_bound: None,
+        upper_bound: None,
+        limit: Some(1),
+        reverse: None,
+        index_position: None,
+        show_payer: None,
+    };
+    let account_rows = client.v1_chain.get_table_rows::<EvmContractConfigRow>(query_params)
+        .await
+        .expect("Network error trying find config row");
+
+    account_rows.rows
+        .first()
+        .expect("Couldn\'t find config row")
+        .clone()
 }
 
 pub fn pad_address(address: &Address) -> Checksum256 {
