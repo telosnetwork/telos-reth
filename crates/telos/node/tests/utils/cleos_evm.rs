@@ -1,8 +1,10 @@
 use std::str::FromStr;
-use alloy_network::{EthereumWallet, TransactionBuilder};
+use alloy_network::{Ethereum, EthereumWallet, TransactionBuilder};
 use alloy_primitives::{Address, U256};
 use alloy_primitives::bytes::BytesMut;
 use alloy_primitives::private::alloy_rlp::Encodable;
+use alloy_provider::fillers::{FillProvider, JoinFill, WalletFiller};
+use alloy_provider::{Identity, ReqwestProvider};
 use antelope::api::v1::structs::{GetInfoResponse, GetTableRowsParams, IndexPosition, TableIndexType};
 use antelope::chain::action::{Action, PermissionLevel};
 use antelope::chain::checksum::{Checksum160, Checksum256};
@@ -14,18 +16,26 @@ use antelope::serializer::{Decoder, Encoder};
 use antelope::chain::private_key::PrivateKey;
 use alloy_rpc_types::TransactionRequest;
 use alloy_signer_local::PrivateKeySigner;
+use alloy_transport_http::Http;
 use antelope::api::client::{APIClient, DefaultProvider};
 use antelope::chain::asset::{Asset, Symbol};
-use antelope::util::bytes_to_hex;
 use lazy_static::lazy_static;
-use reth_node_telos::two_way_storage_compare::AccountRow;
+use reqwest::Client;
+use telos_translator_rs::types::evm_types::{AccountRow, EvmContractConfigRow};
 
-pub const EOSIO_PKEY: &str = "5Jr65kdYmn33C3UabzhmWDm2PuqbRfPuDStts3ZFNSBLM7TqaiL";
-pub const EOSIO_EVM_PRIV_KEY: &str = "87ef69a835f8cd0c44ab99b7609a20b2ca7f1c8470af4f0e5b44db927d542084";
-pub const EOSIO_EVM_PUB_KEY: &str = "c51fe232a0153f1f44572369cefe7b90f2ba08a5";
+// reth provider type
+pub(crate) type TestProvider = FillProvider<JoinFill<Identity, WalletFiller<EthereumWallet>>, ReqwestProvider, Http<Client>, Ethereum>;
+
+pub(crate) const EOSIO_PKEY_STR: &str = "5Jr65kdYmn33C3UabzhmWDm2PuqbRfPuDStts3ZFNSBLM7TqaiL";
+pub(crate) const EOSIO_EVM_PRIV_KEY: &str = "87ef69a835f8cd0c44ab99b7609a20b2ca7f1c8470af4f0e5b44db927d542084";
+pub(crate) const EOSIO_EVM_PUB_KEY: &str = "c51fe232a0153f1f44572369cefe7b90f2ba08a5";
+
+// evmuser address from the container
+pub(crate) const EVM_USER_PUB_KEY: &str = "d80744e16d62c62c5fa2a04b92da3fe6b9efb523";
+pub(crate) const EVM_USER: &str = "evmuser1";
 
 #[derive(Debug, Clone, Default, StructPacker)]
-pub struct TransferAction {
+pub(crate) struct TransferAction {
     pub from: Name,
     pub to: Name,
     pub quantity: Asset,
@@ -33,18 +43,43 @@ pub struct TransferAction {
 }
 
 lazy_static! {
+    pub static ref EOSIO_PKEY: PrivateKey = PrivateKey::from_str(EOSIO_PKEY_STR, true).unwrap();
     pub static ref EOSIO_SIGNER: PrivateKeySigner = PrivateKeySigner::from_str(EOSIO_EVM_PRIV_KEY).unwrap();
     pub static ref EOSIO_ADDR: Address = Address::from_str(EOSIO_EVM_PUB_KEY).unwrap();
     pub static ref EOSIO_WALLET: EthereumWallet = EthereumWallet::from(EOSIO_SIGNER.clone());
+
+    pub static ref EVM_USER_ADDR: Address = Address::from_str(EVM_USER_PUB_KEY).unwrap();
 }
 
-pub fn pad_address(address: &Address) -> Checksum256 {
+pub(crate) async fn get_evm_config(client: &APIClient<DefaultProvider>) -> EvmContractConfigRow {
+    let query_params = GetTableRowsParams {
+        code: name!("eosio.evm"),
+        table: name!("config"),
+        scope: None,
+        lower_bound: None,
+        upper_bound: None,
+        limit: Some(1),
+        reverse: None,
+        index_position: None,
+        show_payer: None,
+    };
+    let account_rows = client.v1_chain.get_table_rows::<EvmContractConfigRow>(query_params)
+        .await
+        .expect("Network error trying find config row");
+
+    account_rows.rows
+        .first()
+        .expect("Couldn\'t find config row")
+        .clone()
+}
+
+pub(crate) fn pad_address(address: &Address) -> Checksum256 {
     let mut padded = vec![0; 12];
     padded.extend_from_slice(address.as_slice());
     Checksum256::from_bytes(padded.as_slice()).unwrap()
 }
 
-pub async fn get_account_by_addr(client: &APIClient<DefaultProvider>, address: &Address) -> AccountRow {
+pub(crate) async fn get_account_by_addr(client: &APIClient<DefaultProvider>, address: &Address) -> AccountRow {
     let cs_addr = pad_address(address);
     let query_params_account = GetTableRowsParams {
         code: name!("eosio.evm"),
@@ -67,7 +102,7 @@ pub async fn get_account_by_addr(client: &APIClient<DefaultProvider>, address: &
         .clone()
 }
 
-pub async fn get_account_by_name(client: &APIClient<DefaultProvider>, name: Name) -> AccountRow {
+pub(crate) async fn get_account_by_name(client: &APIClient<DefaultProvider>, name: Name) -> AccountRow {
     let query_params_account = GetTableRowsParams {
         code: name!("eosio.evm"),
         table: name!("account"),
@@ -89,13 +124,13 @@ pub async fn get_account_by_name(client: &APIClient<DefaultProvider>, name: Name
         .clone()
 }
 
-pub async fn get_nonce(client: &APIClient<DefaultProvider>, address: &Address) -> u64 {
+pub(crate) async fn get_nonce(client: &APIClient<DefaultProvider>, address: &Address) -> u64 {
     let account = get_account_by_addr(client, address).await;
     account.nonce
 }
 
 #[allow(dead_code)]
-pub fn create_tx(
+pub(crate) fn create_tx(
     info: &GetInfoResponse,
     account: Name,
     data: String
@@ -124,7 +159,7 @@ pub fn create_tx(
     }
 }
 
-pub fn transfer_tx(
+pub(crate) fn transfer_tx(
     info: &GetInfoResponse,
     from: Name,
     to: Name,
@@ -154,7 +189,7 @@ pub fn transfer_tx(
 }
 
 #[allow(dead_code)]
-pub fn openwallet_tx(
+pub(crate) fn openwallet_tx(
     info: &GetInfoResponse,
     account: Name,
     address: Address
@@ -184,7 +219,7 @@ pub fn openwallet_tx(
 }
 
 #[allow(dead_code)]
-pub fn setrevision_tx(
+pub(crate) fn setrevision_tx(
     info: &GetInfoResponse,
     new_revision: u32
 ) -> Transaction {
@@ -212,7 +247,7 @@ pub fn setrevision_tx(
 }
 
 #[allow(dead_code)]
-pub async fn raw_eth_tx(
+pub(crate) async fn raw_eth_tx(
     info: &GetInfoResponse,
     ram_payer: Name,
     perms: PermissionLevel,
@@ -231,7 +266,7 @@ pub async fn raw_eth_tx(
 }
 
 #[allow(dead_code)]
-pub async fn multi_raw_eth_tx(
+pub(crate) async fn multi_raw_eth_tx(
     amount: usize,
     info: &GetInfoResponse,
     ram_payer: Name,
@@ -311,7 +346,7 @@ impl Packer for NoParams {
 
 
 #[allow(dead_code)]
-pub async fn doresources_sandwich(
+pub(crate) async fn doresources_sandwich(
     info: &GetInfoResponse,
     ram_payer: Name,
     chain_id: u64,
@@ -425,7 +460,7 @@ pub async fn doresources_sandwich(
 }
 
 #[allow(dead_code)]
-pub fn sign_native_tx(trx: &Transaction, info: &GetInfoResponse, private_key: &PrivateKey) -> SignedTransaction {
+pub(crate) fn sign_native_tx(trx: &Transaction, info: &GetInfoResponse, private_key: &PrivateKey) -> SignedTransaction {
     let sign_data = trx.signing_data(info.chain_id.data.as_ref());
     SignedTransaction {
         transaction: trx.clone(),
