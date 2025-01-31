@@ -77,7 +77,7 @@ pub(crate) async fn test_2k_txs(
         tokio::time::sleep(Duration::from_secs(2)).await;
     }
 
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    tokio::time::sleep(Duration::from_secs(3)).await;
     let last_nonce = get_nonce(&telos_client, &EOSIO_ADDR).await;
     assert_eq!(last_nonce - start_nonce, 500 * total_batches);
 }
