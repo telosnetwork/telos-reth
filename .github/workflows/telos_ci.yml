@@ -31,7 +31,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --package reth-node-telos --features telos --test integration testing_chain_sync -- --exact --nocapture
+          args: --package reth-node-telos --features telos --test integration_main integration_test_entrypoint -- --exact --nocapture
 
 #  fmt:
 #    name: Rustfmt
