@@ -1,15 +1,27 @@
 use std::str::FromStr;
+use std::time::Duration;
 use alloy_consensus::{Signed, TxLegacy};
 use alloy_network::TransactionBuilder;
 use alloy_primitives::{hex, keccak256, Address, Bytes, Signature, B256, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::{AccessList, AccessListItem, TransactionInput, TransactionRequest};
 use alloy_rpc_types::BlockNumberOrTag::Latest;
-use antelope::chain::checksum::Checksum256;
+use antelope::api::system::structs::CreateAccountParams;
+use antelope::api::system::SystemAPI;
+use antelope::api::v1::structs::{GetTableRowsParams, IndexPosition, TableIndexType};
+use antelope::chain::asset::Asset;
+use antelope::chain::authority::{Authority, KeyWeight};
+use antelope::chain::name::Name;
+use antelope::chain::private_key::PrivateKey;
+use antelope::name;
+use telos_translator_rs::types::evm_types::AccountRow;
+use telos_translator_rs::types::names::EOSIO;
+use crate::{APIClient, DefaultProvider, EOSIO_PKEY, sign_native_tx};
+use antelope::chain::checksum::{Checksum160, Checksum256};
 use num_bigint::{BigUint, ToBigUint};
 use telos_translator_rs::rlp::telos_rlp_decode::TelosTxDecodable;
 use tracing::log::info;
-use crate::utils::cleos_evm::{TestProvider, EOSIO_ADDR, EVM_USER_ADDR};
+use crate::utils::cleos_evm::{transfer_tx, TestProvider, EOSIO_ADDR, EVM_USER, EVM_USER_ADDR};
 
 // test_1559_tx tests sending eip1559 transaction that has max_priority_fee_per_gas and max_fee_per_gas set
 pub(crate) async fn test_1559_tx(provider: &TestProvider) {
@@ -337,4 +349,160 @@ fn make_unique_vrs(
     let r = U256::from_be_slice(r_biguint.to_bytes_be().as_slice());
     let s = U256::from_be_slice(&s_bytes);
     Signature::from_rs_and_parity(r, s, v).expect("Failed to create signature")
+}
+
+pub(crate) async fn test_deposit_to_address_zero(provider: &TestProvider, telos_client: &APIClient<DefaultProvider>) {
+    info!("test deposit to address zero");
+
+    // Get address zero balance before deposit
+    let address_zero_balance_before = provider.get_balance(Address::ZERO).await.unwrap();
+
+    let sys_api = SystemAPI::new(telos_client.clone());
+    let info = telos_client.v1_chain.get_info().await.unwrap();
+
+    // Create a test native account for deposit
+    let acc = Name::new_from_str("testdepzero1");
+    let acc_key = PrivateKey::from_str("5KKvUgsrcgJCCCqYkPgWCr4pzT6awYG7wn95XCcv142X1uStnxe", false).unwrap();
+
+    sys_api.create_account(CreateAccountParams{
+        creator: name!("eosio"),
+        name: acc,
+        stake_net: Asset::from_string("0.1000 TLOS"),
+        stake_cpu: Asset::from_string("0.1000 TLOS"),
+        ram_bytes: 10_000_000,
+        owner: Authority {threshold: 1, keys: vec![KeyWeight{key: acc_key.to_public(), weight: 1}], accounts: vec![], waits: vec![]},
+        active: Authority {threshold: 1, keys: vec![KeyWeight{key: acc_key.to_public(), weight: 1}], accounts: vec![], waits: vec![]},
+        transfer: true
+    }, EOSIO_PKEY.clone()).await.unwrap();
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    // Transfer 0.0001 TLOS to the created test account
+    let tx = transfer_tx(&info, Name::from_u64(EOSIO), acc, 1, vec![]);
+    let signed_tx = sign_native_tx(&tx, &info, &EOSIO_PKEY);
+    telos_client.v1_chain.send_transaction(signed_tx).await.unwrap();
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    // Do openwallet for address zero if it is not created yet
+    let query_params_account = GetTableRowsParams {
+        code: name!("eosio.evm"),
+        table: name!("account"),
+        scope: None,
+        lower_bound: Some(TableIndexType::CHECKSUM256(Checksum256::from_hex("0000000000000000000000000000000000000000000000000000000000000000").unwrap())),
+        upper_bound: Some(TableIndexType::CHECKSUM256(Checksum256::from_hex("0000000000000000000000000000000000000000000000000000000000000000").unwrap())),
+        limit: Some(1),
+        reverse: None,
+        index_position: Some(IndexPosition::SECONDARY),
+        show_payer: None,
+    };
+    let account_rows = telos_client.v1_chain.get_table_rows::<AccountRow>(query_params_account).await;
+    if let Ok(account_rows) = account_rows {
+        if account_rows.rows.len() != 1 || account_rows.rows[0].address != Checksum160::from_hex("0000000000000000000000000000000000000000").unwrap() {
+            // Address zero doesn't exist
+            let create_tx = crate::utils::cleos_evm::openwallet_tx(&info, Name::from_u64(EOSIO), Address::ZERO);
+            let signed_create_tx = sign_native_tx(&create_tx, &info, &EOSIO_PKEY);
+            telos_client.v1_chain.send_transaction(signed_create_tx).await.unwrap();
+
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
+    }
+    
+    // Deposit 0.0001 TLOS to address zero
+    let memo = vec![48, 120, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48];
+    let tx = transfer_tx(&info, acc, name!("eosio.evm"), 1, memo);
+    let signed_tx = sign_native_tx(&tx, &info, &acc_key);
+    telos_client.v1_chain.send_transaction(signed_tx).await.unwrap();
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    // Get address balance after deposit
+    let address_zero_balance_after = provider.get_balance(Address::ZERO).await.unwrap();
+
+    // Check if the balance is increased by 0.0001 TLOS
+    assert_eq!(address_zero_balance_after-address_zero_balance_before,U256::from(100000000000000_u64));
+}
+
+pub(crate) async fn test_deposit_lower_than_address_zero_balance(provider: &TestProvider, telos_client: &APIClient<DefaultProvider>) {
+    info!("test deposit lower than address zero balance");
+
+    // Get address zero balance before deposit
+    let address_zero_balance_before = provider.get_balance(Address::ZERO).await.unwrap();
+    let address_evm_user_balance_before = provider.get_balance(*EVM_USER_ADDR).await.unwrap();
+
+    let sys_api = SystemAPI::new(telos_client.clone());
+    let info = telos_client.v1_chain.get_info().await.unwrap();
+
+    // Create a test native account for deposit
+    let acc = Name::new_from_str("testdepzero2");
+    let acc_key = PrivateKey::from_str("5Hviu1MqZqBjrJ5EQyYBhn9xtQbxG8fYQWDX3ihN9n9D7DvXCqE", false).unwrap();
+
+    sys_api.create_account(CreateAccountParams{
+        creator: name!("eosio"),
+        name: acc,
+        stake_net: Asset::from_string("0.1000 TLOS"),
+        stake_cpu: Asset::from_string("0.1000 TLOS"),
+        ram_bytes: 10_000_000,
+        owner: Authority {threshold: 1, keys: vec![KeyWeight{key: acc_key.to_public(), weight: 1}], accounts: vec![], waits: vec![]},
+        active: Authority {threshold: 1, keys: vec![KeyWeight{key: acc_key.to_public(), weight: 1}], accounts: vec![], waits: vec![]},
+        transfer: true
+    }, EOSIO_PKEY.clone()).await.unwrap();
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    // Transfer 0.0003 TLOS to the created test account
+    let tx = transfer_tx(&info, Name::from_u64(EOSIO), acc, 3, vec![]);
+    let signed_tx = sign_native_tx(&tx, &info, &EOSIO_PKEY);
+    telos_client.v1_chain.send_transaction(signed_tx).await.unwrap();
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    // Do openwallet for address zero if it is not created yet
+    let query_params_account = GetTableRowsParams {
+        code: name!("eosio.evm"),
+        table: name!("account"),
+        scope: None,
+        lower_bound: Some(TableIndexType::CHECKSUM256(Checksum256::from_hex("0000000000000000000000000000000000000000000000000000000000000000").unwrap())),
+        upper_bound: Some(TableIndexType::CHECKSUM256(Checksum256::from_hex("0000000000000000000000000000000000000000000000000000000000000000").unwrap())),
+        limit: Some(1),
+        reverse: None,
+        index_position: Some(IndexPosition::SECONDARY),
+        show_payer: None,
+    };
+    let account_rows = telos_client.v1_chain.get_table_rows::<AccountRow>(query_params_account).await;
+    if let Ok(account_rows) = account_rows {
+        if account_rows.rows.len() != 1 || account_rows.rows[0].address != Checksum160::from_hex("0000000000000000000000000000000000000000").unwrap() {
+            // Address zero doesn't exist
+            let create_tx = crate::utils::cleos_evm::openwallet_tx(&info, Name::from_u64(EOSIO), Address::ZERO);
+            let signed_create_tx = sign_native_tx(&create_tx, &info, &EOSIO_PKEY);
+            telos_client.v1_chain.send_transaction(signed_create_tx).await.unwrap();
+
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
+    }
+    
+    // Deposit 0.0002 TLOS to address zero
+    let memo = vec![48, 120, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48];
+    let tx = transfer_tx(&info, acc, name!("eosio.evm"), 2, memo);
+    let signed_tx = sign_native_tx(&tx, &info, &acc_key);
+    telos_client.v1_chain.send_transaction(signed_tx).await.unwrap();
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    // Deposit 0.0001 TLOS (less than address zero balance) to another address
+    let tx = transfer_tx(&info, acc, name!("eosio.evm"), 1, EVM_USER_ADDR.to_string().into_bytes());
+    let signed_tx = sign_native_tx(&tx, &info, &acc_key);
+    telos_client.v1_chain.send_transaction(signed_tx).await.unwrap();
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    // Get address balance after deposit
+    let address_zero_balance_after = provider.get_balance(Address::ZERO).await.unwrap();
+    let address_evm_user_balance_after = provider.get_balance(*EVM_USER_ADDR).await.unwrap();
+
+    // Check if the balance of address zero is increased by 0.0002 TLOS
+    assert_eq!(address_zero_balance_after-address_zero_balance_before,U256::from(200000000000000_u64));
+
+    // Check if the balance of evm user address is increased by 0.0001 TLOS
+    assert_eq!(address_evm_user_balance_after-address_evm_user_balance_before,U256::from(100000000000000_u64));
 }
