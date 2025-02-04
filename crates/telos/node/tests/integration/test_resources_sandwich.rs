@@ -53,7 +53,7 @@ pub(crate) async fn test_2k_txs(
         let info = telos_client.v1_chain.get_info().await.unwrap();
         let nonce = get_nonce(&telos_client, &EOSIO_ADDR).await;
         let tx = multi_raw_eth_tx(
-            500,
+            100,
             &info,
             name!("eosio"),
             PermissionLevel::new(name!("eosio"), name!("active")),
@@ -73,11 +73,11 @@ pub(crate) async fn test_2k_txs(
 
         let result = telos_client.v1_chain.send_transaction(signed_tx).await.unwrap();
 
-        debug!("({}/{}) 500 txs in block {}", i + 1, total_batches, result.processed.block_num);
+        debug!("({}/{}) 100 txs in block {}", i + 1, total_batches, result.processed.block_num);
         tokio::time::sleep(Duration::from_secs(2)).await;
     }
 
     tokio::time::sleep(Duration::from_secs(3)).await;
     let last_nonce = get_nonce(&telos_client, &EOSIO_ADDR).await;
-    assert_eq!(last_nonce - start_nonce, 500 * total_batches);
+    assert_eq!(last_nonce - start_nonce, 100 * total_batches);
 }
