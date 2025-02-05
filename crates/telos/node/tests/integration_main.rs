@@ -21,7 +21,7 @@ use reth_telos_rpc::TelosClient;
 mod integration;
 mod utils;
 
-use crate::integration::test_bad_memo::test_bad_memo;
+use crate::integration::test_bad_memo::{test_bad_memo, test_bad_memo_evm};
 use crate::integration::test_blocknum::test_blocknum_onchain;
 use crate::integration::test_nonce::test_evm_address_nonce;
 use crate::integration::test_resources_sandwich::{test_2k_txs, test_doresources_sandwich, test_setrevision_sandwich};
@@ -172,6 +172,7 @@ async fn run_rev_1_tests(reth_provider: &TestProvider, telos_api: &APIClient<Def
     test_get_account_bug(&reth_provider, &telos_api, false).await;
     test_delegate_call_bug(&reth_provider, &telos_api, false).await;
 
+    test_bad_memo_evm(&reth_provider, &telos_api).await;
     test_bad_memo(&reth_provider, &telos_api).await;
 
     // 2k txs needed to seed fees for resource sandwich
