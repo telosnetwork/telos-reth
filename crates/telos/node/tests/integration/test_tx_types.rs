@@ -2,10 +2,12 @@ use std::str::FromStr;
 use std::time::Duration;
 use alloy_consensus::{Signed, TxLegacy};
 use alloy_network::TransactionBuilder;
-use alloy_primitives::{hex, keccak256, Address, Bytes, Signature, B256, U256};
+use alloy_primitives::{hex, keccak256, Address, Bytes, Signature, TxKind, B256, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::{AccessList, AccessListItem, TransactionInput, TransactionRequest};
 use alloy_rpc_types::BlockNumberOrTag::Latest;
+use alloy_sol_types::sol;
+use alloy_sol_types::sol_data::Bool;
 use antelope::api::system::structs::CreateAccountParams;
 use antelope::api::system::SystemAPI;
 use antelope::api::v1::structs::{GetTableRowsParams, IndexPosition, TableIndexType};
@@ -16,6 +18,7 @@ use antelope::chain::private_key::PrivateKey;
 use antelope::name;
 use telos_translator_rs::types::evm_types::AccountRow;
 use telos_translator_rs::types::names::EOSIO;
+use tracing::debug;
 use crate::{APIClient, DefaultProvider, EOSIO_PKEY, sign_native_tx};
 use antelope::chain::checksum::{Checksum160, Checksum256};
 use num_bigint::{BigUint, ToBigUint};
@@ -145,7 +148,7 @@ pub(crate) async fn test_wrong_nonce(provider: &TestProvider) {
     let err = tx_result.unwrap_err();
     assert_eq!(
         err.to_string(),
-        "server returned an error response: error code -32003: nonce too low: next nonce 8, tx nonce 0"
+        "server returned an error response: error code -32003: nonce too low: next nonce 10, tx nonce 0"
     )
 }
 
@@ -505,4 +508,140 @@ pub(crate) async fn test_deposit_lower_than_address_zero_balance(provider: &Test
 
     // Check if the balance of evm user address is increased by 0.0001 TLOS
     assert_eq!(address_evm_user_balance_after-address_evm_user_balance_before,U256::from(100000000000000_u64));
+}
+
+pub(crate) async fn test_get_account_bug(reth_provider: &TestProvider, telos_client: &APIClient<DefaultProvider>, expected_outcome: bool) {
+    info!("test get account bug, expected outcome: {}", expected_outcome);
+
+    let address1 = Address::random();
+    let address2 = Address::random();
+
+    let nonce = reth_provider.get_transaction_count(*EOSIO_ADDR).await.unwrap();
+    let chain_id = reth_provider.get_chain_id().await.unwrap();
+    let gas_price = reth_provider.get_gas_price().await.unwrap();
+
+    sol! {
+        #[sol(rpc, bytecode="608060405234801561001057600080fd5b50610226806100206000396000f3fe60806040526004361061001e5760003560e01c80633ab79a6f14610023575b600080fd5b61003d60048036038101906100389190610146565b61003f565b005b600060023461004e91906101bf565b90508273ffffffffffffffffffffffffffffffffffffffff166108fc829081150290604051600060405180830381858888f19350505050158015610096573d6000803e3d6000fd5b508173ffffffffffffffffffffffffffffffffffffffff166108fc829081150290604051600060405180830381858888f193505050501580156100dd573d6000803e3d6000fd5b50505050565b600080fd5b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b6000610113826100e8565b9050919050565b61012381610108565b811461012e57600080fd5b50565b6000813590506101408161011a565b92915050565b6000806040838503121561015d5761015c6100e3565b5b600061016b85828601610131565b925050602061017c85828601610131565b9150509250929050565b6000819050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601260045260246000fd5b60006101ca82610186565b91506101d583610186565b9250826101e5576101e4610190565b5b82820490509291505056fea264697066735822122075ae86f5524f94936eaa0251c4a94d92a5b02e384606fa1685efc83200e6143164736f6c63430008130033")]
+        contract SplitPayment {                
+            function splitTransfer(address payable recipient1, address payable recipient2) external payable {
+                uint256 half = msg.value / 2;
+                recipient1.transfer(half);
+                recipient2.transfer(half);
+            }
+        }
+    }
+
+    let legacy_tx = alloy_consensus::TxLegacy {
+        chain_id: Some(chain_id),
+        nonce,
+        gas_price: gas_price.into(),
+        gas_limit: 20_000_000,
+        to: TxKind::Create,
+        value: U256::ZERO,
+        input: SplitPayment::BYTECODE.to_vec().into(),
+    };
+
+    let legacy_tx_request = TransactionRequest {
+        from: Some(*EOSIO_ADDR),
+        to: Some(legacy_tx.to),
+        gas: Some(legacy_tx.gas_limit as u64),
+        gas_price: Some(legacy_tx.gas_price),
+        value: Some(legacy_tx.value),
+        input: TransactionInput::from(legacy_tx.input),
+        nonce: Some(legacy_tx.nonce),
+        chain_id: legacy_tx.chain_id,
+        ..Default::default()
+    };
+
+    let deploy_result = reth_provider.send_transaction(legacy_tx_request.clone()).await.unwrap();
+
+    let deploy_tx_hash = deploy_result.tx_hash();
+    debug!("Deployed contract with tx hash: {deploy_tx_hash}");
+    let receipt = deploy_result.get_receipt().await.unwrap();
+    debug!("Receipt: {:?}", receipt);
+    
+
+    let deployed_contract_address = receipt.contract_address.unwrap();
+    let split_payment = SplitPayment::new(deployed_contract_address, reth_provider.clone());
+
+    let legacy_tx_request = TransactionRequest::default()
+        .with_from(*EOSIO_ADDR)
+        .with_to(deployed_contract_address)
+        .with_gas_limit(20_000_000)
+        .with_gas_price(gas_price)
+        .with_input(split_payment.splitTransfer(address1, address2).calldata().clone())
+        .with_nonce(reth_provider.get_transaction_count(*EOSIO_ADDR).await.unwrap())
+        .with_chain_id(chain_id)
+        .with_value(U256::from_str("2").unwrap());
+
+    let call_result = reth_provider.send_transaction(legacy_tx_request.clone()).await.unwrap();
+
+    let call_tx_hash = call_result.tx_hash();
+    debug!("Called contract with tx hash: {call_tx_hash}");
+    let receipt = call_result.get_receipt().await.unwrap();
+    debug!("Receipt: {:?}", receipt);
+
+    let mut address1_256 = [0; 32];
+    address1_256[12..32].copy_from_slice(address1.as_slice());
+    let query_params_account = GetTableRowsParams {
+        code: name!("eosio.evm"),
+        table: name!("account"),
+        scope: None,
+        lower_bound: Some(TableIndexType::CHECKSUM256(Checksum256::from_bytes(&address1_256).unwrap())),
+        upper_bound: Some(TableIndexType::CHECKSUM256(Checksum256::from_bytes(&address1_256).unwrap())),
+        limit: Some(1),
+        reverse: None,
+        index_position: Some(IndexPosition::SECONDARY),
+        show_payer: None,
+    };
+    let account_rows = telos_client.v1_chain.get_table_rows::<AccountRow>(query_params_account).await;
+    if let Ok(account_rows) = account_rows {
+        assert_eq!(account_rows.rows.len(), 1);
+        assert_eq!(account_rows.rows[0].address, Checksum160::from_bytes(address1.as_slice()).unwrap());
+        if expected_outcome == true {
+            assert_eq!(account_rows.rows[0].balance, Checksum256::from_hex("0000000000000000000000000000000000000000000000000000000000000002").unwrap());
+        } else {
+            assert_eq!(account_rows.rows[0].balance, Checksum256::from_hex("0000000000000000000000000000000000000000000000000000000000000001").unwrap());
+        }
+    }
+
+    let mut address2_256 = [0; 32];
+    address2_256[12..32].copy_from_slice(address2.as_slice());
+    let query_params_account = GetTableRowsParams {
+        code: name!("eosio.evm"),
+        table: name!("account"),
+        scope: None,
+        lower_bound: Some(TableIndexType::CHECKSUM256(Checksum256::from_bytes(&address2_256).unwrap())),
+        upper_bound: Some(TableIndexType::CHECKSUM256(Checksum256::from_bytes(&address2_256).unwrap())),
+        limit: Some(1),
+        reverse: None,
+        index_position: Some(IndexPosition::SECONDARY),
+        show_payer: None,
+    };
+    let account_rows = telos_client.v1_chain.get_table_rows::<AccountRow>(query_params_account).await;
+    if let Ok(account_rows) = account_rows {        
+        if expected_outcome == true {
+            assert_eq!(account_rows.rows.len(), 0);
+        } else {
+            assert_eq!(account_rows.rows.len(), 1);
+            assert_eq!(account_rows.rows[0].address, Checksum160::from_bytes(address2.as_slice()).unwrap());
+            assert_eq!(account_rows.rows[0].balance, Checksum256::from_hex("0000000000000000000000000000000000000000000000000000000000000001").unwrap());
+        }
+    }
+
+    let address1_balance = reth_provider.get_balance(address1).await.unwrap();
+    let address2_balance = reth_provider.get_balance(address2).await.unwrap();
+
+    if expected_outcome == true {
+        assert_eq!(address1_balance, U256::from_str("2").unwrap());
+        assert_eq!(address2_balance, U256::ZERO);
+    } else {
+        assert_eq!(address1_balance, U256::from_str("1").unwrap());
+        assert_eq!(address2_balance, U256::from_str("1").unwrap());
+    }
+    
+
+}
+
+pub(crate) async fn test_delegate_call_bug(provider: &TestProvider, telos_client: &APIClient<DefaultProvider>, expected_outcome: Bool) {
 }
