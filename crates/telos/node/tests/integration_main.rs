@@ -24,7 +24,7 @@ mod utils;
 use crate::integration::test_bad_memo::{test_bad_memo, test_bad_memo_evm};
 use crate::integration::test_blocknum::test_blocknum_onchain;
 use crate::integration::test_nonce::test_evm_address_nonce;
-use crate::integration::test_resources_sandwich::{test_2k_txs, test_doresources_sandwich, test_setrevision_sandwich};
+use crate::integration::test_resources_sandwich::{test_doresources_sandwich, test_setrevision_sandwich};
 use crate::integration::test_revision::test_revision;
 use crate::integration::test_tx_types::{test_1559_tx, test_2930_tx, test_double_approve_erc20, test_high_nonce, test_incorrect_rlp, test_incorrect_rlp2, test_signed_trx, test_unsigned_trx, test_unsigned_trx2, test_wrong_nonce, test_deposit_to_address_zero, test_deposit_lower_than_address_zero_balance};
 use crate::utils::cleos_evm::{setrevision_tx, sign_native_tx, TestProvider, EOSIO_PKEY, EOSIO_WALLET};
@@ -175,8 +175,6 @@ async fn run_rev_1_tests(reth_provider: &TestProvider, telos_api: &APIClient<Def
     test_bad_memo_evm(&reth_provider, &telos_api).await;
     test_bad_memo(&reth_provider, &telos_api).await;
 
-    // 2k txs needed to seed fees for resource sandwich
-    test_2k_txs(&reth_provider, &telos_api).await;
     test_doresources_sandwich(&reth_provider, &telos_api).await;
     test_setrevision_sandwich(&reth_provider, &telos_api).await;
 }
