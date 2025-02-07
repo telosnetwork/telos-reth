@@ -128,6 +128,7 @@ pub(crate) async fn test_double_approve_erc20(provider: &TestProvider) {
 pub(crate) async fn test_wrong_nonce(provider: &TestProvider) {
     info!("test wrong nonce");
     let chain_id = Some(provider.get_chain_id().await.unwrap());
+    let expected_nonce = provider.get_transaction_count(*EOSIO_ADDR).await.unwrap();
     let nonce = Some(0);
     let legacy_tx = tx_trailing_empty_values().unwrap().tx().clone();
     let legacy_tx_request = TransactionRequest {
@@ -148,7 +149,7 @@ pub(crate) async fn test_wrong_nonce(provider: &TestProvider) {
     let err = tx_result.unwrap_err();
     assert_eq!(
         err.to_string(),
-        "server returned an error response: error code -32003: nonce too low: next nonce 12, tx nonce 0"
+        format!("server returned an error response: error code -32003: nonce too low: next nonce {}, tx nonce 0", expected_nonce)
     )
 }
 

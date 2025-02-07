@@ -8943,6 +8943,7 @@ dependencies = [
  "reth-transaction-pool",
  "serde",
  "serde_json",
+ "sha2 0.10.8",
  "telos-consensus-client",
  "telos-translator-rs",
  "testcontainers",
