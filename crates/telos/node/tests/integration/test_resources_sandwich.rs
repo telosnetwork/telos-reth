@@ -12,11 +12,58 @@ use tracing::log::{debug, info};
 use crate::setrevision_tx;
 use crate::utils::cleos_evm::{doresources_sandwich, get_evm_config, get_nonce, multi_raw_eth_tx, setrevision_sandwich, sign_native_tx, TestProvider, EOSIO_ADDR, EOSIO_PKEY, EOSIO_WALLET};
 
+pub(crate) async fn generate_txs_for_fees(
+    reth_provider: &TestProvider,
+    telos_client: &APIClient<DefaultProvider>
+) {
+    let chain_id = reth_provider.get_chain_id().await.unwrap();
+    let gas_price = reth_provider.get_gas_price().await.unwrap();
+
+    let start_nonce = get_nonce(&telos_client, &EOSIO_ADDR).await;
+
+    let total_batches = 4;
+    let tx_amount = 100;
+    for i in 0..total_batches {
+        let to = Some(Address::random());
+        let info = telos_client.v1_chain.get_info().await.unwrap();
+        let nonce = get_nonce(&telos_client, &EOSIO_ADDR).await;
+        let tx = multi_raw_eth_tx(
+            tx_amount,
+            &info,
+            name!("eosio"),
+            PermissionLevel::new(name!("eosio"), name!("active")),
+            false,
+            None,
+            &EOSIO_WALLET,
+            chain_id,
+            nonce,
+            EOSIO_ADDR.clone(),
+            to,
+            gas_price,
+            20_000_000,
+            U256::from(10000)
+        ).await;
+
+        let signed_tx = sign_native_tx(&tx, &info, &EOSIO_PKEY);
+
+        let result = telos_client.v1_chain.send_transaction(signed_tx).await.unwrap();
+
+        debug!("({}/{}) {} txs in block {}", i + 1, total_batches, tx_amount, result.processed.block_num);
+        tokio::time::sleep(Duration::from_secs(2)).await;
+    }
+
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    let last_nonce = get_nonce(&telos_client, &EOSIO_ADDR).await;
+    assert_eq!(last_nonce - start_nonce, 100 * total_batches);
+}
+
 pub(crate) async fn test_doresources_sandwich(
     reth_provider: &TestProvider,
     telos_client: &APIClient<DefaultProvider>
 ) {
     info!("test doresources sandwich");
+    generate_txs_for_fees(reth_provider, telos_client).await;
+
     let info = telos_client.v1_chain.get_info().await.unwrap();
     let nonce = reth_provider.get_transaction_count(EOSIO_ADDR.clone()).await.unwrap();
     let chain_id = reth_provider.get_chain_id().await.unwrap();
@@ -37,51 +84,6 @@ pub(crate) async fn test_doresources_sandwich(
     assert_ne!(receipt_0.effective_gas_price, receipt_1.effective_gas_price);
 
     assert_ne!(pre_gas_price, post_gas_price);
-}
-
-pub(crate) async fn test_2k_txs(
-    reth_provider: &TestProvider,
-    telos_client: &APIClient<DefaultProvider>
-) {
-    info!("test 2k txs");
-    let chain_id = reth_provider.get_chain_id().await.unwrap();
-    let gas_price = reth_provider.get_gas_price().await.unwrap();
-
-    let start_nonce = get_nonce(&telos_client, &EOSIO_ADDR).await;
-
-    let total_batches = 4;
-    for i in 0..total_batches {
-        let to = Some(Address::random());
-        let info = telos_client.v1_chain.get_info().await.unwrap();
-        let nonce = get_nonce(&telos_client, &EOSIO_ADDR).await;
-        let tx = multi_raw_eth_tx(
-            100,
-            &info,
-            name!("eosio"),
-            PermissionLevel::new(name!("eosio"), name!("active")),
-            false,
-            None,
-            &EOSIO_WALLET,
-            chain_id,
-            nonce,
-            EOSIO_ADDR.clone(),
-            to,
-            gas_price,
-            20_000_000,
-            U256::from(10000)
-        ).await;
-
-        let signed_tx = sign_native_tx(&tx, &info, &EOSIO_PKEY);
-
-        let result = telos_client.v1_chain.send_transaction(signed_tx).await.unwrap();
-
-        debug!("({}/{}) 100 txs in block {}", i + 1, total_batches, result.processed.block_num);
-        tokio::time::sleep(Duration::from_secs(2)).await;
-    }
-
-    tokio::time::sleep(Duration::from_secs(3)).await;
-    let last_nonce = get_nonce(&telos_client, &EOSIO_ADDR).await;
-    assert_eq!(last_nonce - start_nonce, 100 * total_batches);
 }
 
 pub(crate) async fn test_setrevision_sandwich(
