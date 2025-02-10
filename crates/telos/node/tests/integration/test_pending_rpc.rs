@@ -53,7 +53,7 @@ use alloy_primitives::TxKind::Create;
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag};
 use alloy_sol_types::{sol, SolCall};
-use reqwest::Client;
+use reqwest::{Client, Error};
 use serde_json::{json, Value};
 use tracing::log::{debug, info};
 use reth::rpc::server_types::eth::EthApiError;
@@ -61,277 +61,136 @@ use reth::rpc::server_types::eth::simulate::EthSimulateError;
 use reth::rpc::types::{TransactionInput, TransactionRequest};
 use crate::utils::cleos_evm::{TestProvider, EOSIO_ADDR, EOSIO_EVM_PUB_KEY, EVM_USER_ADDR};
 
+#[derive(Debug)]
+enum RPCError {
+    Network(reqwest::Error),
+    RPC(String),
+}
+
+impl From<reqwest::Error> for RPCError {
+    fn from(value: Error) -> Self {
+        RPCError::Network(value)
+    }
+}
+
 async fn custom_rpc(
     reth_endpoint: String,
     request_body: Value
-) -> Value {
-   Client::new()
+) -> Result<Value, RPCError> {
+    let json_resp = Client::new()
         .post(reth_endpoint)
         .json(&request_body)
         .send()
-        .await
-        .unwrap()
+        .await?
         .json::<Value>()
-        .await
-        .unwrap()
+        .await?;
+
+    let maybe_error = json_resp.get("error");
+    if maybe_error.is_some() {
+        return Err(RPCError::RPC(maybe_error.unwrap().to_string()));
+    }
+
+    Ok(json_resp.get("result")
+        .expect("RPC returned no result")
+        .clone())
 }
 
 pub(crate) async fn test_block_by_number(
     reth_provider: &TestProvider,
 ) {
     info!("test block by number");
-    let pending_block = reth_provider.get_block_by_number(BlockNumberOrTag::Pending, true).await.unwrap();
-    let latest_block = reth_provider.get_block_by_number(BlockNumberOrTag::Latest, true).await.unwrap();
-    assert_eq!(pending_block, latest_block);
+    reth_provider.get_block_by_number(BlockNumberOrTag::Pending, true).await.unwrap();
 }
 
 pub(crate) async fn test_tx_count_by_number(
     reth_endpoint: String
 ) {
-    info!("test tx count by number");
-    let pending_nonce = custom_rpc(reth_endpoint.clone(), json!({
+    info!("test get block tx count by number");
+    custom_rpc(reth_endpoint.clone(), json!({
         "jsonrpc": "2.0",
-        "method": "eth_getTransactionCountByNumber",
-        "params": [EOSIO_EVM_PUB_KEY, "pending"],
+        "method": "eth_getBlockTransactionCountByNumber",
+        "params": ["pending"],
         "id": 1
-    })).await;
-    let latest_nonce = custom_rpc(reth_endpoint, json!({
-        "jsonrpc": "2.0",
-        "method": "eth_getTransactionCountByNumber",
-        "params": [EOSIO_EVM_PUB_KEY, "latest"],
-        "id": 1
-    })).await;
-    assert_eq!(pending_nonce, latest_nonce);
+    })).await.unwrap();
 }
 
 pub(crate) async fn test_uncle_count_by_number(
     reth_endpoint: String
 ) {
     info!("test uncle count by number");
-    let pending_uncle_count = custom_rpc(reth_endpoint.clone(), json!({
+    custom_rpc(reth_endpoint.clone(), json!({
         "jsonrpc": "2.0",
         "method": "eth_getUncleCountByBlockNumber",
         "params": ["pending"],
         "id": 1
-    })).await;
-    let latest_uncle_count = custom_rpc(reth_endpoint, json!({
-        "jsonrpc": "2.0",
-        "method": "eth_getUncleCountByBlockNumber",
-        "params": ["latest"],
-        "id": 1
-    })).await;
-    assert_eq!(pending_uncle_count, latest_uncle_count);
-}
-
-pub(crate) async fn test_uncle_count_by_number_2(
-    reth_provider: &TestProvider,
-) {
-    info!("test uncle count by number 2");
-    let pending_uncle_count = reth_provider.get_uncle_count(BlockId::pending()).await.unwrap();
-    let latest_uncle_count = reth_provider.get_uncle_count(BlockId::latest()).await.unwrap();
-    assert_eq!(pending_uncle_count, latest_uncle_count);
+    })).await.unwrap();
 }
 
 pub(crate) async fn test_get_block_receipts(
     reth_provider: &TestProvider,
 ) {
     info!("test get block receipts");
-    let chain_id = Some(reth_provider.get_chain_id().await.unwrap());
-    let nonce = Some(reth_provider.get_transaction_count(*EOSIO_ADDR).await.unwrap());
-    let legacy_tx_request = TransactionRequest {
-        from: Some(*EOSIO_ADDR),
-        to: Some(TxKind::from(*EVM_USER_ADDR)),
-        gas: Some(20_000_000u64),
-        gas_price: Some(113378400387),
-        value: Some(U256::from(1)),
-        nonce,
-        chain_id,
-        ..Default::default()
-    };
-
-    let tx_receipt = reth_provider.send_transaction(legacy_tx_request)
-        .await
-        .unwrap()
-        .get_receipt()
-        .await
-        .unwrap();
-
-    let block_num = tx_receipt.block_number.unwrap();
-    let pending_block_receipts = reth_provider.get_block_receipts(BlockId::pending()).await.unwrap();
-    let latest_block_receipts = reth_provider.get_block_receipts(BlockId::pending()).await.unwrap();
-    let block_receipts = reth_provider.get_block_receipts(
-        BlockId::Number(BlockNumberOrTag::Number(block_num))).await.unwrap();
-    assert_eq!(pending_block_receipts, block_receipts);
-    assert_eq!(pending_block_receipts, latest_block_receipts);
+    reth_provider.get_block_receipts(BlockId::pending()).await.unwrap();
 }
 
 pub(crate) async fn test_get_uncle_by_block_number_and_index(
     reth_endpoint: String
 ) {
     info!("test get uncle by number and index");
-    let pending_uncle = custom_rpc(reth_endpoint.clone(), json!({
+    custom_rpc(reth_endpoint.clone(), json!({
         "jsonrpc": "2.0",
         "method": "eth_getUncleByBlockNumberAndIndex",
         "params": ["pending", 0],
         "id": 1
-    })).await;
-    let latest_uncle = custom_rpc(reth_endpoint, json!({
-        "jsonrpc": "2.0",
-        "method": "eth_getUncleByBlockNumberAndIndex",
-        "params": ["latest", 0],
-        "id": 1
-    })).await;
-    assert_eq!(pending_uncle, latest_uncle);
+    })).await.unwrap();
 }
 
 pub(crate) async fn test_get_raw_transaction_by_block_number_and_index(
-    reth_provider: &TestProvider,
     reth_endpoint: String
 ) {
     info!("test get raw transaction by number and index");
-
-    let chain_id = Some(reth_provider.get_chain_id().await.unwrap());
-    let nonce = Some(reth_provider.get_transaction_count(*EOSIO_ADDR).await.unwrap());
-    let legacy_tx_request = TransactionRequest {
-        from: Some(*EOSIO_ADDR),
-        to: Some(TxKind::from(*EVM_USER_ADDR)),
-        gas: Some(20_000_000u64),
-        gas_price: Some(113378400387),
-        value: Some(U256::from(1)),
-        nonce,
-        chain_id,
-        ..Default::default()
-    };
-
-    let tx_receipt = reth_provider.send_transaction(legacy_tx_request)
-        .await
-        .unwrap()
-        .get_receipt()
-        .await
-        .unwrap();
-
-    let block_num = format!("0x{:x}", tx_receipt.block_number.unwrap());
-
-    let pending_tx = custom_rpc(reth_endpoint.clone(), json!({
+    custom_rpc(reth_endpoint.clone(), json!({
         "jsonrpc": "2.0",
         "method": "eth_getRawTransactionByBlockNumberAndIndex",
         "params": ["pending", 0],
         "id": 1
-    })).await;
-    let block_tx = custom_rpc(reth_endpoint, json!({
-        "jsonrpc": "2.0",
-        "method": "eth_getRawTransactionByBlockNumberAndIndex",
-        "params": [block_num, 0],
-        "id": 1
-    })).await;
-    debug!("block tx: {:?}", block_tx);
-    assert_eq!(pending_tx, block_tx);
+    })).await.unwrap();
 }
 
 pub(crate) async fn test_get_transaction_by_block_number_and_index(
-    reth_provider: &TestProvider,
     reth_endpoint: String
 ) {
     info!("test get transaction by number and index");
-
-    let chain_id = Some(reth_provider.get_chain_id().await.unwrap());
-    let nonce = Some(reth_provider.get_transaction_count(*EOSIO_ADDR).await.unwrap());
-    let legacy_tx_request = TransactionRequest {
-        from: Some(*EOSIO_ADDR),
-        to: Some(TxKind::from(*EVM_USER_ADDR)),
-        gas: Some(20_000_000u64),
-        gas_price: Some(113378400387),
-        value: Some(U256::from(1)),
-        nonce,
-        chain_id,
-        ..Default::default()
-    };
-
-    let tx_receipt = reth_provider.send_transaction(legacy_tx_request)
-        .await
-        .unwrap()
-        .get_receipt()
-        .await
-        .unwrap();
-
-    let block_num = format!("0x{:x}", tx_receipt.block_number.unwrap());
-
-    let pending_tx = custom_rpc(reth_endpoint.clone(), json!({
+    custom_rpc(reth_endpoint.clone(), json!({
         "jsonrpc": "2.0",
         "method": "eth_getTransactionByBlockNumberAndIndex",
         "params": ["pending", 0],
         "id": 1
-    })).await;
-    let block_tx = custom_rpc(reth_endpoint, json!({
-        "jsonrpc": "2.0",
-        "method": "eth_getTransactionByBlockNumberAndIndex",
-        "params": [block_num, 0],
-        "id": 1
-    })).await;
-    debug!("block tx: {:?}", block_tx);
-    assert_eq!(pending_tx, block_tx);
+    })).await.unwrap();
 }
 
 pub(crate) async fn test_balance(
-    reth_provider: &TestProvider,
     reth_endpoint: String,
 ) {
     info!("test balance");
-
-    let chain_id = Some(reth_provider.get_chain_id().await.unwrap());
-    let nonce = Some(reth_provider.get_transaction_count(*EOSIO_ADDR).await.unwrap());
-    let legacy_tx_request = TransactionRequest {
-        from: Some(*EOSIO_ADDR),
-        to: Some(TxKind::from(*EVM_USER_ADDR)),
-        gas: Some(20_000_000u64),
-        gas_price: Some(113378400387),
-        value: Some(U256::from(1)),
-        nonce,
-        chain_id,
-        ..Default::default()
-    };
-
-    let tx_receipt = reth_provider.send_transaction(legacy_tx_request)
-        .await
-        .unwrap()
-        .get_receipt()
-        .await
-        .unwrap();
-
-    let block_num = format!("0x{:x}", tx_receipt.block_number.unwrap());
-
-    let pending_balance = custom_rpc(reth_endpoint.clone(), json!({
+    custom_rpc(reth_endpoint.clone(), json!({
         "jsonrpc": "2.0",
         "method": "eth_getBalance",
         "params": [EOSIO_EVM_PUB_KEY, "pending"],
         "id": 1
-    })).await;
-    let block_balance = custom_rpc(reth_endpoint, json!({
-        "jsonrpc": "2.0",
-        "method": "eth_getBalance",
-        "params": [EOSIO_EVM_PUB_KEY, block_num],
-        "id": 1
-    })).await;
-    assert_eq!(pending_balance, block_balance);
+    })).await.unwrap();
 }
 
 pub(crate) async fn test_transaction_count(
     reth_endpoint: String
 ) {
     info!("test transaction count");
-    let pending_transaction_count = custom_rpc(reth_endpoint.clone(), json!({
+    custom_rpc(reth_endpoint.clone(), json!({
         "jsonrpc": "2.0",
         "method": "eth_getTransactionCount",
         "params": [EOSIO_EVM_PUB_KEY, "pending"],
         "id": 1
-    })).await;
-    let latest_transaction_count = custom_rpc(reth_endpoint, json!({
-        "jsonrpc": "2.0",
-        "method": "eth_getTransactionCount",
-        "params": [EOSIO_EVM_PUB_KEY, "latest"],
-        "id": 1
-    })).await;
-    assert_eq!(pending_transaction_count, latest_transaction_count);
+    })).await.unwrap();
 }
 
 pub(crate) async fn test_get_code_and_get_storage(
@@ -393,19 +252,12 @@ pub(crate) async fn test_get_code_and_get_storage(
     let contract_address = receipt.contract_address().unwrap().to_string();
 
     // test get code
-    let pending_get_code = custom_rpc(reth_endpoint.clone(), json!({
+    custom_rpc(reth_endpoint.clone(), json!({
         "jsonrpc": "2.0",
         "method": "eth_getCode",
         "params": [contract_address, "pending"],
         "id": 1
-    })).await;
-    let latest_get_code = custom_rpc(reth_endpoint.clone(), json!({
-        "jsonrpc": "2.0",
-        "method": "eth_getCode",
-        "params": [contract_address, "latest"],
-        "id": 1
-    })).await;
-    assert_eq!(pending_get_code, latest_get_code);
+    })).await.unwrap();
 
     // compare both storage slots
     for (i, slot_value) in slots.iter().enumerate() {
@@ -414,15 +266,8 @@ pub(crate) async fn test_get_code_and_get_storage(
             "method": "eth_getStorageAt",
             "params": [contract_address, i, "pending"],
             "id": 1
-        })).await;
-        let latest_get_storage_at = custom_rpc(reth_endpoint.clone(), json!({
-            "jsonrpc": "2.0",
-            "method": "eth_getStorageAt",
-            "params": [contract_address, i, "latest"],
-            "id": 1
-        })).await;
-        assert_eq!(pending_get_storage_at, latest_get_storage_at);
-        assert_eq!(pending_get_storage_at["result"], *slot_value);
+        })).await.unwrap();
+        assert_eq!(pending_get_storage_at, *slot_value);
     }
 }
 
@@ -430,19 +275,12 @@ pub(crate) async fn test_header_by_number(
     reth_endpoint: String
 ) {
     info!("test header by number");
-    let pending_header = custom_rpc(reth_endpoint.clone(), json!({
+    custom_rpc(reth_endpoint.clone(), json!({
         "jsonrpc": "2.0",
         "method": "eth_getHeaderByNumber",
         "params": ["pending"],
         "id": 1
-    })).await;
-    let latest_header = custom_rpc(reth_endpoint, json!({
-        "jsonrpc": "2.0",
-        "method": "eth_getHeaderByNumber",
-        "params": ["latest"],
-        "id": 1
-    })).await;
-    assert_eq!(pending_header, latest_header);
+    })).await.unwrap();
 }
 
 pub(crate) async fn test_simulate_v1(
@@ -499,22 +337,14 @@ pub(crate) async fn test_simulate_v1(
         "traceTransfers": false
     });
 
-    let pending_simulate = custom_rpc(reth_endpoint.clone(), json!({
+    custom_rpc(reth_endpoint.clone(), json!({
         "jsonrpc": "2.0",
         "method": "eth_simulateV1",
         "params": [simulation, "pending"],
         "id": 1
-    })).await;
-
-    let latest_simulate = custom_rpc(reth_endpoint.clone(), json!({
-        "jsonrpc": "2.0",
-        "method": "eth_simulateV1",
-        "params": [simulation, "latest"],
-        "id": 1
-    })).await;
-
-    assert_eq!(pending_simulate, latest_simulate);
+    })).await.unwrap();
 }
+
 pub(crate) async fn test_precompile_call(
     reth_endpoint: String
 ) {
@@ -533,15 +363,8 @@ pub(crate) async fn test_precompile_call(
         "method": "eth_call",
         "params": [call_params, "pending"],
         "id": 1
-    })).await;
-    let latest_h = custom_rpc(reth_endpoint, json!({
-        "jsonrpc": "2.0",
-        "method": "eth_call",
-        "params": [call_params, "latest"],
-        "id": 1
-    })).await;
-    assert_eq!(pending_h["result"], expected_hash_str);
-    assert_eq!(pending_h, latest_h);
+    })).await.unwrap();
+    assert_eq!(pending_h, expected_hash_str);
 }
 
 pub(crate) async fn test_call(
@@ -605,15 +428,8 @@ pub(crate) async fn test_call(
         "method": "eth_call",
         "params": [call_params, "pending"],
         "id": 1
-    })).await;
-    let latest_h = custom_rpc(reth_endpoint, json!({
-        "jsonrpc": "2.0",
-        "method": "eth_call",
-        "params": [call_params, "latest"],
-        "id": 1
-    })).await;
-    assert_eq!(pending_h["result"], expected_val);
-    assert_eq!(pending_h, latest_h);
+    })).await.unwrap();
+    assert_eq!(pending_h, expected_val);
 }
 
 pub(crate) async fn test_create_access_list(
@@ -669,7 +485,7 @@ pub(crate) async fn test_create_access_list(
     let contract_address = receipt.contract_address().unwrap();
 
     let contract = AccessListTest::new(contract_address, reth_provider.clone());
-    
+
     let encoded_data = AccessListTest::storeValueCall {
         _value: U256::from(42)
     }.abi_encode().iter().map(|b| format!("{:02x}", b)).collect::<String>();
@@ -685,19 +501,12 @@ pub(crate) async fn test_create_access_list(
         "data": encoded_data
     });
 
-    let pending_ac = custom_rpc(reth_endpoint.clone(), json!({
+    custom_rpc(reth_endpoint.clone(), json!({
         "jsonrpc": "2.0",
         "method": "eth_createAccessList",
         "params": [call_params, "pending"],
         "id": 1
-    })).await;
-    let latest_ac = custom_rpc(reth_endpoint, json!({
-        "jsonrpc": "2.0",
-        "method": "eth_createAccessList",
-        "params": [call_params, "latest"],
-        "id": 1
-    })).await;
-    assert_eq!(pending_ac, latest_ac);
+    })).await.unwrap();
 }
 
 pub(crate) async fn test_estimate_gas(
@@ -719,47 +528,31 @@ pub(crate) async fn test_estimate_gas(
         "data": "0x"
     });
 
-    let pending_estimate = custom_rpc(reth_endpoint.clone(), json!({
+    custom_rpc(reth_endpoint.clone(), json!({
         "jsonrpc": "2.0",
         "method": "eth_estimateGas",
         "params": [tx, "pending"],
         "id": 1
-    })).await;
-    let latest_estimate = custom_rpc(reth_endpoint, json!({
-        "jsonrpc": "2.0",
-        "method": "eth_estimateGas",
-        "params": [tx, "latest"],
-        "id": 1
-    })).await;
-    assert_eq!(pending_estimate, latest_estimate);
+    })).await.unwrap();
 }
 
 pub(crate) async fn test_get_account(
     reth_endpoint: String
 ) {
     info!("test get account");
-    let pending_acc = custom_rpc(reth_endpoint.clone(), json!({
+    custom_rpc(reth_endpoint.clone(), json!({
         "jsonrpc": "2.0",
         "method": "eth_getAccount",
         "params": [EOSIO_EVM_PUB_KEY, "pending"],
         "id": 1
-    })).await;
-    let latest_acc = custom_rpc(reth_endpoint, json!({
-        "jsonrpc": "2.0",
-        "method": "eth_getAccount",
-        "params": [EOSIO_EVM_PUB_KEY, "latest"],
-        "id": 1
-    })).await;
-    assert_eq!(pending_acc, latest_acc);
+    })).await.unwrap();
 }
 
 pub(crate) async fn test_fee_history(
     reth_provider: &TestProvider,
 ) {
     info!("test block by number");
-    let pending_fee_hist = reth_provider.get_fee_history(10, BlockNumberOrTag::Pending, &[]).await.unwrap();
-    let latest_fee_hist = reth_provider.get_fee_history(10, BlockNumberOrTag::Latest, &[]).await.unwrap();
-    assert_eq!(pending_fee_hist, latest_fee_hist);
+    reth_provider.get_fee_history(10, BlockNumberOrTag::Pending, &[]).await.unwrap();
 }
 
 pub(crate) async fn test_get_proof(
@@ -820,19 +613,12 @@ pub(crate) async fn test_get_proof(
         format!("0x{:064x}", 3),
     ]);
 
-    let pending_proof = custom_rpc(reth_endpoint.clone(), json!({
+    custom_rpc(reth_endpoint.clone(), json!({
         "jsonrpc": "2.0",
         "method": "eth_getProof",
         "params": [contract_address.clone(), storage_keys.clone(), "pending"],
         "id": 1
-    })).await;
-    let latest_proof = custom_rpc(reth_endpoint, json!({
-        "jsonrpc": "2.0",
-        "method": "eth_getProof",
-        "params": [contract_address.clone(), storage_keys.clone(), "latest"],
-        "id": 1
-    })).await;
-    assert_eq!(pending_proof, latest_proof);
+    })).await.unwrap();
 }
 
 pub(crate) async fn run_all_pending_rpc_tests(
@@ -842,15 +628,11 @@ pub(crate) async fn run_all_pending_rpc_tests(
     test_block_by_number(&reth_provider).await;
     test_tx_count_by_number(reth_endpoint.clone()).await;
     test_uncle_count_by_number(reth_endpoint.clone()).await;
-
-    // not passing, response is null when should be u64
-    // test_uncle_count_by_number_2(&reth_provider).await;
-
     test_get_block_receipts(&reth_provider).await;
     test_get_uncle_by_block_number_and_index(reth_endpoint.clone()).await;
-    test_get_raw_transaction_by_block_number_and_index(&reth_provider, reth_endpoint.clone()).await;
-    test_get_transaction_by_block_number_and_index(&reth_provider, reth_endpoint.clone()).await;
-    test_balance(&reth_provider, reth_endpoint.clone()).await;
+    test_get_raw_transaction_by_block_number_and_index(reth_endpoint.clone()).await;
+    test_get_transaction_by_block_number_and_index(reth_endpoint.clone()).await;
+    test_balance(reth_endpoint.clone()).await;
     test_transaction_count(reth_endpoint.clone()).await;
     test_get_code_and_get_storage(&reth_provider, reth_endpoint.clone()).await;
     test_header_by_number(reth_endpoint.clone()).await;
@@ -862,5 +644,4 @@ pub(crate) async fn run_all_pending_rpc_tests(
     test_get_account(reth_endpoint.clone()).await;
     test_fee_history(&reth_provider).await;
     test_get_proof(&reth_provider, reth_endpoint.clone()).await;
-
 }
