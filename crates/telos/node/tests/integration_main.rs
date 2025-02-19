@@ -7,7 +7,7 @@ use std::env;
 use std::time::Duration;
 use alloy_provider::{Provider, ProviderBuilder};
 use antelope::api::client::{APIClient, DefaultProvider};
-use integration::test_tx_types::test_get_account_bug;
+use integration::test_tx_types::{test_delegate_call_bug, test_get_account_bug};
 use reqwest::Url;
 use telos_translator_rs::block::TelosEVMBlock;
 use tokio::sync::mpsc;
@@ -150,6 +150,7 @@ async fn run_rev_0_tests(reth_provider: &TestProvider, telos_api: &APIClient<Def
     test_revision(&telos_api, None).await;
     test_evm_address_nonce(&reth_provider, &telos_api).await;
     test_get_account_bug(&reth_provider, &telos_api, true).await;
+    test_delegate_call_bug(&reth_provider, &telos_api, true).await;
 }
 
 async fn run_rev_1_tests(reth_provider: &TestProvider, telos_api: &APIClient<DefaultProvider>) {
@@ -168,6 +169,7 @@ async fn run_rev_1_tests(reth_provider: &TestProvider, telos_api: &APIClient<Def
     test_deposit_lower_than_address_zero_balance(&reth_provider, &telos_api).await;
 
     test_get_account_bug(&reth_provider, &telos_api, false).await;
+    test_delegate_call_bug(&reth_provider, &telos_api, false).await;
 
     test_bad_memo(&reth_provider, &telos_api).await;
 

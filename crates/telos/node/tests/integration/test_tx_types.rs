@@ -148,7 +148,7 @@ pub(crate) async fn test_wrong_nonce(provider: &TestProvider) {
     let err = tx_result.unwrap_err();
     assert_eq!(
         err.to_string(),
-        "server returned an error response: error code -32003: nonce too low: next nonce 10, tx nonce 0"
+        "server returned an error response: error code -32003: nonce too low: next nonce 12, tx nonce 0"
     )
 }
 
@@ -643,5 +643,108 @@ pub(crate) async fn test_get_account_bug(reth_provider: &TestProvider, telos_cli
 
 }
 
-pub(crate) async fn test_delegate_call_bug(provider: &TestProvider, telos_client: &APIClient<DefaultProvider>, expected_outcome: Bool) {
+pub(crate) async fn test_delegate_call_bug(reth_provider: &TestProvider, telos_client: &APIClient<DefaultProvider>, expected_outcome: bool) {
+    info!("test delegate call bug, expected outcome: {}", expected_outcome);
+
+    let nonce = reth_provider.get_transaction_count(*EOSIO_ADDR).await.unwrap();
+    let chain_id = reth_provider.get_chain_id().await.unwrap();
+    let gas_price = reth_provider.get_gas_price().await.unwrap();
+
+    sol! {
+        #[sol(rpc, bytecode="608060405234801561001057600080fd5b506103e2806100206000396000f3fe6080604052600436106100295760003560e01c806312210e8a1461002e578063ac9650d814610038575b600080fd5b610036610054565b005b610052600480360381019061004d91906101e5565b61006a565b005b600047111561006857610067334761012b565b5b565b60005b828290508110156101265760003073ffffffffffffffffffffffffffffffffffffffff168484848181106100a4576100a3610232565b5b90506020028101906100b69190610270565b6040516100c4929190610312565b600060405180830381855af49150503d80600081146100ff576040519150601f19603f3d011682016040523d82523d6000602084013e610104565b606091505b505090508061011257600080fd5b50808061011e90610364565b91505061006d565b505050565b8173ffffffffffffffffffffffffffffffffffffffff166108fc829081150290604051600060405180830381858888f19350505050158015610171573d6000803e3d6000fd5b505050565b600080fd5b600080fd5b600080fd5b600080fd5b600080fd5b60008083601f8401126101a5576101a4610180565b5b8235905067ffffffffffffffff8111156101c2576101c1610185565b5b6020830191508360208202830111156101de576101dd61018a565b5b9250929050565b600080602083850312156101fc576101fb610176565b5b600083013567ffffffffffffffff81111561021a5761021961017b565b5b6102268582860161018f565b92509250509250929050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052603260045260246000fd5b600080fd5b600080fd5b600080fd5b6000808335600160200384360303811261028d5761028c610261565b5b80840192508235915067ffffffffffffffff8211156102af576102ae610266565b5b6020830192506001820236038313156102cb576102ca61026b565b5b509250929050565b600081905092915050565b82818337600083830152505050565b60006102f983856102d3565b93506103068385846102de565b82840190509392505050565b600061031f8284866102ed565b91508190509392505050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601160045260246000fd5b6000819050919050565b600061036f8261035a565b91507fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff82036103a1576103a061032b565b5b60018201905091905056fea26469706673582212204b3df5d960eccea2768412c0b88c37173c20373075cf79113f28a5fb85e6d0a264736f6c63430008130033")]
+        contract MulticallTest {
+            function multicall(bytes[] calldata data) external payable {
+                for (uint256 i = 0; i < data.length; i++) {
+                    (bool success, ) = address(this).delegatecall(data[i]);
+                    require(success, "");
+                }
+            }
+        
+            function safeTransferETH(address to, uint256 value) internal {
+                payable(to).transfer(value);
+            }
+        
+            function refundETH() external payable {
+                if (address(this).balance > 0) safeTransferETH(msg.sender, address(this).balance);
+            }
+        }
+    }
+
+    let legacy_tx = alloy_consensus::TxLegacy {
+        chain_id: Some(chain_id),
+        nonce,
+        gas_price: gas_price.into(),
+        gas_limit: 20_000_000,
+        to: TxKind::Create,
+        value: U256::ZERO,
+        input: MulticallTest::BYTECODE.to_vec().into(),
+    };
+
+    let legacy_tx_request = TransactionRequest {
+        from: Some(*EOSIO_ADDR),
+        to: Some(legacy_tx.to),
+        gas: Some(legacy_tx.gas_limit as u64),
+        gas_price: Some(legacy_tx.gas_price),
+        value: Some(legacy_tx.value),
+        input: TransactionInput::from(legacy_tx.input),
+        nonce: Some(legacy_tx.nonce),
+        chain_id: legacy_tx.chain_id,
+        ..Default::default()
+    };
+
+    let deploy_result = reth_provider.send_transaction(legacy_tx_request.clone()).await.unwrap();
+
+    let deploy_tx_hash = deploy_result.tx_hash().clone();
+    debug!("Deployed contract with tx hash: {deploy_tx_hash}");
+    let receipt = deploy_result.get_receipt().await.unwrap();
+    debug!("Receipt: {:?}", receipt);
+
+    let deployed_contract_address = receipt.contract_address.unwrap();
+    let multicall_test = MulticallTest::new(deployed_contract_address, reth_provider.clone());
+
+    let legacy_tx_request = TransactionRequest::default()
+        .with_from(*EOSIO_ADDR)
+        .with_to(deployed_contract_address)
+        .with_gas_limit(20_000_000)
+        .with_gas_price(gas_price)
+        .with_input(multicall_test.multicall(vec![multicall_test.refundETH().calldata().clone(),multicall_test.refundETH().calldata().clone()]).calldata().clone())
+        .with_nonce(reth_provider.get_transaction_count(*EOSIO_ADDR).await.unwrap())
+        .with_chain_id(chain_id)
+        .with_value(U256::from_str("2").unwrap());
+
+    let call_result = reth_provider.send_transaction(legacy_tx_request.clone()).await.unwrap();
+
+    let call_tx_hash = call_result.tx_hash().clone();
+    debug!("Called contract with tx hash: {call_tx_hash}");
+    let receipt = call_result.get_receipt().await.unwrap();
+    debug!("Receipt: {:?}", receipt);
+
+    if expected_outcome == true {
+        assert_eq!(receipt.status(), false);
+        assert_eq!(receipt.gas_used, 31427);
+    } else {
+        assert_eq!(receipt.status(), true);
+        assert_eq!(receipt.gas_used, 31750);
+    }
+
+    let mut address_256 = [0; 32];
+    address_256[12..32].copy_from_slice(EOSIO_ADDR.as_slice());
+    let query_params_account = GetTableRowsParams {
+        code: name!("eosio.evm"),
+        table: name!("account"),
+        scope: None,
+        lower_bound: Some(TableIndexType::CHECKSUM256(Checksum256::from_bytes(&address_256).unwrap())),
+        upper_bound: Some(TableIndexType::CHECKSUM256(Checksum256::from_bytes(&address_256).unwrap())),
+        limit: Some(1),
+        reverse: None,
+        index_position: Some(IndexPosition::SECONDARY),
+        show_payer: None,
+    };
+    let account_rows = telos_client.v1_chain.get_table_rows::<AccountRow>(query_params_account).await;
+    if let Ok(account_rows) = account_rows {
+        assert_eq!(account_rows.rows.len(), 1);
+        assert_eq!(account_rows.rows[0].address, Checksum160::from_bytes(EOSIO_ADDR.as_slice()).unwrap());
+        assert_eq!(account_rows.rows[0].balance, Checksum256::from_bytes(&reth_provider.get_balance(*EOSIO_ADDR).await.unwrap().to_be_bytes_vec()).unwrap());
+    }
+
 }
