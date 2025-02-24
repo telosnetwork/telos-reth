@@ -222,6 +222,42 @@ fn tx_trailing_empty_values() -> eyre::Result<Signed<TxLegacy>> {
     Ok(TxLegacy::decode_telos_signed_fields(&mut &byte_array[..], Some(sig))?)
 }
 
+pub(crate) async fn test_incorrect_rlp2() {
+    info!("test incorrect rlp 2");
+    // This tx has zero bytes at the begining of the value field
+    let byte_array1: [u8; 110] = [
+        248, 108, 128, 133, 145, 118, 175, 139, 189, 130, 102, 138, 148, 214, 158,
+        75, 228, 231, 154, 220, 229, 255, 60, 247, 180, 252, 44, 195, 128, 100, 144,
+        161, 226, 136, 0, 0, 91, 89, 211, 178, 0, 0, 128, 116, 160, 233, 104, 245,
+        146, 128, 22, 167, 66, 240, 231, 190, 223, 155, 110, 74, 146, 242, 35, 55,
+        159, 19, 54, 28, 159, 204, 118, 79, 178, 79, 4, 206, 34, 160, 46, 106, 147,
+        128, 181, 16, 24, 179, 70, 133, 148, 83, 112, 28, 214, 55, 13, 22, 254,
+        33, 156, 138, 218, 222, 185, 184, 27, 126, 66, 57, 225, 171,
+    ];
+    let byte_array1_result_regular = TxLegacy::decode_signed_fields(&mut &byte_array1[..]);
+    // It should fail in being decoded in regular RLP decode function
+    assert!(byte_array1_result_regular.is_err());
+    let byte_array1_result_telos = TxLegacy::decode_telos_signed_fields(&mut &byte_array1[..], None);
+    // But it should succeed in being decoded in Telos custom RLP decode function
+    assert!(byte_array1_result_telos.is_ok());
+
+    // This tx has extra bytes at the end of transaction
+    let byte_array2: [u8; 118] = [
+        248, 108, 128, 133, 145, 118, 175, 139, 189, 130, 102, 138, 148, 214, 158,
+        75, 228, 231, 154, 220, 229, 255, 60, 247, 180, 252, 44, 195, 128, 100,
+        144, 161, 226, 136, 6, 240, 91, 89, 211, 178, 0, 0, 128, 116, 160, 233,
+        104, 245, 146, 128, 22, 167, 66, 240, 231, 190, 223, 155, 110, 74, 146,
+        242, 35, 55, 159, 19, 54, 28, 159, 204, 118, 79, 178, 79, 4, 206, 34, 160,
+        46, 106, 147, 128, 181, 16, 24, 179, 70, 133, 148, 83, 112, 28, 214, 55,
+        13, 22, 254, 33, 156, 138, 218, 222, 185, 184, 27, 126, 66, 57, 225, 171,
+        1, 2, 3, 4, 5, 6, 7, 8,
+    ];
+    let byte_array2_result = TxLegacy::decode_telos_signed_fields(&mut &byte_array2[..], None);
+    // It should succeed in being decoded in Telos custom RLP decode function
+    assert!(byte_array2_result.is_ok());
+
+}
+
 pub(crate) async fn test_unsigned_trx(provider: &TestProvider) {
     info!("test unsigned trx");
     let chain_id = Some(provider.get_chain_id().await.unwrap());
