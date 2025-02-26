@@ -48,7 +48,7 @@
 
 use sha2::{Digest, Sha256};
 use alloy_network::ReceiptResponse;
-use alloy_primitives::{TxKind, B256, U256};
+use alloy_primitives::{B256, U256};
 use alloy_primitives::TxKind::Create;
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag};
@@ -56,20 +56,18 @@ use alloy_sol_types::{sol, SolCall};
 use reqwest::{Client, Error};
 use serde_json::{json, Value};
 use tracing::log::{debug, info};
-use reth::rpc::server_types::eth::EthApiError;
-use reth::rpc::server_types::eth::simulate::EthSimulateError;
 use reth::rpc::types::{TransactionInput, TransactionRequest};
 use crate::utils::cleos_evm::{TestProvider, EOSIO_ADDR, EOSIO_EVM_PUB_KEY, EVM_USER_ADDR};
 
 #[derive(Debug)]
 enum RPCError {
-    Network(reqwest::Error),
-    RPC(String),
+    Network,
+    RPC,
 }
 
-impl From<reqwest::Error> for RPCError {
-    fn from(value: Error) -> Self {
-        RPCError::Network(value)
+impl From<Error> for RPCError {
+    fn from(_value: Error) -> Self {
+        RPCError::Network
     }
 }
 
@@ -87,7 +85,7 @@ async fn custom_rpc(
 
     let maybe_error = json_resp.get("error");
     if maybe_error.is_some() {
-        return Err(RPCError::RPC(maybe_error.unwrap().to_string()));
+        return Err(RPCError::RPC);
     }
 
     Ok(json_resp.get("result")
@@ -484,7 +482,7 @@ pub(crate) async fn test_create_access_list(
 
     let contract_address = receipt.contract_address().unwrap();
 
-    let contract = AccessListTest::new(contract_address, reth_provider.clone());
+    let _contract = AccessListTest::new(contract_address, reth_provider.clone());
 
     let encoded_data = AccessListTest::storeValueCall {
         _value: U256::from(42)
