@@ -7,7 +7,6 @@ use alloy_provider::Provider;
 use alloy_rpc_types::{AccessList, AccessListItem, TransactionInput, TransactionRequest};
 use alloy_rpc_types::BlockNumberOrTag::Latest;
 use alloy_sol_types::sol;
-use alloy_sol_types::sol_data::Bool;
 use antelope::api::system::structs::CreateAccountParams;
 use antelope::api::system::SystemAPI;
 use antelope::api::v1::structs::{GetTableRowsParams, IndexPosition, TableIndexType};
@@ -24,7 +23,7 @@ use antelope::chain::checksum::{Checksum160, Checksum256};
 use num_bigint::{BigUint, ToBigUint};
 use telos_translator_rs::rlp::telos_rlp_decode::TelosTxDecodable;
 use tracing::log::info;
-use crate::utils::cleos_evm::{transfer_tx, TestProvider, EOSIO_ADDR, EVM_USER, EVM_USER_ADDR};
+use crate::utils::cleos_evm::{transfer_tx, TestProvider, EOSIO_ADDR, EVM_USER_ADDR};
 
 // test_1559_tx tests sending eip1559 transaction that has max_priority_fee_per_gas and max_fee_per_gas set
 pub(crate) async fn test_1559_tx(provider: &TestProvider) {
