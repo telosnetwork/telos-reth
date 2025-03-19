@@ -7,7 +7,7 @@ use crate::{
 use alloc::{boxed::Box, sync::Arc, vec, vec::Vec};
 use alloy_primitives::{BlockNumber, U256};
 use core::fmt::Display;
-use reth_chainspec::{ChainSpec, EthereumHardforks, MAINNET};
+use reth_chainspec::{ChainSpec, EthereumHardforks, MAINNET, TEVMTESTNET};
 use reth_ethereum_consensus::validate_block_post_execution;
 use reth_evm::{
     execute::{
@@ -268,6 +268,7 @@ where
             // Perform state diff comparision
             let revm_state_diffs = evm.db_mut().transition_state.clone().unwrap_or_default().transitions;
             let block_num = block.block.header.number;
+            let chain_id = evm.cfg().chain_id;
             println!(
                 "Compare: block {block_num} {}",
                 compare_state_diffs(
@@ -277,7 +278,8 @@ where
                     unwrapped_telos_extra_fields.statediffs_accountstate.clone().unwrap_or_default(),
                     unwrapped_telos_extra_fields.new_addresses_using_create.clone().unwrap_or_default(),
                     unwrapped_telos_extra_fields.new_addresses_using_openwallet.clone().unwrap_or_default(),
-                    false
+                    false,
+                    chain_id == TEVMTESTNET.chain.id() && block_num == 137_430_500
                 )
             );
         }
