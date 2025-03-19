@@ -21,12 +21,26 @@ use reth_telos_rpc::TelosClient;
 mod integration;
 mod utils;
 
-use crate::integration::test_bad_memo::test_bad_memo;
+use crate::integration::test_bad_memo::{test_bad_memo, test_bad_memo_evm};
 use crate::integration::test_blocknum::test_blocknum_onchain;
 use crate::integration::test_nonce::test_evm_address_nonce;
-use crate::integration::test_resources_sandwich::{test_2k_txs, test_doresources_sandwich, test_setrevision_sandwich};
+use crate::integration::test_resources_sandwich::{test_doresources_sandwich, test_setrevision_sandwich};
 use crate::integration::test_revision::test_revision;
-use crate::integration::test_tx_types::{test_1559_tx, test_2930_tx, test_double_approve_erc20, test_high_nonce, test_incorrect_rlp, test_incorrect_rlp2, test_signed_trx, test_unsigned_trx, test_unsigned_trx2, test_wrong_nonce, test_deposit_to_address_zero, test_deposit_lower_than_address_zero_balance};
+use crate::integration::test_tx_types::{
+    test_1559_tx,
+    test_2930_tx,
+    test_double_approve_erc20,
+    test_high_nonce,
+    test_incorrect_rlp,
+    test_incorrect_rlp2,
+    test_signed_trx,
+    test_unsigned_trx,
+    test_unsigned_trx2,
+    test_wrong_nonce,
+    test_deposit_to_address_zero,
+    test_deposit_lower_than_address_zero_balance
+};
+use crate::integration::test_pending_rpc::run_all_pending_rpc_tests;
 use crate::utils::cleos_evm::{setrevision_tx, sign_native_tx, TestProvider, EOSIO_PKEY, EOSIO_WALLET};
 
 #[tokio::test]
@@ -125,7 +139,7 @@ async fn integration_test_entrypoint() {
         }
     }
 
-    run_rev_0_tests(&reth_provider, &telos_api).await;
+    run_rev_0_tests(&reth_provider, rpc_url.to_string(), &telos_api).await;
 
     // set revision to 1
     let info = telos_api.v1_chain.get_info().await.unwrap();
@@ -146,9 +160,15 @@ async fn integration_test_entrypoint() {
     info!("Translator shutdown done.");
 }
 
-async fn run_rev_0_tests(reth_provider: &TestProvider, telos_api: &APIClient<DefaultProvider>) {
+async fn run_rev_0_tests(
+    reth_provider: &TestProvider, reth_endpoint: String,
+    telos_api: &APIClient<DefaultProvider>
+) {
     test_revision(&telos_api, None).await;
     test_evm_address_nonce(&reth_provider, &telos_api).await;
+
+    run_all_pending_rpc_tests(&reth_provider, reth_endpoint).await;
+
     test_get_account_bug(&reth_provider, &telos_api, true).await;
     test_delegate_call_bug(&reth_provider, &telos_api, true).await;
 }
@@ -172,10 +192,9 @@ async fn run_rev_1_tests(reth_provider: &TestProvider, telos_api: &APIClient<Def
     test_get_account_bug(&reth_provider, &telos_api, false).await;
     test_delegate_call_bug(&reth_provider, &telos_api, false).await;
 
+    test_bad_memo_evm(&reth_provider, &telos_api).await;
     test_bad_memo(&reth_provider, &telos_api).await;
 
-    // 2k txs needed to seed fees for resource sandwich
-    test_2k_txs(&reth_provider, &telos_api).await;
     test_doresources_sandwich(&reth_provider, &telos_api).await;
     test_setrevision_sandwich(&reth_provider, &telos_api).await;
 }

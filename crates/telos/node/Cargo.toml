@@ -80,6 +80,7 @@ reqwest.workspace = true
 
 reth-e2e-test-utils.workspace = true
 eyre.workspace = true
+sha2.workspace = true
 
 telos-consensus-client = { git = "https://github.com/telosnetwork/telos-consensus-client", branch = "antelope_sha256_fix" }
 telos-translator-rs = { git = "https://github.com/telosnetwork/telos-consensus-client", branch = "antelope_sha256_fix" }
