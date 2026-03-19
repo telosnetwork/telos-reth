@@ -19,7 +19,7 @@ use tracing::{debug, error, warn};
 use backoff::Exponential;
 use reth_primitives::revm_primitives::bitvec::macros::internal::funty::Fundamental;
 use reth_rpc_eth_types::error::EthResult;
-use reth_rpc_eth_types::{EthApiError, RpcInvalidTransactionError};
+use reth_rpc_eth_types::{EthApiError, RpcInvalidTransactionError, RpcPoolError};
 
 #[derive(Debug)]
 struct TelosError(ClientError<SendTransactionResponse2Error>);
@@ -55,6 +55,18 @@ fn parse_error_message(message: String) -> Option<EthApiError> {
     if message.contains("Transaction gas price") {
         // TODO: gas to high
         return Some(EthApiError::InvalidTransaction(RpcInvalidTransactionError::GasTooLow));
+    }
+    // Insufficient funds: eosio.evm returns "Sender balance too low to pay for gas"
+    if message.contains("balance too low") {
+        return Some(EthApiError::InvalidTransaction(
+            RpcInvalidTransactionError::InsufficientFundsForTransfer,
+        ));
+    }
+    // Already known: eosio.evm returns this when a duplicate tx is submitted
+    if message.contains("already known") || message.contains("duplicate") {
+        return Some(EthApiError::PoolError(
+            RpcPoolError::Invalid(RpcInvalidTransactionError::AlreadyKnown),
+        ));
     }
     if !message.contains("incorrect nonce") {
         return Some(EthApiError::EvmCustom(message.to_string()));
