@@ -146,6 +146,9 @@ pub static TEVMMAINNET: Lazy<Arc<ChainSpec>> = Lazy::new(|| {
                 (EthereumHardfork::Istanbul, ForkCondition::Block(0)),
                 (EthereumHardfork::MuirGlacier, ForkCondition::Block(0)),
                 (EthereumHardfork::Berlin, ForkCondition::Block(0)),
+                (EthereumHardfork::London, ForkCondition::Block(0)),
+                (EthereumHardfork::Shanghai, ForkCondition::Timestamp(0)),
+                (EthereumHardfork::Cancun, ForkCondition::Timestamp(0)),
             ]
             .into_iter()
             .map(|(a, b)| (a.boxed(), b))
@@ -177,6 +180,9 @@ pub static TEVMTESTNET: Lazy<Arc<ChainSpec>> = Lazy::new(|| {
                 (EthereumHardfork::Istanbul, ForkCondition::Block(0)),
                 (EthereumHardfork::MuirGlacier, ForkCondition::Block(0)),
                 (EthereumHardfork::Berlin, ForkCondition::Block(0)),
+                (EthereumHardfork::London, ForkCondition::Block(0)),
+                (EthereumHardfork::Shanghai, ForkCondition::Timestamp(0)),
+                (EthereumHardfork::Cancun, ForkCondition::Timestamp(0)),
             ]
             .into_iter()
             .map(|(a, b)| (a.boxed(), b))
@@ -208,6 +214,9 @@ pub static TEVMMAINNET_BASE: Lazy<Arc<ChainSpec>> = Lazy::new(|| {
                 (EthereumHardfork::Istanbul, ForkCondition::Block(180698823)),
                 (EthereumHardfork::MuirGlacier, ForkCondition::Block(180698823)),
                 (EthereumHardfork::Berlin, ForkCondition::Block(180698823)),
+                (EthereumHardfork::London, ForkCondition::Block(180698823)),
+                (EthereumHardfork::Shanghai, ForkCondition::Timestamp(0)),
+                (EthereumHardfork::Cancun, ForkCondition::Timestamp(0)),
             ]
             .into_iter()
             .map(|(a, b)| (a.boxed(), b))
@@ -240,6 +249,9 @@ pub static TEVMTESTNET_BASE: Lazy<Arc<ChainSpec>> = Lazy::new(|| {
                 (EthereumHardfork::Istanbul, ForkCondition::Block(136393756)),
                 (EthereumHardfork::MuirGlacier, ForkCondition::Block(136393756)),
                 (EthereumHardfork::Berlin, ForkCondition::Block(136393756)),
+                (EthereumHardfork::London, ForkCondition::Block(136393756)),
+                (EthereumHardfork::Shanghai, ForkCondition::Timestamp(0)),
+                (EthereumHardfork::Cancun, ForkCondition::Timestamp(0)),
             ]
             .into_iter()
             .map(|(a, b)| (a.boxed(), b))
